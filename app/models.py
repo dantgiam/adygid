@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean, func
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
 from app.database import Base
@@ -128,6 +128,9 @@ class Article(Base):
     excerpt                = Column(String(500), nullable=True)
     cover_url              = Column(String(500), nullable=True)
     body                   = Column(Text, nullable=False, default="")
+    # Список {"question": "...", "answer": "..."} — рендерится и текстом в
+    # конце статьи, и как JSON-LD FAQPage для расширенного сниппета в поиске.
+    faq                    = Column(JSONB, nullable=False, default=list)
     district               = Column(String(30), nullable=True)
     featured_checkpoint_ids = Column(ARRAY(Integer), nullable=False, default=list)
     featured_trail_ids      = Column(ARRAY(Integer), nullable=False, default=list)
@@ -148,3 +151,17 @@ class Photo(Base):
 
     checkpoint = relationship("Checkpoint", back_populates="photos")
     trail      = relationship("Trail", back_populates="photos")
+
+
+class Like(Base):
+    """Анонимный лайк «Пригодилось» на месте или маршруте публичного сайта.
+    voter_id — случайный ID из cookie браузера (не аккаунт), уникальный индекс
+    не даёт одному и тому же браузеру засчитать лайк дважды."""
+    __tablename__ = "likes"
+    __table_args__ = (UniqueConstraint("subject_type", "subject_id", "voter_id", name="uq_like_voter"),)
+
+    id           = Column(Integer, primary_key=True, index=True)
+    subject_type = Column(String(20), nullable=False)   # checkpoint / trail
+    subject_id   = Column(Integer, nullable=False)
+    voter_id     = Column(String(64), nullable=False)
+    created_at   = Column(DateTime, server_default=func.now())

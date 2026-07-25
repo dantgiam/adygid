@@ -1,16 +1,34 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
 
-{% block title %}АдыГид — личный гид по Адыгее{% endblock %}
+{% block title %}АдыГид — личный гид по Адыгее: места, маршруты, планы поездки{% endblock %}
+{% block meta_description %}Места и маршруты Адыгеи, пройденные лично: Хаджохская теснина, водопады Руфабго, плато Лаго-Наки. Честные расстояния, актуальные цены и готовые планы поездки на 2-3 дня, 4-5 дней и неделю.{% endblock %}
 
 {% block content %}
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
       <p class="eyebrow">Привет</p>
-      <h1 class="page-title">Меня зовут [Ваше имя] — я провожу здесь, в горах Адыгеи, и собрал АдыГид, чтобы делиться тем, что действительно стоит увидеть</h1>
+      <h1 class="page-title">Меня зовут Данила — я провожу здесь, в горах Адыгеи, и собрал АдыГид, чтобы делиться тем, что действительно стоит увидеть</h1>
       <p class="about-text">Здесь — места и маршруты, которые я сам прошёл и проверил, без воды и рекламных описаний. Если вы впервые в Адыгее — начните со статей ниже, они помогут быстро сориентироваться.</p>
-      <p class="about-text">[Место для короткой личной истории: как вы начали водить людей по Адыгее, что вас зацепило в этих горах.]</p>
+      <p class="about-text">Начал с обычных походов выходного дня — Хаджох, Руфабго, Лаго-Наки — и понял, что большинство описаний в интернете либо копируются друг у друга, либо написаны людьми, которые сами тут не были. АдыГид — это места и маршруты, которые я реально прошёл ногами: с честными расстояниями, актуальными ценами и без «сказочных» описаний туда, где на деле просто грязная тропа.</p>
+
+      {% if wizard_categories %}
+      <details class="wizard">
+        <summary class="wizard-toggle">Не знаете, с чего начать? Подобрать место →</summary>
+        <form method="get" action="/mesta" class="wizard-form">
+          <p class="wizard-q">Что интереснее?</p>
+          <div class="wizard-chips">
+            <label class="chip"><input type="radio" name="type" value=""><span>Неважно</span></label>
+            {% for c in wizard_categories %}
+            <label class="chip"><input type="radio" name="type" value="{{ c.id }}"><span>{{ c.icon or '' }} {{ c.name }}</span></label>
+            {% endfor %}
+          </div>
+          <label class="chip chip-check"><input type="checkbox" name="kid" value="1"><span>Еду с детьми</span></label>
+          <button type="submit" class="btn btn-primary">Показать варианты</button>
+        </form>
+      </details>
+      {% endif %}
     </div>
 
     <div>

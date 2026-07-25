@@ -1,14 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Клуб АдыГид в MAX{% endblock %}
+{% block title %}Клуб АдыГид в MAX — чат о поездках в Адыгею{% endblock %}
+{% block meta_description %}Живые впечатления, отзывы и вопросы о поездке в Адыгею — в чате клуба АдыГид в MAX. Спросить про погоду, дорогу и цены у тех, кто уже съездил.{% endblock %}
 
 {% block content %}
 <section class="section" style="padding-top:48px">
   <div class="wrap">
     <p class="eyebrow">Сообщество</p>
     <h1 class="page-title">Клуб АдыГид в MAX</h1>
-    <p class="about-text">Здесь будет страница клуба — отзывы, живые впечатления и общение с теми, кто уже был в Адыгее или только планирует поездку. Наполним чуть позже.</p>
-    <p class="about-text">[Ссылка на клуб в MAX появится здесь]</p>
+    <p class="about-text">Отзывы, живые впечатления и общение с теми, кто уже был в Адыгее или только планирует поездку. Здесь можно спросить про погоду на плато на конкретной неделе, состояние дороги, актуальные цены на входы — то, что быстро устаревает в любых описаниях.</p>
+    <p class="about-text">Вступление свободное, ничего платить не нужно.</p>
+    <p style="margin-top:28px">
+      <a class="btn btn-primary" href="{{ club_url }}" target="_blank" rel="noopener">Вступить в клуб в MAX →</a>
+    </p>
   </div>
 </section>
 {% endblock %}

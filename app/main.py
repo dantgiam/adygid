@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from PIL import Image
 
 from app.database import Base, engine, get_db
-from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article
+from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like
 from app.slugs import slugify as _slugify, unique_slug as _unique_slug
 from site_app.router import router as site_router
 
@@ -66,6 +66,7 @@ with engine.begin() as _conn:
             _conn.execute(text(f"ALTER TABLE {_table} ADD COLUMN IF NOT EXISTS {_col_ddl}"))
     _conn.execute(text("ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS duration_minutes INTEGER"))
     _conn.execute(text("ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true"))
+    _conn.execute(text("ALTER TABLE articles ADD COLUMN IF NOT EXISTS faq JSONB NOT NULL DEFAULT '[]'::jsonb"))
 
 # Дефолтные категории — засеваются один раз при первом старте, если таблица пустая
 _DEFAULT_CATEGORIES = [
@@ -295,12 +296,17 @@ class CategoryUpdate(BaseModel):
     is_public: Optional[bool] = None
 
 
+class FAQItemIn(BaseModel):
+    question: str
+    answer: str
+
 class ArticleIn(BaseModel):
     title: str
     slug: Optional[str] = None
     excerpt: Optional[str] = None
     cover_url: Optional[str] = None
     body: str = ""
+    faq: Optional[List[FAQItemIn]] = None
     district: Optional[str] = None
     featured_checkpoint_ids: Optional[List[int]] = None
     featured_trail_ids: Optional[List[int]] = None
@@ -312,6 +318,7 @@ class ArticleUpdate(BaseModel):
     excerpt: Optional[str] = None
     cover_url: Optional[str] = None
     body: Optional[str] = None
+    faq: Optional[List[FAQItemIn]] = None
     district: Optional[str] = None
     featured_checkpoint_ids: Optional[List[int]] = None
     featured_trail_ids: Optional[List[int]] = None
@@ -664,6 +671,7 @@ def create_article(body: ArticleIn, db: Session = Depends(get_db), _: bool = Dep
         excerpt=body.excerpt,
         cover_url=body.cover_url,
         body=body.body,
+        faq=[item.model_dump() for item in body.faq] if body.faq is not None else [],
         district=body.district,
         featured_checkpoint_ids=body.featured_checkpoint_ids or [],
         featured_trail_ids=body.featured_trail_ids or [],
@@ -681,6 +689,7 @@ def update_article(article_id: int, body: ArticleUpdate, db: Session = Depends(g
     if body.excerpt is not None: a.excerpt = body.excerpt
     if body.cover_url is not None: a.cover_url = body.cover_url
     if body.body is not None: a.body = body.body
+    if body.faq is not None: a.faq = [item.model_dump() for item in body.faq]
     if body.district is not None: a.district = body.district
     if body.featured_checkpoint_ids is not None: a.featured_checkpoint_ids = body.featured_checkpoint_ids
     if body.featured_trail_ids is not None: a.featured_trail_ids = body.featured_trail_ids
@@ -704,6 +713,7 @@ def _article_out(a: Article):
         "excerpt": a.excerpt,
         "cover_url": a.cover_url,
         "body": a.body,
+        "faq": a.faq or [],
         "district": a.district,
         "featured_checkpoint_ids": a.featured_checkpoint_ids or [],
         "featured_trail_ids": a.featured_trail_ids or [],

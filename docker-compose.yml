@@ -29,6 +29,8 @@ services:
       DATABASE_URL: postgresql+psycopg://adygid:adygid@db:5432/adygid
       ADMIN_USER: admin
       ADMIN_PASSWORD: adygid
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy

@@ -232,9 +232,10 @@ const DIFF_COLOR = {easy:'#27ae60', medium:'#e67e22', hard:'#c0392b'};
 
 // ── Критерии фильтрации (см. adygid_filters_spec.md) ────────────────
 const DIFFICULTY_OPTS = [
-  {code:'easy',   label:'🟢 Лёгкий'},
-  {code:'medium', label:'🟠 Средний'},
-  {code:'hard',   label:'🔴 Сложный'},
+  {code:'easy',    label:'🟢 Лёгкий'},
+  {code:'medium',  label:'🟠 Средний'},
+  {code:'hard',    label:'🔴 Сложный'},
+  {code:'extreme', label:'⚫ Экстремальный'},
 ];
 const SURFACE_OPTS = [
   {code:'asphalt',  label:'Асфальт'},
@@ -481,10 +482,34 @@ function articleFormHtml(a){
       <div id="m-body-editor" class="ql-editor-ru"></div>
       <button type="button" class="btn btn-gray btn-sm collage-btn" onclick="insertArticleCollage()">▥ Вставить коллаж (2-4 фото)</button>
     </div>
+    <div class="field"><label>Частые вопросы (блок в конце статьи + разметка для поиска)</label>
+      <div id="m-faq-rows">${(a.faq||[]).map(item=>faqRowHtml(item)).join('')}</div>
+      <button type="button" class="btn btn-gray btn-sm" onclick="addFaqRow()">+ Добавить вопрос</button>
+    </div>
     <div class="field"><label>Округ (необязательно)</label><select id="m-district">${districtOptionsHtml(a.district)}</select></div>
     <div class="field"><label>Места из этой статьи</label>${pickerHtml('m-featured-cps', allCheckpoints, a.featured_checkpoint_ids)}</div>
     <div class="field"><label>Маршруты из этой статьи</label>${pickerHtml('m-featured-trails', allTrails, a.featured_trail_ids)}</div>
     <div class="field"><label><input type="checkbox" id="m-published" ${a.is_published!==false?'checked':''}> Опубликована</label></div>`;
+}
+
+function faqRowHtml(item){
+  item = item || {question:'',answer:''};
+  return `<div class="faq-row" style="border:1px solid #ddd;border-radius:6px;padding:8px;margin-bottom:6px">
+    <div class="field" style="margin-bottom:6px"><input class="faq-q" placeholder="Вопрос" value="${escHtml(item.question||'')}"></div>
+    <div class="field" style="margin-bottom:6px"><textarea class="faq-a" placeholder="Ответ">${escHtml(item.answer||'')}</textarea></div>
+    <button type="button" class="btn btn-red btn-sm" onclick="this.closest('.faq-row').remove()">🗑 Удалить</button>
+  </div>`;
+}
+
+function addFaqRow(){
+  document.getElementById('m-faq-rows').insertAdjacentHTML('beforeend', faqRowHtml());
+}
+
+function readFaqRows(){
+  return Array.from(document.querySelectorAll('#m-faq-rows .faq-row')).map(row=>({
+    question: row.querySelector('.faq-q').value.trim(),
+    answer: row.querySelector('.faq-a').value.trim(),
+  })).filter(item=>item.question && item.answer);
 }
 
 let articleQuill = null;
@@ -588,6 +613,7 @@ async function readArticlePayload(){
     excerpt: document.getElementById('m-excerpt').value.trim() || null,
     cover_url: coverUrl || null,
     body: articleQuill.root.innerHTML,
+    faq: readFaqRows(),
     district: document.getElementById('m-district').value || null,
     featured_checkpoint_ids: readPicker('m-featured-cps'),
     featured_trail_ids: readPicker('m-featured-trails'),

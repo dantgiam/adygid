@@ -1,18 +1,24 @@
+import os
 import random
 import re
+import time
+import uuid
 from html import escape, unescape
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 from geoalchemy2.shape import to_shape
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Article, Category, Checkpoint, Trail
+from app.models import Article, Category, Checkpoint, Like, Trail
 from site_app.content import (
     ACCESS_LABELS,
+    CLUB_URL,
+    DIFFICULTY_INFO,
     DIFFICULTY_LABELS,
     DISTRICTS,
     POPULARITY_WEIGHT,
@@ -21,6 +27,13 @@ from site_app.content import (
 
 router = APIRouter()
 templates = Jinja2Templates(directory="site_app/templates")
+
+# Канонический адрес сайта — нужен для canonical/og:url и sitemap.xml.
+# На Railway задаётся переменной SITE_URL, локально падает на localhost.
+SITE_URL = os.getenv("SITE_URL", "http://localhost:8000").rstrip("/")
+# Номер счётчика Яндекс.Метрики. Пусто — счётчик не подключается (локальная
+# разработка не должна плодить визиты в статистике).
+YANDEX_METRIKA_ID = os.getenv("YANDEX_METRIKA_ID", "").strip()
 
 _POPULARITY_ORDER = case((Checkpoint.popularity == "top", 0), (Checkpoint.popularity == "popular", 1), else_=2)
 _POPULARITY_ORDER_TRAIL = case((Trail.popularity == "top", 0), (Trail.popularity == "popular", 1), else_=2)
@@ -62,6 +75,25 @@ def _rich_text_html(text: Optional[str]) -> str:
         return text
     paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
     return "".join(f"<p>{escape(p)}</p>" for p in paragraphs)
+
+
+_H2_RE = re.compile(r"<h2(?![^>]*\bid=)([^>]*)>(.*?)</h2>", re.IGNORECASE | re.DOTALL)
+_TAG_STRIP_RE = re.compile(r"<[^>]+>")
+
+
+def _add_toc_anchors(html: str) -> tuple[str, list[dict]]:
+    """Проставляет id каждому <h2> без собственного id и параллельно
+    собирает список якорей для бокового оглавления длинной статьи."""
+    toc: list[dict] = []
+
+    def repl(match: "re.Match[str]") -> str:
+        attrs, inner = match.group(1), match.group(2)
+        anchor = f"section-{len(toc) + 1}"
+        title = _TAG_STRIP_RE.sub("", inner).strip()
+        toc.append({"id": anchor, "title": title})
+        return f'<h2{attrs} id="{anchor}">{inner}</h2>'
+
+    return _H2_RE.sub(repl, html), toc
 
 
 _GALLERY_PARAGRAPH_RE = re.compile(r"<p>((?:\s*<img\b[^>]*>|\s*&nbsp;)+)\s*</p>", re.IGNORECASE)
@@ -137,6 +169,125 @@ def _yandex_route_url(trail: Trail) -> Optional[str]:
     return f"https://yandex.ru/maps/?rtext=~{'~'.join(pts)}&rtt=auto"
 
 
+def _weather_url(lat: float, lon: float) -> str:
+    return f"https://yandex.ru/pogoda/?lat={lat:.6f}&lon={lon:.6f}"
+
+
+def _difficulty_info(code: Optional[str]) -> dict:
+    """Точки-индикатор + текст подсказки для текущего уровня сложности —
+    вся шкала уходит в шаблон отдельно (DIFFICULTY_INFO), чтобы попап
+    показывал все 4 уровня сразу, а не только выбранный."""
+    info = DIFFICULTY_INFO.get(code, {})
+    return {
+        "code": code,
+        "label": DIFFICULTY_LABELS.get(code, code),
+        "dots": info.get("dots", 0),
+    }
+
+
+def _nearby_places(db: Session, lat: float, lon: float, exclude_id: Optional[int] = None, limit: int = 4) -> list:
+    """Места поблизости по прямой — используем ту же геопривязку, что и
+    /api/checkpoints/nearby в админке, только отдаём в публичном формате
+    карточки с добавленным расстоянием."""
+    point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
+    dist = func.ST_DistanceSphere(Checkpoint.geom, point).label("distance_m")
+    q = select(Checkpoint, dist)
+    if exclude_id is not None:
+        q = q.where(Checkpoint.id != exclude_id)
+    q = q.order_by(dist).limit(limit)
+    result = []
+    for cp, distance_m in db.execute(q).all():
+        card = _place_card_dict(cp)
+        card["distance_label"] = f"{distance_m / 1000:.1f} км"
+        result.append(card)
+    return result
+
+
+# ─────────────────────────────────────────────
+#  Лайк «Пригодилось» — анонимный счётчик без аккаунтов
+# ─────────────────────────────────────────────
+
+VISITOR_COOKIE = "vid"
+_LIKE_SUBJECT_TYPES = {"checkpoint", "trail"}
+
+# Троттлинг по IP в памяти процесса — не рассчитан на несколько инстансов за
+# балансировщиком, но для личного гид-сайта с одним воркером этого достаточно
+# как страховка от скрипта, а не как криптографическая защита.
+_LIKE_RATE_LIMIT: dict[str, list[float]] = {}
+_LIKE_RATE_WINDOW_S = 60
+_LIKE_RATE_MAX = 20
+
+
+def _rate_limit_ok(ip: str) -> bool:
+    now = time.monotonic()
+    hits = [t for t in _LIKE_RATE_LIMIT.get(ip, []) if now - t < _LIKE_RATE_WINDOW_S]
+    hits.append(now)
+    _LIKE_RATE_LIMIT[ip] = hits
+    return len(hits) <= _LIKE_RATE_MAX
+
+
+def _get_visitor_id(request: Request) -> Optional[str]:
+    return request.cookies.get(VISITOR_COOKIE)
+
+
+def _like_count(db: Session, subject_type: str, subject_id: int) -> int:
+    return db.execute(
+        select(func.count()).select_from(Like).where(
+            Like.subject_type == subject_type, Like.subject_id == subject_id
+        )
+    ).scalar() or 0
+
+
+def _like_info(db: Session, request: Request, subject_type: str, subject_id: int) -> dict:
+    voter_id = _get_visitor_id(request)
+    liked = False
+    if voter_id:
+        liked = db.execute(
+            select(Like.id).where(
+                Like.subject_type == subject_type,
+                Like.subject_id == subject_id,
+                Like.voter_id == voter_id,
+            )
+        ).first() is not None
+    return {"count": _like_count(db, subject_type, subject_id), "liked": liked}
+
+
+@router.post("/api/likes/{subject_type}/{subject_id}")
+def toggle_like(subject_type: str, subject_id: int, request: Request, response: Response, db: Session = Depends(get_db)):
+    if subject_type not in _LIKE_SUBJECT_TYPES:
+        raise HTTPException(404, "Неизвестный тип")
+
+    ip = request.client.host if request.client else "unknown"
+    if not _rate_limit_ok(ip):
+        raise HTTPException(429, "Слишком много запросов, попробуйте чуть позже")
+
+    voter_id = _get_visitor_id(request)
+    if not voter_id:
+        voter_id = uuid.uuid4().hex
+        # Год — не сессия браузера: возвращаясь через неделю, тот же лайк не
+        # должен засчитаться второй раз.
+        response.set_cookie(VISITOR_COOKIE, voter_id, max_age=365 * 24 * 3600, httponly=True, samesite="lax")
+
+    existing = db.execute(
+        select(Like).where(
+            Like.subject_type == subject_type,
+            Like.subject_id == subject_id,
+            Like.voter_id == voter_id,
+        )
+    ).scalars().first()
+
+    if existing:
+        db.delete(existing)
+        db.commit()
+        liked = False
+    else:
+        db.add(Like(subject_type=subject_type, subject_id=subject_id, voter_id=voter_id))
+        db.commit()
+        liked = True
+
+    return {"liked": liked, "count": _like_count(db, subject_type, subject_id)}
+
+
 # ─────────────────────────────────────────────
 #  Сериализация в карточки / детальные страницы
 # ─────────────────────────────────────────────
@@ -182,36 +333,74 @@ def _article_card_dict(a: Article) -> dict:
     }
 
 
+def _related_articles(db: Session, current: Article, limit: int = 3) -> list:
+    """«Читали также» — автоматический подбор без ручных связей: очки за
+    совпадение округа и за общие места/маршруты, вынесенные в статью через
+    featured_*. При малом числе статей (сейчас) выборка почти всегда полная,
+    но правило не завязано на объём контента и останется рабочим, когда
+    статей станет намного больше."""
+    others = db.execute(
+        select(Article).where(Article.is_published == True, Article.id != current.id)
+    ).scalars().all()
+    if not others:
+        return []
+
+    own_places = set(current.featured_checkpoint_ids or [])
+    own_trails = set(current.featured_trail_ids or [])
+
+    def score(a: Article) -> tuple:
+        s = 0
+        if current.district and a.district == current.district:
+            s += 2
+        s += len(own_places & set(a.featured_checkpoint_ids or []))
+        s += len(own_trails & set(a.featured_trail_ids or []))
+        return (s, a.created_at or a.id)
+
+    ranked = sorted(others, key=score, reverse=True)
+    return [_article_card_dict(a) for a in ranked[:limit]]
+
+
 def _place_detail_dict(cp: Checkpoint) -> dict:
     return {
         "id": cp.id,
         "name": cp.name,
+        "excerpt": _excerpt(cp.description, 200),
         "description_html": _rich_text_html(cp.description),
         "cover": _cover_of(cp.photos),
         "photos": [p.url for p in cp.photos],
         "district_label": DISTRICTS.get(cp.district),
         "category": _category_lite(cp.category),
         "difficulty_label": DIFFICULTY_LABELS.get(cp.difficulty, cp.difficulty),
+        "difficulty_info": _difficulty_info(cp.difficulty),
         "season_label": SEASON_LABELS.get(cp.seasonality, cp.seasonality),
         "access_label": ACCESS_LABELS.get(cp.access_type, cp.access_type),
         "price_label": _price_label(cp.is_paid, cp.price_note),
         "kid_friendly": cp.kid_friendly,
         "equipment_tags": cp.equipment_tags or [],
         "yandex_url": _yandex_point_url(cp),
+        "weather_url": _weather_url(to_shape(cp.geom).y, to_shape(cp.geom).x),
         "trail": {"name": cp.trail.name, "url": f"/marshruty/{cp.trail.id}"} if cp.trail else None,
     }
 
 
 def _route_detail_dict(t: Trail) -> dict:
     ordered_cps = sorted(t.checkpoints, key=lambda c: c.order_index)
+    # Погода привязана к финальной точке маршрута — по ней ориентируются,
+    # когда планируют выезд, а не по стартовой (та обычно у посёлка/парковки).
+    weather_url = None
+    if ordered_cps:
+        shp = to_shape(ordered_cps[-1].geom)
+        weather_url = _weather_url(shp.y, shp.x)
     return {
         "id": t.id,
         "name": t.name,
+        "excerpt": _excerpt(t.description, 200),
         "description_html": _rich_text_html(t.description),
         "cover": _cover_of(t.photos),
         "district_label": DISTRICTS.get(t.district),
         "category": _category_lite(t.category),
         "difficulty_label": DIFFICULTY_LABELS.get(t.difficulty, t.difficulty),
+        "difficulty_info": _difficulty_info(t.difficulty),
         "duration_label": _duration_label(t.duration_minutes),
         "season_label": SEASON_LABELS.get(t.seasonality, t.seasonality),
         "access_label": ACCESS_LABELS.get(t.access_type, t.access_type),
@@ -219,6 +408,7 @@ def _route_detail_dict(t: Trail) -> dict:
         "kid_friendly": t.kid_friendly,
         "equipment_tags": t.equipment_tags or [],
         "yandex_url": _yandex_route_url(t),
+        "weather_url": weather_url,
         "checkpoints": [
             {
                 "name": cp.name,
@@ -241,7 +431,16 @@ def _footer_stats(db: Session) -> dict:
 
 
 def _ctx(request: Request, db: Session, **extra) -> dict:
-    base = {"request": request, "footer_stats": _footer_stats(db), "districts": DISTRICTS}
+    base = {
+        "request": request,
+        "footer_stats": _footer_stats(db),
+        "districts": DISTRICTS,
+        "site_url": SITE_URL,
+        "canonical_url": SITE_URL + request.url.path,
+        "yandex_metrika_id": YANDEX_METRIKA_ID,
+        "club_url": CLUB_URL,
+        "difficulty_levels": DIFFICULTY_INFO,
+    }
     base.update(extra)
     return base
 
@@ -306,9 +505,15 @@ def home(request: Request, db: Session = Depends(get_db)):
             select(Trail).order_by(_POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(6)
         ).scalars().all()
     ]
+    wizard_categories = db.execute(
+        select(Category).where(Category.is_public == True, Category.type.in_(["checkpoint", "both"]))
+    ).scalars().all()
     return templates.TemplateResponse(
         "home.html",
-        _ctx(request, db, active_nav="home", highlight=highlight, articles=articles, places=places, routes=routes),
+        _ctx(
+            request, db, active_nav="home", highlight=highlight, articles=articles, places=places, routes=routes,
+            wizard_categories=wizard_categories,
+        ),
     )
 
 
@@ -368,8 +573,15 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
         ).scalars().all()
         similar = [_place_card_dict(r) for r in rows]
 
+    shp = to_shape(cp.geom)
+    nearby = [p for p in _nearby_places(db, shp.y, shp.x, exclude_id=cp.id, limit=5) if p["id"] != cp.id][:4]
+
     return templates.TemplateResponse(
-        "place_detail.html", _ctx(request, db, active_nav="places", place=place, similar=similar)
+        "place_detail.html",
+        _ctx(
+            request, db, active_nav="places", place=place, similar=similar, nearby=nearby,
+            like=_like_info(db, request, "checkpoint", cp.id),
+        ),
     )
 
 
@@ -427,8 +639,21 @@ def route_detail(request: Request, route_id: int, db: Session = Depends(get_db))
         ).scalars().all()
         similar = [_route_card_dict(r) for r in rows]
 
+    # «Рядом» считаем от стартовой точки маршрута — по ней ориентируются,
+    # что ещё посмотреть, добравшись до начала тропы.
+    nearby = []
+    ordered_cps = sorted(t.checkpoints, key=lambda c: c.order_index)
+    if ordered_cps:
+        shp = to_shape(ordered_cps[0].geom)
+        own_ids = {c.id for c in ordered_cps}
+        nearby = [p for p in _nearby_places(db, shp.y, shp.x, limit=4 + len(own_ids)) if p["id"] not in own_ids][:4]
+
     return templates.TemplateResponse(
-        "route_detail.html", _ctx(request, db, active_nav="routes", route=route, similar=similar)
+        "route_detail.html",
+        _ctx(
+            request, db, active_nav="routes", route=route, similar=similar, nearby=nearby,
+            like=_like_info(db, request, "trail", t.id),
+        ),
     )
 
 
@@ -465,11 +690,36 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         if t:
             featured_routes.append(_route_card_dict(t))
 
+    body_html = _render_article_gallery(_rich_text_html(a.body))
+    body_html, toc = _add_toc_anchors(body_html)
+
+    faq = a.faq or []
+    faq_ld = None
+    if faq:
+        # Jinja не умеет list comprehension в выражениях — список вопросов
+        # для JSON-LD собираем здесь, а не в шаблоне.
+        faq_ld = {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+                {
+                    "@type": "Question",
+                    "name": item["question"],
+                    "acceptedAnswer": {"@type": "Answer", "text": item["answer"]},
+                }
+                for item in faq
+            ],
+        }
+
     article = {
         "title": a.title,
+        "excerpt": a.excerpt or _excerpt(a.body, 200),
         "district_label": DISTRICTS.get(a.district),
         "cover_url": a.cover_url,
-        "body_html": _render_article_gallery(_rich_text_html(a.body)),
+        "body_html": body_html,
+        "toc": toc if len(toc) >= 3 else [],
+        "faq": faq,
+        "faq_ld": faq_ld,
         "featured_places": featured_places,
         "featured_routes": featured_routes,
     }
@@ -482,9 +732,14 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         ).scalars().all()
         similar_places = [_place_card_dict(r) for r in rows]
 
+    related_articles = _related_articles(db, a)
+
     return templates.TemplateResponse(
         "article_detail.html",
-        _ctx(request, db, active_nav="articles", article=article, similar_places=similar_places),
+        _ctx(
+            request, db, active_nav="articles", article=article,
+            similar_places=similar_places, related_articles=related_articles,
+        ),
     )
 
 
@@ -495,3 +750,53 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
 @router.get("/klub")
 def club(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse("club.html", _ctx(request, db, active_nav="club"))
+
+
+# ─────────────────────────────────────────────
+#  robots.txt / sitemap.xml — чтобы поисковики знали, что обходить
+# ─────────────────────────────────────────────
+
+@router.get("/robots.txt", response_class=PlainTextResponse)
+def robots_txt():
+    return (
+        "User-agent: *\n"
+        "Allow: /\n"
+        # Служебное — в индексе не нужно
+        "Disallow: /admin\n"
+        "Disallow: /api/\n"
+        "Disallow: /m\n"
+        # Страницы с фильтрами дублируют списки — пусть в индекс идут списки
+        "Clean-param: type&district&paid&kid&difficulty\n"
+        f"\nSitemap: {SITE_URL}/sitemap.xml\n"
+    )
+
+
+@router.get("/sitemap.xml")
+def sitemap_xml(db: Session = Depends(get_db)):
+    urls: list[tuple[str, Optional[str], str]] = [
+        ("/", None, "daily"),
+        ("/mesta", None, "weekly"),
+        ("/marshruty", None, "weekly"),
+        ("/stati", None, "weekly"),
+        ("/klub", None, "monthly"),
+    ]
+
+    for cp in db.execute(select(Checkpoint.id, Checkpoint.created_at)).all():
+        urls.append((f"/mesta/{cp.id}", cp.created_at.date().isoformat() if cp.created_at else None, "monthly"))
+    for t in db.execute(select(Trail.id, Trail.created_at)).all():
+        urls.append((f"/marshruty/{t.id}", t.created_at.date().isoformat() if t.created_at else None, "monthly"))
+    for a in db.execute(
+        select(Article.slug, Article.created_at).where(Article.is_published == True)
+    ).all():
+        urls.append((f"/stati/{a.slug}", a.created_at.date().isoformat() if a.created_at else None, "monthly"))
+
+    body = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for path, lastmod, changefreq in urls:
+        body.append("<url>")
+        body.append(f"<loc>{escape(SITE_URL + path)}</loc>")
+        if lastmod:
+            body.append(f"<lastmod>{lastmod}</lastmod>")
+        body.append(f"<changefreq>{changefreq}</changefreq>")
+        body.append("</url>")
+    body.append("</urlset>")
+    return Response("\n".join(body), media_type="application/xml")

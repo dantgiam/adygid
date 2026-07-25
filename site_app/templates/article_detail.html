@@ -3,6 +3,29 @@
 
 {% block title %}{{ article.title }} — АдыГид{% endblock %}
 {% block meta_description %}{{ article.excerpt or article.title }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_image %}{% if article.cover_url %}<meta property="og:image" content="{{ article.cover_url }}">{% endif %}{% endblock %}
+
+{% block extra_ld %}
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": article.title,
+  "description": article.excerpt or article.title,
+  "url": canonical_url,
+  "image": [article.cover_url] if article.cover_url else [],
+  "inLanguage": "ru-RU",
+  "author": {"@type": "Person", "name": "Данила"},
+  "publisher": {"@type": "Organization", "name": "АдыГид", "url": site_url}
+} | tojson }}
+</script>
+{% if article.faq_ld %}
+<script type="application/ld+json">
+{{ article.faq_ld | tojson }}
+</script>
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <section class="section" style="padding-top:32px">
@@ -11,23 +34,46 @@
     <p class="eyebrow">Статья{% if article.district_label %} · {{ article.district_label }}{% endif %}</p>
     <h1 class="article-title">{{ article.title }}</h1>
 
-    <div class="article-body">
-      {{ article.body_html | safe }}
-    </div>
+    <div class="article-layout{{ ' has-toc' if article.toc else '' }}">
+      <div class="article-main">
+        <div class="article-body">
+          {{ article.body_html | safe }}
+        </div>
 
-    {% if article.featured_places %}
-    <div class="featured-row">
-      <h4>Места из этой статьи</h4>
-      <div class="grid">{% for p in article.featured_places %}{{ cards.place_card(p) }}{% endfor %}</div>
-    </div>
-    {% endif %}
+        {% if article.faq %}
+        <div class="faq-block">
+          <h4>Частые вопросы</h4>
+          {% for item in article.faq %}
+          <details class="faq-item">
+            <summary>{{ item.question }}</summary>
+            <p>{{ item.answer }}</p>
+          </details>
+          {% endfor %}
+        </div>
+        {% endif %}
 
-    {% if article.featured_routes %}
-    <div class="featured-row">
-      <h4>Маршруты из этой статьи</h4>
-      <div class="grid">{% for r in article.featured_routes %}{{ cards.route_card(r) }}{% endfor %}</div>
+        {% if article.featured_places %}
+        <div class="featured-row">
+          <h4>Места из этой статьи</h4>
+          <div class="grid">{% for p in article.featured_places %}{{ cards.place_card(p) }}{% endfor %}</div>
+        </div>
+        {% endif %}
+
+        {% if article.featured_routes %}
+        <div class="featured-row">
+          <h4>Маршруты из этой статьи</h4>
+          <div class="grid">{% for r in article.featured_routes %}{{ cards.route_card(r) }}{% endfor %}</div>
+        </div>
+        {% endif %}
+      </div>
+
+      {% if article.toc %}
+      <aside class="article-toc">
+        <p class="toc-label">Содержание</p>
+        <nav>{% for item in article.toc %}<a href="#{{ item.id }}">{{ item.title }}</a>{% endfor %}</nav>
+      </aside>
+      {% endif %}
     </div>
-    {% endif %}
   </div>
 </section>
 
@@ -36,6 +82,15 @@
   <div class="wrap">
     <div class="section-head"><h2>Похожие места</h2></div>
     <div class="grid">{% for p in similar_places %}{{ cards.place_card(p) }}{% endfor %}</div>
+  </div>
+</section>
+{% endif %}
+
+{% if related_articles %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>Читали также</h2></div>
+    <div class="grid">{% for a in related_articles %}{{ cards.article_card(a) }}{% endfor %}</div>
   </div>
 </section>
 {% endif %}

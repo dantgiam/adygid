@@ -1,13 +1,34 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
+{% import "_difficulty.html" as difficulty %}
 
-{% block title %}{{ route.name }} — АдыГид{% endblock %}
+{% block title %}{{ route.name }}{% if route.duration_label %} — {{ route.duration_label }}{% endif %}, маршрут по Адыгее{% endblock %}
 {% block meta_description %}{{ route.excerpt or route.name }}{% endblock %}
+{% block og_image %}{% if route.cover %}<meta property="og:image" content="{{ route.cover }}">{% endif %}{% endblock %}
+
+{% block extra_ld %}
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@type": "TouristTrip",
+  "name": route.name,
+  "description": route.excerpt or route.name,
+  "url": canonical_url,
+  "touristType": "Пеший туризм",
+  "itinerary": {
+    "@type": "ItemList",
+    "itemListElement": route.checkpoints | map(attribute='name') | list
+  }
+} | tojson }}
+</script>
+{% endblock %}
 
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    <div class="detail-hero" style="{% if route.cover %}background-image:url('{{ route.cover }}'){% endif %}"></div>
+    <div class="detail-hero" style="{% if route.cover %}background-image:url('{{ route.cover }}'){% endif %}">
+      <button type="button" class="fav-btn" data-type="route" data-id="{{ route.id }}" aria-label="Добавить в избранное">★</button>
+    </div>
 
     <div class="detail-grid">
       <div class="detail-body">
@@ -29,11 +50,18 @@
           {% endfor %}
         </div>
         {% endif %}
+
+        <div class="like-row">
+          <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="trail" data-id="{{ route.id }}">
+            <span class="like-heart">♥</span> <span class="like-text">Пригодилось</span>
+            <span class="like-count">{{ like.count }}</span>
+          </button>
+        </div>
       </div>
 
       <aside class="spec-box">
         <dl>
-          <dt>Сложность</dt><dd>{{ route.difficulty_label }}</dd>
+          <dt>Сложность</dt><dd>{{ difficulty.badge(route.difficulty_info, difficulty_levels) }}</dd>
           <dt>Длительность</dt><dd>{{ route.duration_label or '—' }}</dd>
           <dt>Сезонность</dt><dd>{{ route.season_label }}</dd>
           <dt>Доступ</dt><dd>{{ route.access_label }}</dd>
@@ -42,10 +70,22 @@
           {% if route.equipment_tags %}<dt>Взять с собой</dt><dd>{{ route.equipment_tags|join(', ') }}</dd>{% endif %}
         </dl>
         <a class="btn btn-primary" href="{{ route.yandex_url }}" target="_blank" rel="noopener">Открыть в Яндекс Навигаторе</a>
+        {% if route.weather_url %}<a class="btn btn-ghost" href="{{ route.weather_url }}" target="_blank" rel="noopener" style="margin-top:8px">Погода в конечной точке →</a>{% endif %}
       </aside>
     </div>
   </div>
 </section>
+
+{% if nearby %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>Рядом также</h2></div>
+    <div class="grid">
+      {% for p in nearby %}{{ cards.place_card(p) }}{% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
 
 {% if similar %}
 <section class="section">
