@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+
+{% block title %}{{ route.name }} — АдыГид{% endblock %}
+{% block meta_description %}{{ route.excerpt or route.name }}{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:32px">
+  <div class="wrap">
+    <div class="detail-hero" style="{% if route.cover %}background-image:url('{{ route.cover }}'){% endif %}"></div>
+
+    <div class="detail-grid">
+      <div class="detail-body">
+        <p class="eyebrow">{{ route.category.name if route.category else 'Маршрут' }}{% if route.district_label %} · {{ route.district_label }}{% endif %}</p>
+        <h1 class="page-title">{{ route.name }}</h1>
+        {% if route.description_html %}{{ route.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
+
+        {% if route.checkpoints %}
+        <div class="featured-row">
+          <h4>Точки по пути</h4>
+          {% for cp in route.checkpoints %}
+          <div class="checkpoint-row">
+            <span class="num">{{ loop.index }}</span>
+            <div>
+              <div class="cname"><a href="{{ cp.url }}" style="color:inherit">{{ cp.name }}</a></div>
+              {% if cp.category_name %}<div class="cmeta">{{ cp.category_name }}</div>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <aside class="spec-box">
+        <dl>
+          <dt>Сложность</dt><dd>{{ route.difficulty_label }}</dd>
+          <dt>Длительность</dt><dd>{{ route.duration_label or '—' }}</dd>
+          <dt>Сезонность</dt><dd>{{ route.season_label }}</dd>
+          <dt>Доступ</dt><dd>{{ route.access_label }}</dd>
+          <dt>Стоимость</dt><dd>{{ route.price_label }}</dd>
+          {% if route.kid_friendly %}<dt>С детьми</dt><dd>Подходит</dd>{% endif %}
+          {% if route.equipment_tags %}<dt>Взять с собой</dt><dd>{{ route.equipment_tags|join(', ') }}</dd>{% endif %}
+        </dl>
+        <a class="btn btn-primary" href="{{ route.yandex_url }}" target="_blank" rel="noopener">Открыть в Яндекс Навигаторе</a>
+      </aside>
+    </div>
+  </div>
+</section>
+
+{% if similar %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>Похожие маршруты</h2></div>
+    <div class="grid">
+      {% for r in similar %}{{ cards.route_card(r) }}{% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

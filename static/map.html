@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>АдыГид — Карта Адыгеи</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font-family:system-ui,sans-serif}
+  body{display:flex}
+  #map{flex:1;height:100vh;position:relative}
+  .legend{position:absolute;bottom:20px;left:10px;z-index:1000;background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:13px}
+  .legend div{margin:3px 0;display:flex;align-items:center;gap:6px}
+  .sw{display:inline-block;width:20px;height:4px;border-radius:2px}
+  .popup-photo{width:100%;max-width:220px;border-radius:6px;margin-top:6px;display:block}
+  .popup-cat{font-size:11px;color:#1D9E75;font-weight:600;margin-top:2px}
+  .popup-duration{font-size:11px;color:#888;margin-top:2px}
+  .popup-diff{font-size:11px;color:#888;margin-top:2px;display:flex;align-items:center;gap:5px}
+  .popup-equipment{font-size:11px;color:#888;margin-top:4px}
+  .popup-go{display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:5px 10px;background:#1D9E75;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer}
+  .popup-go:hover{background:#178a64}
+
+  /* ── Бейджи (доп. критерии, не фильтры-дубли) ── */
+  .badges{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .badge{font-size:10px;background:#f0f0f0;color:#555;padding:2px 6px;border-radius:10px;white-space:nowrap}
+  .badge-warn{background:#fdecea;color:#c0392b}
+
+  /* ── Блок фильтров ── */
+  #filter-bar{position:absolute;top:10px;left:10px;z-index:1000;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.18);padding:12px 14px;width:340px;max-width:calc(100vw - 20px);max-height:85vh;overflow-y:auto}
+  #filter-sheet-handle{display:none}
+  #filter-presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .preset-btn{border:1px solid #1D9E75;background:#fff;color:#1D9E75;border-radius:16px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .preset-btn:hover{background:#f0faf6}
+  .filter-group{margin-bottom:8px}
+  .filter-group-label{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;font-weight:700}
+  .filter-row{display:flex;gap:6px;flex-wrap:wrap}
+  .pill{border:1px solid #ddd;background:#fff;border-radius:16px;padding:5px 10px;font-size:12px;cursor:pointer;white-space:nowrap;color:#333}
+  .pill.active{background:#1D9E75;border-color:#1D9E75;color:#fff}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
+  #filter-more-toggle{background:none;border:none;color:#1D9E75;font-size:12px;cursor:pointer;padding:6px 0;font-weight:700}
+  #filter-secondary{border-top:1px dashed #e5e5e5;margin-top:4px;padding-top:8px}
+  #filter-active-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:4px;background:#f0faf6;color:#1D9E75;border-radius:12px;padding:3px 4px 3px 9px;font-size:11px;font-weight:600}
+  .chip button{background:none;border:none;color:#1D9E75;cursor:pointer;font-size:13px;line-height:1;padding:2px}
+  .btn-reset-all{border:none;background:none;color:#888;font-size:11px;text-decoration:underline;cursor:pointer;padding:0}
+  #filter-counter{font-size:11px;color:#888;margin-top:8px}
+
+  /* ── Пустой результат ── */
+  #empty-state{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.2);padding:20px 24px;text-align:center;flex-direction:column;gap:10px;align-items:center;max-width:260px}
+  #empty-state .btn-go{background:#1D9E75;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer}
+
+  /* ── Блок "Рядом с вами" ── */
+  #nearby{width:320px;min-width:280px;height:100vh;overflow-y:auto;background:#fff;border-left:1px solid #e0e0e0;padding:14px;flex-shrink:0}
+  #nearby h2{font-size:15px;color:#1D9E75;margin:0 0 2px}
+  #nearby .sub{font-size:11px;color:#888;margin-bottom:12px}
+  .notice{font-size:12px;color:#888;text-align:center;padding:16px 0}
+  .place-card{border:1px solid #eee;border-radius:10px;overflow:hidden;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .place-card img{width:100%;height:120px;object-fit:cover;background:#eee;display:block}
+  .place-card .pc-body{padding:8px 10px}
+  .place-card .pc-name{font-weight:700;font-size:13px}
+  .place-card .pc-cat{font-size:11px;color:#1D9E75;margin-top:2px;font-weight:600}
+  .place-card .pc-desc{font-size:12px;color:#555;margin-top:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .place-card .pc-dist{font-size:11px;color:#888;margin-top:6px}
+
+  @media (max-width:760px){
+    body{flex-direction:column}
+    #map{height:58vh}
+    #nearby{width:100%;height:42vh;border-left:none;border-top:1px solid #e0e0e0}
+
+    #filter-bar{position:fixed;top:auto;left:0;right:0;bottom:0;width:auto;max-width:none;border-radius:16px 16px 0 0;max-height:66vh;transform:translateY(calc(100% - 46px));transition:transform .25s ease;box-shadow:0 -2px 14px rgba(0,0,0,.2)}
+    #filter-bar.sheet-open{transform:translateY(0)}
+    #filter-sheet-handle{display:flex;align-items:center;justify-content:center;gap:6px;font-weight:700;color:#1D9E75;font-size:13px;padding:6px 0 10px;cursor:pointer}
+    #filter-sheet-handle::before{content:'';position:absolute;top:8px;left:50%;transform:translateX(-50%);width:36px;height:4px;background:#ddd;border-radius:2px}
+  }
+</style>
+</head>
+<body>
+<div id="map">
+
+  <div id="filter-bar">
+    <div id="filter-sheet-handle" onclick="toggleSheet()">🔍 Фильтры <span id="filter-counter-mobile"></span></div>
+    <div id="filter-presets"></div>
+    <div id="filter-primary"></div>
+    <button type="button" id="filter-more-toggle" onclick="toggleMoreFilters()">Ещё фильтры ▾</button>
+    <div id="filter-secondary" style="display:none"></div>
+    <div id="filter-active-row"></div>
+    <div id="filter-counter"></div>
+  </div>
+
+  <div id="empty-state">
+    <div>😕 Ничего не найдено с этими фильтрами</div>
+    <button type="button" class="btn-go" onclick="resetAllFilters()">Сбросить фильтры</button>
+  </div>
+
+  <div class="legend">
+    <div><span class="sw" style="background:#27ae60"></span>Лёгкий участок</div>
+    <div><span class="sw" style="background:#e67e22"></span>Средний участок</div>
+    <div><span class="sw" style="background:#c0392b"></span>Сложный участок</div>
+  </div>
+</div>
+
+<div id="nearby">
+  <h2>📍 Рядом с вами</h2>
+  <div class="sub" id="nearby-sub">Определяем местоположение…</div>
+  <div id="nearby-list"><div class="notice">Загрузка…</div></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([44.2,40.0],10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+
+const DIFF_COLOR = {easy:'#27ae60',medium:'#e67e22',hard:'#c0392b'};
+const DIFF_LABEL = {easy:'Лёгкий',medium:'Средний',hard:'Сложный'};
+const MAYKOP = {lat:44.6098, lon:40.1006};
+
+// ── Критерии фильтрации (см. adygid_filters_spec.md) ────────────────
+const DIFFICULTY_OPTS = [
+  {code:'easy',   label:'Лёгкий',  color:DIFF_COLOR.easy},
+  {code:'medium', label:'Средний', color:DIFF_COLOR.medium},
+  {code:'hard',   label:'Сложный', color:DIFF_COLOR.hard},
+];
+const DURATION_OPTS = [
+  {code:'up_to_1h', label:'До 1 часа'},
+  {code:'1_3h',     label:'1–3 часа'},
+  {code:'3_6h',     label:'3–6 часов'},
+  {code:'full_day', label:'Весь день'},
+];
+const SURFACE_OPTS = [
+  {code:'asphalt',  label:'Асфальт'},
+  {code:'dirt',     label:'Грунтовка'},
+  {code:'trail',    label:'Тропа'},
+  {code:'scramble', label:'Курумник/скалы'},
+];
+const ACCESS_OPTS = [
+  {code:'paved',          label:'Асфальт до старта'},
+  {code:'high_clearance', label:'Грунтовка, нужен клиренс'},
+  {code:'foot_only',      label:'Только пешком'},
+];
+const SEASON_OPTS = [
+  {code:'year_round',  label:'Круглый год'},
+  {code:'summer_only', label:'Только летом'},
+];
+
+function durationBucket(min){
+  if(!min) return null;
+  if(min<=60) return 'up_to_1h';
+  if(min<=180) return '1_3h';
+  if(min<=360) return '3_6h';
+  return 'full_day';
+}
+
+const numIcon = (n,color='#1D9E75') => L.divIcon({
+  html:`<div style="background:${color};color:#fff;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3)">${n}</div>`,
+  className:'',iconSize:[26,26],iconAnchor:[13,13]
+});
+
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function categoryLabel(cat){ return cat ? `${cat.icon?cat.icon+' ':''}${escHtml(cat.name)}` : ''; }
+function formatDuration(min){
+  if(!min) return '';
+  const h = Math.floor(min/60), m = min%60;
+  if(h && m) return `${h} ч ${m} мин`;
+  if(h) return `${h} ч`;
+  return `${m} мин`;
+}
+
+// ── Переход в навигатор устройства ("Поехали") ──────────────────────
+function isIOS(){
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+}
+function isAndroid(){ return /Android/.test(navigator.userAgent); }
+
+function goTo(lat, lon, label){
+  label = label || 'Точка';
+  let url;
+  if(isIOS()){
+    url = `https://maps.apple.com/?daddr=${lat},${lon}`;
+  } else if(isAndroid()){
+    url = `geo:${lat},${lon}?q=${lat},${lon}(${encodeURIComponent(label)})`;
+  } else {
+    url = `https://yandex.ru/maps/?rtext=~${lat},${lon}&rtt=auto`;
+  }
+  window.location.href = url;
+}
+window.goTo = goTo;
+
+// ── Бейджи и попапы ──────────────────────────────────────────────────
+function criteriaBadgesHtml(obj){
+  let html = '';
+  if(obj.kid_friendly) html += `<span class="badge">👶 С детьми</span>`;
+  if(obj.is_paid) html += `<span class="badge">💰 Платно${obj.price_note?': '+escHtml(obj.price_note):''}</span>`;
+  if(obj.weather_warning) html += `<span class="badge badge-warn">⚠️ Осторожно после дождя</span>`;
+  return html ? `<div class="badges">${html}</div>` : '';
+}
+
+function popupHtml(kind, obj, destLat, destLon){
+  let html = `<b>${escHtml(obj.name)}</b>`;
+  if(obj.category) html += `<div class="popup-cat">${categoryLabel(obj.category)}</div>`;
+  if(obj.duration_minutes) html += `<div class="popup-duration">⏱ ${formatDuration(obj.duration_minutes)}</div>`;
+  if(obj.difficulty) html += `<div class="popup-diff"><span class="dot" style="background:${DIFF_COLOR[obj.difficulty]||'#888'}"></span>${DIFF_LABEL[obj.difficulty]||obj.difficulty}</div>`;
+  html += criteriaBadgesHtml(obj);
+  if(obj.equipment_tags && obj.equipment_tags.length) html += `<div class="popup-equipment">🎒 ${obj.equipment_tags.map(escHtml).join(', ')}</div>`;
+  if(obj.description) html += `<br><span style="font-size:12px">${escHtml(obj.description)}</span>`;
+  const photos = obj.photos || [];
+  if(photos.length) html += photos.map(p=>`<img class="popup-photo" src="${p.thumb_url||p.url}" onerror="this.style.display='none'">`).join('');
+  if(destLat!=null && destLon!=null){
+    html += `<br><button class="popup-go" onclick="goTo(${destLat},${destLon},'${escHtml(obj.name).replace(/'/g,"\\'")}')">🚗 Поехали</button>`;
+  }
+  return html;
+}
+
+// ── Данные и слои карты ───────────────────────────────────────────────
+let categories = [];
+let allTrails = [];
+let allStandalone = [];
+const trailLayerGroups = {};   // trail.id → L.layerGroup
+const standaloneMarkers = {};  // cp.id → L.marker
+
+async function loadMap(){
+  categories = await fetch('/api/categories').then(r=>r.json()).catch(()=>[]);
+  allTrails = await fetch('/api/trails').then(r=>r.json()).catch(()=>[]);
+
+  allTrails.forEach(trail=>{
+    const group = L.layerGroup();
+    const start = trail.checkpoints[0];
+
+    trail.segments.forEach(seg=>{
+      const color = DIFF_COLOR[seg.difficulty]||'#888';
+      const segPopup = popupHtml('trail', trail, start?start.lat:null, start?start.lon:null) +
+        `<div style="font-size:11px;color:#888;margin-top:4px">Участок тропы: ${DIFF_LABEL[seg.difficulty]||seg.difficulty}</div>`;
+      L.geoJSON(seg.geojson,{style:{color,weight:5,opacity:.9}})
+        .bindPopup(segPopup, {maxWidth:240})
+        .addTo(group);
+    });
+
+    trail.checkpoints.forEach((cp,i)=>{
+      const m = L.marker([cp.lat,cp.lon],{icon:numIcon(i+1)});
+      m.bindPopup(popupHtml('checkpoint', cp, cp.lat, cp.lon), {maxWidth:240});
+      m.addTo(group);
+    });
+
+    trailLayerGroups[trail.id] = group;
+  });
+
+  const all = await fetch('/api/checkpoints').then(r=>r.json()).catch(()=>[]);
+  allStandalone = all.filter(c=>!c.trail_id);
+  allStandalone.forEach(cp=>{
+    const m = L.marker([cp.lat,cp.lon],{icon:numIcon('★','#8e44ad')});
+    m.bindPopup(popupHtml('checkpoint', cp, cp.lat, cp.lon), {maxWidth:240});
+    standaloneMarkers[cp.id] = m;
+  });
+
+  renderFilterBar();
+  applyFilters();
+}
+
+// ── Состояние фильтров ────────────────────────────────────────────────
+const filterSets = {
+  category: new Set(),
+  duration: new Set(),
+  difficulty: new Set(),
+  surface: new Set(),
+  access: new Set(),
+  season: new Set(),
+  equipment: new Set(),
+};
+const filterBools = { kidFriendly:false, freeOnly:false };
+let moreOpen = false;
+let activeChipsCache = [];
+
+function toggleSetValue(set, value){
+  value = String(value);
+  if(set.has(value)) set.delete(value); else set.add(value);
+}
+
+function matchesFilters(obj){
+  if(filterSets.category.size && !filterSets.category.has(String(obj.category_id))) return false;
+  if(filterSets.duration.size){
+    const b = durationBucket(obj.duration_minutes);
+    if(!b || !filterSets.duration.has(b)) return false;
+  }
+  if(filterSets.difficulty.size && !filterSets.difficulty.has(obj.difficulty)) return false;
+  if(filterSets.surface.size){
+    const arr = obj.surface_types || [];
+    if(!arr.some(s=>filterSets.surface.has(s))) return false;
+  }
+  if(filterSets.access.size && !filterSets.access.has(obj.access_type)) return false;
+  if(filterSets.season.size && !filterSets.season.has(obj.seasonality)) return false;
+  if(filterBools.kidFriendly && !obj.kid_friendly) return false;
+  if(filterBools.freeOnly && obj.is_paid) return false;
+  if(filterSets.equipment.size){
+    const arr = obj.equipment_tags || [];
+    if(!arr.some(t=>filterSets.equipment.has(t))) return false;
+  }
+  return true;
+}
+
+// Теги снаряжения, реально встречающиеся у того, что проходит остальные фильтры —
+// показываем фильтр по снаряжению только если он на что-то повлияет (п.8 спеки).
+function currentEquipmentTagPool(){
+  const saved = filterSets.equipment;
+  filterSets.equipment = new Set();
+  const pool = new Set();
+  allTrails.forEach(t=>{ if(matchesFilters(t)) (t.equipment_tags||[]).forEach(x=>pool.add(x)); });
+  allStandalone.forEach(c=>{ if(matchesFilters(c)) (c.equipment_tags||[]).forEach(x=>pool.add(x)); });
+  filterSets.equipment = saved;
+  return pool;
+}
+
+function applyFilters(){
+  let shown = 0;
+  const total = allTrails.length + allStandalone.length;
+
+  allTrails.forEach(trail=>{
+    const group = trailLayerGroups[trail.id];
+    if(matchesFilters(trail)){ if(!map.hasLayer(group)) group.addTo(map); shown++; }
+    else if(map.hasLayer(group)) map.removeLayer(group);
+  });
+  allStandalone.forEach(cp=>{
+    const m = standaloneMarkers[cp.id];
+    if(matchesFilters(cp)){ if(!map.hasLayer(m)) m.addTo(map); shown++; }
+    else if(map.hasLayer(m)) map.removeLayer(m);
+  });
+
+  const counterText = `Показано: ${shown} из ${total}`;
+  document.getElementById('filter-counter').textContent = counterText;
+  document.getElementById('filter-counter-mobile').textContent = `(${shown})`;
+  document.getElementById('empty-state').style.display = shown===0 ? 'flex' : 'none';
+
+  renderNearbyFiltered();
+}
+
+// ── Пресеты ───────────────────────────────────────────────────────────
+function applyPreset(name){
+  if(name==='kids') filterBools.kidFriendly = true;
+  else if(name==='short') filterSets.duration = new Set(['up_to_1h','1_3h']);
+  else if(name==='easy') filterSets.difficulty = new Set(['easy']);
+  else if(name==='fullday') filterSets.duration = new Set(['full_day']);
+  renderFilterBar();
+  applyFilters();
+}
+
+function resetAllFilters(){
+  Object.values(filterSets).forEach(s=>s.clear());
+  filterBools.kidFriendly = false;
+  filterBools.freeOnly = false;
+  renderFilterBar();
+  applyFilters();
+}
+
+// ── Рендер панели фильтров ─────────────────────────────────────────────
+function pillsHtml(groupId, opts, selectedSet){
+  return opts.map(o=>{
+    const active = selectedSet.has(String(o.code));
+    const dot = o.color ? `<span class="dot" style="background:${o.color}"></span>` : '';
+    return `<button type="button" class="pill ${active?'active':''}" data-group="${groupId}" data-value="${escHtml(o.code)}">${dot}${escHtml(o.label)}</button>`;
+  }).join('');
+}
+
+function activeChipsData(){
+  const chips = [];
+  const optLabel = (opts, code) => (opts.find(o=>String(o.code)===String(code))||{}).label || code;
+  const catLabel = id => { const c = categories.find(c=>String(c.id)===String(id)); return c ? categoryLabel(c) : id; };
+  filterSets.category.forEach(v=>chips.push({label:catLabel(v), clear:()=>filterSets.category.delete(v)}));
+  filterSets.duration.forEach(v=>chips.push({label:optLabel(DURATION_OPTS,v), clear:()=>filterSets.duration.delete(v)}));
+  filterSets.difficulty.forEach(v=>chips.push({label:optLabel(DIFFICULTY_OPTS,v), clear:()=>filterSets.difficulty.delete(v)}));
+  filterSets.surface.forEach(v=>chips.push({label:optLabel(SURFACE_OPTS,v), clear:()=>filterSets.surface.delete(v)}));
+  filterSets.access.forEach(v=>chips.push({label:optLabel(ACCESS_OPTS,v), clear:()=>filterSets.access.delete(v)}));
+  filterSets.season.forEach(v=>chips.push({label:optLabel(SEASON_OPTS,v), clear:()=>filterSets.season.delete(v)}));
+  filterSets.equipment.forEach(v=>chips.push({label:v, clear:()=>filterSets.equipment.delete(v)}));
+  if(filterBools.kidFriendly) chips.push({label:'С детьми', clear:()=>{filterBools.kidFriendly=false;}});
+  if(filterBools.freeOnly) chips.push({label:'Только бесплатные', clear:()=>{filterBools.freeOnly=false;}});
+  return chips;
+}
+
+function renderFilterBar(){
+  document.getElementById('filter-presets').innerHTML = `
+    <button type="button" class="preset-btn" data-preset="kids">👨‍👩‍👧 С детьми</button>
+    <button type="button" class="preset-btn" data-preset="short">⏱ На пару часов</button>
+    <button type="button" class="preset-btn" data-preset="easy">🟢 Для новичков</button>
+    <button type="button" class="preset-btn" data-preset="fullday">🌄 На весь день</button>`;
+
+  document.getElementById('filter-primary').innerHTML = `
+    <div class="filter-group">
+      <div class="filter-group-label">Категория</div>
+      <div class="filter-row">${categories.map(c=>`<button type="button" class="pill ${filterSets.category.has(String(c.id))?'active':''}" data-group="category" data-value="${c.id}">${categoryLabel(c)}</button>`).join('')}</div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-group-label">Длительность</div>
+      <div class="filter-row">${pillsHtml('duration', DURATION_OPTS, filterSets.duration)}</div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-group-label">Сложность</div>
+      <div class="filter-row">${pillsHtml('difficulty', DIFFICULTY_OPTS, filterSets.difficulty)}</div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-group-label">Покрытие</div>
+      <div class="filter-row">${pillsHtml('surface', SURFACE_OPTS, filterSets.surface)}</div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-group-label">Доступ на машине</div>
+      <div class="filter-row">${pillsHtml('access', ACCESS_OPTS, filterSets.access)}</div>
+    </div>
+    <div class="filter-group">
+      <div class="filter-row"><button type="button" class="pill ${filterBools.kidFriendly?'active':''}" data-toggle="kidFriendly">👶 С детьми</button></div>
+    </div>`;
+
+  const equipPool = Array.from(currentEquipmentTagPool()).sort();
+  const secondaryParts = [
+    `<div class="filter-group"><div class="filter-group-label">Сезонность</div><div class="filter-row">${pillsHtml('season', SEASON_OPTS, filterSets.season)}</div></div>`,
+    `<div class="filter-group"><div class="filter-row"><button type="button" class="pill ${filterBools.freeOnly?'active':''}" data-toggle="freeOnly">Только бесплатные</button></div></div>`,
+  ];
+  if(equipPool.length){
+    secondaryParts.push(`<div class="filter-group"><div class="filter-group-label">Снаряжение</div><div class="filter-row">${pillsHtml('equipment', equipPool.map(t=>({code:t,label:t})), filterSets.equipment)}</div></div>`);
+  }
+  document.getElementById('filter-secondary').innerHTML = secondaryParts.join('');
+
+  const chips = activeChipsData();
+  activeChipsCache = chips;
+  document.getElementById('filter-active-row').innerHTML = chips.length
+    ? chips.map((c,i)=>`<span class="chip">${escHtml(c.label)} <button type="button" data-chip-remove="${i}">×</button></span>`).join('') +
+      `<button type="button" class="btn-reset-all" id="btn-reset-all">Сбросить всё</button>`
+    : '';
+}
+
+function toggleSheet(){ document.getElementById('filter-bar').classList.toggle('sheet-open'); }
+
+function toggleMoreFilters(){
+  moreOpen = !moreOpen;
+  document.getElementById('filter-secondary').style.display = moreOpen ? '' : 'none';
+  document.getElementById('filter-more-toggle').textContent = moreOpen ? 'Скрыть фильтры ▲' : 'Ещё фильтры ▾';
+}
+
+document.getElementById('filter-bar').addEventListener('click', e=>{
+  const pill = e.target.closest('[data-group]');
+  if(pill){
+    toggleSetValue(filterSets[pill.dataset.group], pill.dataset.value);
+    renderFilterBar();
+    applyFilters();
+    return;
+  }
+  const toggle = e.target.closest('[data-toggle]');
+  if(toggle){
+    const key = toggle.dataset.toggle;
+    filterBools[key] = !filterBools[key];
+    renderFilterBar();
+    applyFilters();
+    return;
+  }
+  const preset = e.target.closest('[data-preset]');
+  if(preset){ applyPreset(preset.dataset.preset); return; }
+
+  const chipRemove = e.target.closest('[data-chip-remove]');
+  if(chipRemove){
+    const chip = activeChipsCache[parseInt(chipRemove.dataset.chipRemove)];
+    if(chip){ chip.clear(); renderFilterBar(); applyFilters(); }
+    return;
+  }
+  if(e.target.id==='btn-reset-all'){ resetAllFilters(); }
+});
+
+// ── "Рядом с вами" ────────────────────────────────────────────────
+function getUserCoords(){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){ resolve({lat:MAYKOP.lat, lon:MAYKOP.lon, fromGeo:false}); return; }
+    let done = false;
+    const finish = (r)=>{ if(!done){ done = true; resolve(r); } };
+    const timer = setTimeout(()=>finish({lat:MAYKOP.lat, lon:MAYKOP.lon, fromGeo:false}), 6000);
+    navigator.geolocation.getCurrentPosition(
+      pos=>{ clearTimeout(timer); finish({lat:pos.coords.latitude, lon:pos.coords.longitude, fromGeo:true}); },
+      ()=>{ clearTimeout(timer); finish({lat:MAYKOP.lat, lon:MAYKOP.lon, fromGeo:false}); },
+      {timeout:5500, maximumAge:60000}
+    );
+  });
+}
+
+function renderNearby(places){
+  const el = document.getElementById('nearby-list');
+  if(!places.length){ el.innerHTML = '<div class="notice">Точек поблизости не найдено (в том числе — из-за активных фильтров)</div>'; return; }
+  el.innerHTML = places.map(p=>{
+    const photo = (p.photos||[])[0];
+    const img = photo ? (photo.thumb_url||photo.url) : null;
+    return `
+    <div class="place-card">
+      ${img?`<img src="${img}" onerror="this.style.display='none'">`:''}
+      <div class="pc-body">
+        <div class="pc-name">${escHtml(p.name)}</div>
+        ${p.category?`<div class="pc-cat">${categoryLabel(p.category)}</div>`:''}
+        ${criteriaBadgesHtml(p)}
+        ${p.description?`<div class="pc-desc">${escHtml(p.description)}</div>`:''}
+        <div class="pc-dist">📍 ${p.distance_km} км</div>
+        <button class="popup-go" onclick="goTo(${p.lat},${p.lon},'${escHtml(p.name).replace(/'/g,"\\'")}')">🚗 Поехали</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let lastNearbyPlaces = null;
+function renderNearbyFiltered(){
+  if(lastNearbyPlaces === null) return;
+  renderNearby(lastNearbyPlaces.filter(matchesFilters));
+}
+
+async function loadNearby(){
+  const coords = await getUserCoords();
+  document.getElementById('nearby-sub').textContent = coords.fromGeo
+    ? 'По вашей текущей геолокации'
+    : 'Геолокация недоступна — показаны точки рядом с Майкопом';
+  try{
+    const places = await fetch(`/api/checkpoints/nearby?lat=${coords.lat}&lon=${coords.lon}&limit=10`).then(r=>r.json());
+    lastNearbyPlaces = places||[];
+    renderNearbyFiltered();
+  }catch(e){
+    lastNearbyPlaces = [];
+    document.getElementById('nearby-list').innerHTML = '<div class="notice">Не удалось загрузить точки</div>';
+  }
+}
+
+loadMap();
+loadNearby();
+</script>
+</body>
+</html>

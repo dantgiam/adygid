@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}АдыГид — личный гид по Адыгее{% endblock %}</title>
+<meta name="description" content="{% block meta_description %}Личный гид по Адыгее: места, маршруты и статьи для тех, кто планирует поездку в горы.{% endblock %}">
+<meta property="og:title" content="{% block og_title %}АдыГид{% endblock %}">
+<meta property="og:description" content="{% block og_description %}Личный гид по Адыгее: места, маршруты и статьи.{% endblock %}">
+{% block og_image %}{% endblock %}
+<link rel="stylesheet" href="/assets/site.css">
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+{% include "_bg_stickers.html" %}
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="/">АдыГид<span>личный гид по Адыгее</span></a>
+    <nav class="main-nav">
+      <a href="/" class="{{ 'active' if active_nav == 'home' else '' }}">Главная</a>
+      <a href="/mesta" class="{{ 'active' if active_nav == 'places' else '' }}">Места</a>
+      <a href="/marshruty" class="{{ 'active' if active_nav == 'routes' else '' }}">Маршруты</a>
+      <a href="/stati" class="{{ 'active' if active_nav == 'articles' else '' }}">Статьи</a>
+      <a href="/klub" class="{{ 'active' if active_nav == 'club' else '' }}">Клуб</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+{% block content %}{% endblock %}
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-stats">
+      На сайте собрано <b>{{ footer_stats.places }}</b> мест и <b>{{ footer_stats.trails }}</b> маршрутов
+    </div>
+    <div class="footer-club">Живые впечатления и отзывы — в <a href="/klub">клубе АдыГид в MAX →</a></div>
+  </div>
+</footer>
+
+<script src="/assets/site.js"></script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

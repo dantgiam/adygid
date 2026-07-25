@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+
+{% block title %}{{ article.title }} — АдыГид{% endblock %}
+{% block meta_description %}{{ article.excerpt or article.title }}{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:32px">
+  <div class="wrap">
+    {% if article.cover_url %}<div class="detail-hero" style="background-image:url('{{ article.cover_url }}')"></div>{% endif %}
+    <p class="eyebrow">Статья{% if article.district_label %} · {{ article.district_label }}{% endif %}</p>
+    <h1 class="article-title">{{ article.title }}</h1>
+
+    <div class="article-body">
+      {{ article.body_html | safe }}
+    </div>
+
+    {% if article.featured_places %}
+    <div class="featured-row">
+      <h4>Места из этой статьи</h4>
+      <div class="grid">{% for p in article.featured_places %}{{ cards.place_card(p) }}{% endfor %}</div>
+    </div>
+    {% endif %}
+
+    {% if article.featured_routes %}
+    <div class="featured-row">
+      <h4>Маршруты из этой статьи</h4>
+      <div class="grid">{% for r in article.featured_routes %}{{ cards.route_card(r) }}{% endfor %}</div>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{% if similar_places %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>Похожие места</h2></div>
+    <div class="grid">{% for p in similar_places %}{{ cards.place_card(p) }}{% endfor %}</div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

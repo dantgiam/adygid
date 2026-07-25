@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    restart: always
+    environment:
+      POSTGRES_USER: adygid
+      POSTGRES_PASSWORD: adygid
+      POSTGRES_DB: adygid
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U adygid -d adygid"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://adygid:adygid@db:5432/adygid
+      ADMIN_USER: admin
+      ADMIN_PASSWORD: adygid
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

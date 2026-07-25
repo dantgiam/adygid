@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+
+{% block title %}Места Адыгеи — АдыГид{% endblock %}
+{% block meta_description %}Водопады, пещеры, каньоны и другие места Адыгеи с фильтром по округу и типу.{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:40px">
+  <div class="wrap">
+    <p class="eyebrow">Каталог</p>
+    <h1 class="page-title">Места</h1>
+
+    <form class="filters" method="get" action="/mesta">
+      <select name="type">
+        <option value="">Любой тип</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {{ 'selected' if selected.type == c.id|string else '' }}>{{ c.icon or '' }} {{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="district">
+        <option value="">Любой округ</option>
+        {% for slug, label in districts.items() %}
+        <option value="{{ slug }}" {{ 'selected' if selected.district == slug else '' }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select name="paid">
+        <option value="">Платно и бесплатно</option>
+        <option value="0" {{ 'selected' if selected.paid == '0' else '' }}>Только бесплатные</option>
+        <option value="1" {{ 'selected' if selected.paid == '1' else '' }}>Только платные</option>
+      </select>
+      <label class="check"><input type="checkbox" name="kid" value="1" {{ 'checked' if selected.kid == '1' else '' }}> Можно с детьми</label>
+      <a class="reset" href="/mesta">Сбросить</a>
+    </form>
+
+    <p class="result-count">{{ places|length }} мест{{ 'о' if places|length == 1 else ('а' if places|length in [2,3,4] else '') }}</p>
+
+    {% if places %}
+    <div class="grid">
+      {% for p in places %}{{ cards.place_card(p) }}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">По этим фильтрам ничего не нашлось — попробуйте сбросить часть условий.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

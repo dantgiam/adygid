@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Мобильный предпросмотр — Samsung Galaxy S24 Ultra</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --frame-w: 480px;
+    --frame-h: 1069px;
+    --bezel: 14px;
+    --corner: 46px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%;
+    background: #e9ece9;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #1c231c;
+  }
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px;
+    background: #fff; border-bottom: 1px solid #dcead9;
+    position: sticky; top: 0; z-index: 5;
+  }
+  .toolbar b { font-size: 15px; white-space: nowrap; }
+  .toolbar .meta { font-size: 12px; color: #5b6e5c; white-space: nowrap; }
+  .toolbar form { display: flex; gap: 6px; flex: 1; min-width: 200px; }
+  .toolbar input[type=text] {
+    flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid #dcead9; border-radius: 8px;
+    font-size: 14px;
+  }
+  .toolbar button, .toolbar select {
+    padding: 7px 12px; border-radius: 8px; border: 1px solid #dcead9;
+    background: #f2f9f1; color: #1c231c; font-size: 13px; cursor: pointer;
+  }
+  .toolbar button.go { background: #278c3e; color: #fff; border-color: #278c3e; }
+
+  .stage {
+    min-height: calc(100% - 54px);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 36px 16px 60px;
+    overflow: auto;
+  }
+  .device {
+    position: relative;
+    width: calc(var(--frame-w) + var(--bezel) * 2);
+    height: calc(var(--frame-h) + var(--bezel) * 2);
+    background: linear-gradient(155deg, #3a3d3f, #1a1b1c 60%);
+    border-radius: calc(var(--corner) + var(--bezel));
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.45), 0 2px 0 rgba(255,255,255,.08) inset;
+    padding: var(--bezel);
+    flex: none;
+  }
+  .device::before {
+    /* боковая кнопка питания */
+    content: ""; position: absolute; right: -2px; top: 220px;
+    width: 3px; height: 90px; background: #0f0f10; border-radius: 2px 0 0 2px;
+  }
+  .screen {
+    position: relative;
+    width: var(--frame-w); height: var(--frame-h);
+    border-radius: var(--corner);
+    overflow: hidden;
+    background: #fff;
+  }
+  .screen iframe {
+    width: 100%; height: 100%; border: 0; display: block;
+  }
+  .punch-hole {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #05070a;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.04) inset;
+    z-index: 3; pointer-events: none;
+  }
+  .home-indicator {
+    position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
+    width: 120px; height: 4px; border-radius: 3px; background: rgba(255,255,255,.35);
+    z-index: 3; pointer-events: none;
+  }
+  .quicklinks { display: flex; gap: 6px; flex-wrap: wrap; }
+  .quicklinks a {
+    font-size: 12px; color: #278c3e; text-decoration: none; padding: 5px 8px;
+    border: 1px solid #dcead9; border-radius: 7px; white-space: nowrap;
+  }
+  .quicklinks a:hover { background: #f2f9f1; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <b>📱 Предпросмотр</b>
+  <span class="meta">Samsung Galaxy S24 Ultra · 480×1069 CSS px · DPR 3.5</span>
+  <form id="go-form">
+    <input type="text" id="path-input" value="/" placeholder="/mesta">
+    <button type="submit" class="go">Перейти</button>
+    <button type="button" id="reload-btn" title="Обновить">⟳</button>
+  </form>
+  <div class="quicklinks">
+    <a href="#" data-path="/">Главная</a>
+    <a href="#" data-path="/mesta">Места</a>
+    <a href="#" data-path="/marshruty">Маршруты</a>
+    <a href="#" data-path="/stati">Статьи</a>
+    <a href="#" data-path="/klub">Клуб</a>
+  </div>
+</div>
+
+<div class="stage">
+  <div class="device">
+    <div class="screen">
+      <div class="punch-hole"></div>
+      <iframe id="preview-frame" src="/"></iframe>
+      <div class="home-indicator"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const frame = document.getElementById('preview-frame');
+  const input = document.getElementById('path-input');
+
+  function normalizePath(v) {
+    v = (v || '').trim();
+    if (!v) return '/';
+    // разрешаем вставить полный URL текущего сайта — берём только path
+    try {
+      if (v.startsWith('http')) { v = new URL(v).pathname + new URL(v).search; }
+    } catch (e) {}
+    if (!v.startsWith('/')) v = '/' + v;
+    return v;
+  }
+
+  document.getElementById('go-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    frame.src = normalizePath(input.value);
+  });
+
+  document.getElementById('reload-btn').addEventListener('click', () => {
+    frame.contentWindow.location.reload();
+  });
+
+  document.querySelectorAll('.quicklinks a').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const p = a.dataset.path;
+      input.value = p;
+      frame.src = p;
+    });
+  });
+
+  // держим адресную строку в курсе навигации внутри iframe (когда возможно —
+  // same-origin, так что это работает)
+  frame.addEventListener('load', () => {
+    try {
+      const p = frame.contentWindow.location.pathname + frame.contentWindow.location.search;
+      input.value = p;
+    } catch (e) { /* игнорируем cross-origin edge-кейсы */ }
+  });
+</script>
+
+</body>
+</html>

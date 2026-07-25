@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>АдыГид — Админка</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css"/>
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.6/quill.snow.css"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;display:flex;height:100vh;overflow:hidden;background:#f5f5f5}
+
+/* ── Левая панель ── */
+#sidebar{width:320px;min-width:320px;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e0e0e0;overflow:hidden}
+#sidebar-header{padding:14px 16px;background:#1D9E75;color:#fff}
+#sidebar-header h2{font-size:16px;font-weight:700}
+#sidebar-header p{font-size:12px;opacity:.8;margin-top:2px}
+#sidebar-body{flex:1;overflow-y:auto;padding:12px}
+
+/* ── Карта ── */
+#map{flex:1;height:100vh}
+
+/* ── Блоки ── */
+.section{margin-bottom:14px}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;color:#888;letter-spacing:.5px;margin-bottom:6px}
+
+/* ── Маршруты ── */
+.trail-item{padding:8px 10px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:6px;cursor:pointer;transition:.15s}
+.trail-item:hover{border-color:#1D9E75}
+.trail-item.active{border-color:#1D9E75;background:#f0faf6}
+.trail-item .tname{font-weight:600;font-size:13px}
+.trail-item .tmeta{font-size:11px;color:#888;margin-top:2px}
+.trail-item .tactions{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+
+/* ── Сегменты ── */
+.seg-item{padding:6px 10px;border-radius:6px;background:#f9f9f9;border:1px solid #eee;margin-bottom:4px;display:flex;align-items:center;gap:8px;font-size:12px}
+.seg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.seg-dot.easy{background:#27ae60}
+.seg-dot.medium{background:#e67e22}
+.seg-dot.hard{background:#c0392b}
+
+/* ── Чекпоинты / категории ── */
+.cp-item{padding:6px 10px;border-radius:6px;background:#f9f9f9;border:1px solid #eee;margin-bottom:4px;font-size:12px}
+.cp-item .cname{font-weight:600}
+.cp-num{display:inline-block;width:18px;height:18px;background:#1D9E75;color:#fff;border-radius:50%;font-size:10px;text-align:center;line-height:18px;margin-right:4px;flex-shrink:0}
+
+/* ── Кнопки ── */
+btn,button{cursor:pointer}
+.btn{display:inline-flex;align-items:center;justify-content:center;padding:6px 12px;border-radius:6px;border:none;font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.btn-green{background:#1D9E75;color:#fff}.btn-green:hover{background:#178a64}
+.btn-orange{background:#e67e22;color:#fff}.btn-orange:hover{background:#ca6f1e}
+.btn-red{background:#e74c3c;color:#fff}.btn-red:hover{background:#c0392b}
+.btn-gray{background:#eee;color:#333}.btn-gray:hover{background:#ddd}
+.btn-sm{padding:3px 8px;font-size:11px}
+.btn-full{width:100%}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* ── Форма ── */
+.field{margin-bottom:8px}
+.field label{display:block;font-size:11px;color:#555;margin-bottom:3px;font-weight:600}
+.field input,.field select,.field textarea{width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit}
+.field textarea{resize:vertical;min-height:54px}
+.field-hint{font-size:10px;color:#999;margin-top:2px}
+
+/* ── Режим рисования ── */
+#draw-controls{padding:10px 12px;background:#fffbe6;border-bottom:1px solid #ffe58f}
+#draw-controls .dc-title{font-size:11px;font-weight:700;color:#7c5c00;margin-bottom:6px}
+#draw-controls .dc-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#mode-indicator{font-size:11px;color:#666;padding:6px 10px;background:#f0f0f0;border-radius:6px;margin-top:6px}
+
+/* ── Модалка ── */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9000;align-items:center;justify-content:center}
+#modal-overlay.show{display:flex}
+#modal{background:#fff;border-radius:12px;padding:20px;width:480px;max-width:92vw;max-height:88vh;overflow-y:auto}
+#modal h3{font-size:14px;margin-bottom:12px;color:#1D9E75}
+
+/* ── Фото ── */
+.photo-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.photo-thumb{position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;background:#eee}
+.photo-thumb img{width:100%;height:100%;object-fit:cover}
+.photo-thumb .del-photo{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:4px;font-size:10px;padding:1px 4px;cursor:pointer}
+
+.notice{font-size:11px;color:#888;text-align:center;padding:16px 0}
+.divider{height:1px;background:#eee;margin:10px 0}
+
+/* ── Rich-text редактор (Quill) — общие стили для статей и описаний ── */
+.ql-toolbar-ru{border:1px solid #ddd;border-bottom:none;border-radius:6px 6px 0 0}
+.ql-editor-ru{height:180px;border-radius:0 0 6px 6px}
+#m-body-editor{height:220px}
+.collage-btn{margin-top:6px}
+
+/* Русские подписи для пикера заголовков вместо дефолтных Quill-лейблов */
+.ql-toolbar-ru .ql-picker.ql-header .ql-picker-label::before,
+.ql-toolbar-ru .ql-picker.ql-header .ql-picker-item::before{content:"Обычный текст"}
+.ql-toolbar-ru .ql-picker.ql-header .ql-picker-label[data-value="2"]::before,
+.ql-toolbar-ru .ql-picker.ql-header .ql-picker-item[data-value="2"]::before{content:"Заголовок"}
+.ql-toolbar-ru .ql-picker.ql-header .ql-picker-label[data-value="3"]::before,
+.ql-toolbar-ru .ql-picker.ql-header .ql-picker-item[data-value="3"]::before{content:"Подзаголовок"}
+
+/* ── Поисковый чек-лист (места/маршруты из статьи) ── */
+.picker{border:1px solid #ddd;border-radius:6px;overflow:hidden}
+.picker-search{width:100%;border:none;border-bottom:1px solid #eee;padding:6px 8px;font-size:12px;border-radius:0}
+.picker-list{max-height:150px;overflow-y:auto;padding:4px 0}
+.picker-item{display:flex;align-items:center;gap:6px;padding:4px 8px;font-size:12px;cursor:pointer}
+.picker-item:hover{background:#f5f5f5}
+</style>
+</head>
+<body>
+
+<!-- ══════ ЛЕВАЯ ПАНЕЛЬ ══════ -->
+<div id="sidebar">
+  <div id="sidebar-header">
+    <h2>АдыГид — Админка</h2>
+    <p>Управление маршрутами и точками</p>
+  </div>
+
+  <!-- Управление рисованием -->
+  <div id="draw-controls">
+    <div class="dc-title">✏️ Инструменты рисования</div>
+    <div class="dc-row">
+      <select id="seg-difficulty" style="padding:5px 6px;border:1px solid #ddd;border-radius:6px;font-size:12px">
+        <option value="easy">🟢 Лёгкий</option>
+        <option value="medium">🟠 Средний</option>
+        <option value="hard">🔴 Сложный</option>
+      </select>
+      <button class="btn btn-green btn-sm" id="btn-add-segment" onclick="startDrawSegment()" disabled>➕ Сегмент</button>
+      <button class="btn btn-gray btn-sm" id="btn-add-checkpoint" onclick="startDrawCheckpoint()" disabled>📍 Точка</button>
+    </div>
+    <div id="mode-indicator">Сначала создайте или выберите маршрут слева — тогда кнопки «Сегмент» и «Точка» станут активны</div>
+  </div>
+
+  <div id="sidebar-body">
+
+    <!-- Маршруты -->
+    <div class="section">
+      <div class="section-title">Маршруты</div>
+      <button class="btn btn-green btn-full" onclick="openCreateTrail()" style="margin-bottom:8px">+ Новый маршрут</button>
+      <div id="trail-list"><div class="notice">Нет маршрутов</div></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Сегменты активного маршрута -->
+    <div class="section" id="segments-section" style="display:none">
+      <div class="section-title">Сегменты <span id="active-trail-name" style="color:#1D9E75"></span></div>
+      <div id="segment-list"></div>
+    </div>
+
+    <div class="divider" id="seg-div" style="display:none"></div>
+
+    <!-- Чекпоинты активного маршрута -->
+    <div class="section" id="checkpoints-section" style="display:none">
+      <div class="section-title">Чекпоинты</div>
+      <div id="checkpoint-list"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Автономные точки (без маршрута) -->
+    <div class="section">
+      <div class="section-title">Отдельные точки (без маршрута)</div>
+      <button class="btn btn-gray btn-sm btn-full" onclick="startDrawStandaloneCheckpoint()" style="margin-bottom:6px">📍 Добавить точку</button>
+      <div id="standalone-list"></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Категории -->
+    <div class="section">
+      <div class="section-title">Категории</div>
+      <button class="btn btn-green btn-sm btn-full" onclick="openCreateCategory()" style="margin-bottom:6px">+ Новая категория</button>
+      <div id="category-list"><div class="notice">Нет категорий</div></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- Статьи (сайт) -->
+    <div class="section">
+      <div class="section-title">Статьи (сайт)</div>
+      <button class="btn btn-green btn-sm btn-full" onclick="openCreateArticle()" style="margin-bottom:6px">+ Новая статья</button>
+      <div id="article-list"><div class="notice">Нет статей</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════ КАРТА ══════ -->
+<div id="map"></div>
+
+<datalist id="equipment-tags-list"></datalist>
+
+<!-- ══════ МОДАЛКА ══════ -->
+<div id="modal-overlay">
+  <div id="modal">
+    <h3 id="modal-title">Создать маршрут</h3>
+    <div id="modal-body"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-green" style="flex:1" onclick="modalConfirm()">Сохранить</button>
+      <button class="btn btn-gray" style="flex:1" onclick="closeModal()">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script>
+// ── Карта ──────────────────────────────────────────────────────────
+const map = L.map('map').setView([44.2, 40.0], 10);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+
+const drawnItems = new L.FeatureGroup().addTo(map);
+const drawControl = new L.Control.Draw({
+  draw:{polyline:{shapeOptions:{color:'#1D9E75',weight:5}},marker:true,polygon:false,rectangle:false,circle:false,circlemarker:false},
+  edit:{featureGroup:drawnItems}
+});
+map.addControl(drawControl);
+
+// ── Состояние ──────────────────────────────────────────────────────
+let activeTrailId = null;
+let drawMode = null;   // 'segment' | 'checkpoint' | 'standalone'
+let pendingLayer = null;
+let modalAction = null;
+let editingId = null;  // id редактируемого объекта
+let categories = [];   // кэш категорий
+
+// слои на карте
+const segLayers = {};   // seg.id → layer
+const cpLayers  = {};   // cp.id  → layer
+
+const DIFF_COLOR = {easy:'#27ae60', medium:'#e67e22', hard:'#c0392b'};
+
+// ── Критерии фильтрации (см. adygid_filters_spec.md) ────────────────
+const DIFFICULTY_OPTS = [
+  {code:'easy',   label:'🟢 Лёгкий'},
+  {code:'medium', label:'🟠 Средний'},
+  {code:'hard',   label:'🔴 Сложный'},
+];
+const SURFACE_OPTS = [
+  {code:'asphalt',  label:'Асфальт'},
+  {code:'dirt',     label:'Грунтовка'},
+  {code:'trail',    label:'Тропа'},
+  {code:'scramble', label:'Курумник / скалы'},
+];
+const SEASON_OPTS = [
+  {code:'year_round',   label:'Круглый год'},
+  {code:'summer_only',  label:'Только летом (снег зимой)'},
+];
+const ACCESS_OPTS = [
+  {code:'paved',          label:'Асфальт до старта'},
+  {code:'high_clearance', label:'Грунтовка, нужен клиренс'},
+  {code:'foot_only',      label:'Только пешком от трассы'},
+];
+const DISTRICT_OPTS = [
+  {code:'maikop',      label:'Округ Майкопа'},
+  {code:'khadzhokh',   label:'Округ Хаджоха'},
+  {code:'dakhovskaya', label:'Округ Даховской'},
+  {code:'lagonaki',    label:'Плато Лагонаки'},
+  {code:'guzeripl',    label:'Округ Гузерипля'},
+];
+const POPULARITY_OPTS = [
+  {code:'normal',  label:'Обычное'},
+  {code:'popular', label:'Популярное'},
+  {code:'top',     label:'Топ'},
+];
+let equipmentTagsCache = [];
+let allTrails = [];
+let allCheckpoints = [];
+let articlesCache = [];
+
+// ── Загрузка данных ────────────────────────────────────────────────
+async function api(method, path, body){
+  const opts = {method, headers:{'Content-Type':'application/json'}};
+  if(body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api'+path, opts);
+  if(!r.ok){ const e=await r.json().catch(()=>({detail:r.statusText})); alert('Ошибка: '+(e.detail||r.statusText)); return null; }
+  return method==='DELETE' ? {ok:true} : r.json();
+}
+
+async function uploadFile(inputEl){
+  if(!inputEl || !inputEl.files.length) return null;
+  const fd = new FormData();
+  fd.append('file', inputEl.files[0]);
+  const r = await fetch('/api/uploads/photo', {method:'POST', body:fd});
+  if(!r.ok){ const e=await r.json().catch(()=>({detail:r.statusText})); alert('Ошибка загрузки фото: '+(e.detail||r.statusText)); return null; }
+  return r.json(); // {url, thumb_url}
+}
+
+async function loadAll(){
+  await loadCategories();
+  await loadEquipmentTags();
+  const trails = await api('GET','/trails');
+  allTrails = trails || [];
+  renderTrailList(allTrails);
+  await loadStandalone();
+  await loadArticles();
+  updateDrawButtonsState();
+}
+
+async function loadEquipmentTags(){
+  equipmentTagsCache = await api('GET','/equipment-tags') || [];
+  document.getElementById('equipment-tags-list').innerHTML =
+    equipmentTagsCache.map(t=>`<option value="${escHtml(t)}">`).join('');
+}
+
+function updateDrawButtonsState(){
+  const has = !!activeTrailId;
+  document.getElementById('btn-add-segment').disabled = !has;
+  document.getElementById('btn-add-checkpoint').disabled = !has;
+}
+
+async function loadCategories(){
+  categories = await api('GET','/categories') || [];
+  renderCategoryList(categories);
+}
+
+async function loadStandalone(){
+  const all = await api('GET','/checkpoints');
+  allCheckpoints = all || [];
+  const standalone = allCheckpoints.filter(c=>!c.trail_id);
+  renderStandalone(standalone);
+  // перерисовать их на карте
+  standalone.forEach(cp=>{
+    if(!cpLayers[cp.id]) drawCpOnMap(cp);
+  });
+}
+
+// ── Категории ──────────────────────────────────────────────────────
+function categoryOptionsHtml(type, selectedId){
+  const opts = categories.filter(c=>c.type===type || c.type==='both');
+  const sel = selectedId==null ? '' : String(selectedId);
+  return `<option value="">— без категории —</option>` +
+    opts.map(c=>`<option value="${c.id}" ${String(c.id)===sel?'selected':''}>${c.icon?c.icon+' ':''}${escHtml(c.name)}</option>`).join('');
+}
+
+function categoryLabel(cat){
+  if(!cat) return '';
+  return `${cat.icon?cat.icon+' ':''}${cat.name}`;
+}
+
+function renderCategoryList(cats){
+  const el = document.getElementById('category-list');
+  if(!cats.length){el.innerHTML='<div class="notice">Нет категорий</div>';return;}
+  const typeLabels = {trail:'маршруты', checkpoint:'точки', both:'везде'};
+  el.innerHTML = cats.map(c=>`
+    <div class="cp-item">
+      <b>${categoryLabel(c)}</b> <span style="color:#aaa;font-size:11px">${typeLabels[c.type]||c.type}${c.is_public===false?' · скрыто на сайте':''}</span>
+      <div class="tactions" style="margin-top:4px">
+        <button class="btn btn-gray btn-sm" onclick='openEditCategory(${JSON.stringify(c)})'>✏️</button>
+        <button class="btn btn-red btn-sm" onclick="deleteCategory(${c.id})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function categoryTypeSelectHtml(selected){
+  const t = selected || 'both';
+  return `<select id="m-cat-type">
+    <option value="both" ${t==='both'?'selected':''}>И маршруты, и точки</option>
+    <option value="trail" ${t==='trail'?'selected':''}>Только маршруты</option>
+    <option value="checkpoint" ${t==='checkpoint'?'selected':''}>Только точки</option>
+  </select>`;
+}
+
+function openCreateCategory(){
+  modalAction = async ()=>{
+    const name = document.getElementById('m-name').value.trim();
+    if(!name){alert('Введите название');return;}
+    const cat = await api('POST','/categories',{
+      name,
+      type: document.getElementById('m-cat-type').value,
+      icon: document.getElementById('m-icon').value.trim() || null,
+      is_public: document.getElementById('m-is-public').checked,
+    });
+    if(cat){ closeModal(); await loadCategories(); }
+  };
+  showModal('Новая категория',`
+    <div class="field"><label>Название</label><input id="m-name" placeholder="Водопад"></div>
+    <div class="field"><label>Иконка (эмодзи, необязательно)</label><input id="m-icon" placeholder="💧" maxlength="4"></div>
+    <div class="field"><label>Где используется</label>${categoryTypeSelectHtml('both')}</div>
+    <div class="field"><label><input type="checkbox" id="m-is-public" checked> Показывать как фильтр на сайте</label>
+      <div class="field-hint">Выключите для служебных меток вроде «Начало маршрута» — они останутся только в админке</div>
+    </div>`);
+}
+
+function openEditCategory(cat){
+  modalAction = async ()=>{
+    const name = document.getElementById('m-name').value.trim();
+    if(!name){alert('Введите название');return;}
+    const updated = await api('PATCH',`/categories/${cat.id}`,{
+      name,
+      type: document.getElementById('m-cat-type').value,
+      icon: document.getElementById('m-icon').value.trim() || null,
+      is_public: document.getElementById('m-is-public').checked,
+    });
+    if(updated){ closeModal(); await loadCategories(); }
+  };
+  showModal('Редактировать категорию',`
+    <div class="field"><label>Название</label><input id="m-name" value="${escHtml(cat.name)}"></div>
+    <div class="field"><label>Иконка (эмодзи)</label><input id="m-icon" value="${escHtml(cat.icon||'')}" maxlength="4"></div>
+    <div class="field"><label>Где используется</label>${categoryTypeSelectHtml(cat.type)}</div>
+    <div class="field"><label><input type="checkbox" id="m-is-public" ${cat.is_public!==false?'checked':''}> Показывать как фильтр на сайте</label>
+      <div class="field-hint">Выключите для служебных меток вроде «Начало маршрута» — они останутся только в админке</div>
+    </div>`);
+}
+
+async function deleteCategory(id){
+  if(!confirm('Удалить категорию? У точек и маршрутов с этой категорией она станет пустой.')) return;
+  await api('DELETE',`/categories/${id}`);
+  await loadCategories();
+}
+
+// ── Статьи (публичный сайт) ──────────────────────────────────────────
+async function loadArticles(){
+  articlesCache = await api('GET','/articles') || [];
+  renderArticleList(articlesCache);
+}
+
+function renderArticleList(arts){
+  const el = document.getElementById('article-list');
+  if(!arts.length){el.innerHTML='<div class="notice">Нет статей</div>';return;}
+  el.innerHTML = arts.map(a=>`
+    <div class="cp-item">
+      <b>${escHtml(a.title)}</b> <span style="color:#aaa;font-size:11px">${a.is_published?'опубликована':'черновик'}</span>
+      <div class="tactions" style="margin-top:4px">
+        <button class="btn btn-gray btn-sm" onclick="openEditArticle(${a.id})">✏️</button>
+        <button class="btn btn-red btn-sm" onclick="deleteArticleAndRefresh(${a.id})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function districtOptionsHtml(selected){
+  return `<option value="">— не указан —</option>` +
+    DISTRICT_OPTS.map(o=>`<option value="${o.code}" ${o.code===(selected||'')?'selected':''}>${o.label}</option>`).join('');
+}
+
+function pickerHtml(id, items, selectedIds){
+  const sel = selectedIds||[];
+  const rows = items.map(it=>`
+    <label class="picker-item"><input type="checkbox" class="picker-check" value="${it.id}" ${sel.includes(it.id)?'checked':''}> ${escHtml(it.name)}</label>`).join('');
+  return `<div class="picker">
+    <input type="text" class="picker-search" placeholder="Поиск по названию..." oninput="filterPicker(this)">
+    <div class="picker-list" id="${id}">${rows || '<div class="notice">Пусто</div>'}</div>
+  </div>`;
+}
+
+function filterPicker(inputEl){
+  const list = inputEl.nextElementSibling;
+  const q = inputEl.value.trim().toLowerCase();
+  list.querySelectorAll('.picker-item').forEach(label=>{
+    label.style.display = label.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function readPicker(id){
+  return Array.from(document.querySelectorAll(`#${id} .picker-check:checked`)).map(el=>parseInt(el.value));
+}
+
+function articleFormHtml(a){
+  a = a || {};
+  return `
+    <div class="field"><label>Заголовок</label><input id="m-title" value="${escHtml(a.title||'')}" placeholder="Что взять с собой в Адыгею"></div>
+    <div class="field"><label>Ссылка (необязательно, иначе сгенерируется из заголовка)</label><input id="m-slug" value="${escHtml(a.slug||'')}" placeholder="chto-vzyat-s-soboy"></div>
+    <div class="field"><label>Короткий анонс</label><textarea id="m-excerpt" placeholder="Пара предложений для карточки статьи">${escHtml(a.excerpt||'')}</textarea></div>
+    <div class="field"><label>Обложка — файл (необязательно)</label><input id="m-cover-file" type="file" accept="image/jpeg,image/png,image/webp"></div>
+    <div class="field"><label>...или ссылка на фото</label><input id="m-cover-url" value="${escHtml(a.cover_url||'')}" placeholder="https://..."></div>
+    <div class="field"><label>Текст статьи</label>
+      <div id="m-toolbar" class="ql-toolbar-ru">
+        <select class="ql-header">
+          <option value="2"></option>
+          <option value="3"></option>
+          <option selected></option>
+        </select>
+        <button class="ql-bold"></button>
+        <button class="ql-italic"></button>
+        <button class="ql-underline"></button>
+        <button class="ql-list" value="ordered"></button>
+        <button class="ql-list" value="bullet"></button>
+        <button class="ql-link"></button>
+        <button class="ql-image" title="Вставить одно фото"></button>
+      </div>
+      <div id="m-body-editor" class="ql-editor-ru"></div>
+      <button type="button" class="btn btn-gray btn-sm collage-btn" onclick="insertArticleCollage()">▥ Вставить коллаж (2-4 фото)</button>
+    </div>
+    <div class="field"><label>Округ (необязательно)</label><select id="m-district">${districtOptionsHtml(a.district)}</select></div>
+    <div class="field"><label>Места из этой статьи</label>${pickerHtml('m-featured-cps', allCheckpoints, a.featured_checkpoint_ids)}</div>
+    <div class="field"><label>Маршруты из этой статьи</label>${pickerHtml('m-featured-trails', allTrails, a.featured_trail_ids)}</div>
+    <div class="field"><label><input type="checkbox" id="m-published" ${a.is_published!==false?'checked':''}> Опубликована</label></div>`;
+}
+
+let articleQuill = null;
+
+function initArticleEditor(initialHtml){
+  articleQuill = new Quill('#m-body-editor', {
+    theme: 'snow',
+    modules: { toolbar: '#m-toolbar' },
+  });
+  if(initialHtml) articleQuill.root.innerHTML = initialHtml;
+  const toolbar = articleQuill.getModule('toolbar');
+  toolbar.addHandler('image', insertArticleImage);
+}
+
+// ── Rich-text редактор описания (маршрут / точка) — без фото, только текст ──
+let descQuill = null;
+
+function descEditorHtml(){
+  return `
+    <div id="m-desc-toolbar" class="ql-toolbar-ru">
+      <select class="ql-header">
+        <option value="2"></option>
+        <option value="3"></option>
+        <option selected></option>
+      </select>
+      <button class="ql-bold"></button>
+      <button class="ql-italic"></button>
+      <button class="ql-underline"></button>
+      <button class="ql-list" value="ordered"></button>
+      <button class="ql-list" value="bullet"></button>
+    </div>
+    <div id="m-desc-editor" class="ql-editor-ru"></div>`;
+}
+
+function initDescEditor(initialHtml){
+  descQuill = new Quill('#m-desc-editor', {
+    theme: 'snow',
+    modules: { toolbar: '#m-desc-toolbar' },
+  });
+  if(initialHtml) descQuill.root.innerHTML = initialHtml;
+}
+
+function insertArticleImage(){
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp';
+  input.onchange = async () => {
+    if(!input.files.length) return;
+    const up = await uploadFile(input);
+    if(!up) return;
+    const range = articleQuill.getSelection(true);
+    articleQuill.insertEmbed(range.index, 'image', up.url, 'user');
+    articleQuill.insertText(range.index+1, '\n', 'user');
+    articleQuill.setSelection(range.index+2);
+  };
+  input.click();
+}
+
+function insertArticleCollage(){
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = 'image/jpeg,image/png,image/webp'; input.multiple = true;
+  input.onchange = async () => {
+    const files = Array.from(input.files).slice(0,4);
+    if(files.length < 2){ alert('Выберите минимум 2 фото для коллажа'); return; }
+    // Подпись под каждым фото — как в галереях Т—Ж (счётчик + короткий текст).
+    // Спрашиваем сразу для всех фото, до загрузки — чтобы не тыкать по одной.
+    const captions = [];
+    for(let i=0;i<files.length;i++){
+      captions.push(prompt(`Подпись к фото ${i+1} из ${files.length} (можно оставить пустым):`, '') || '');
+    }
+    let index = articleQuill.getSelection(true).index;
+    for(let i=0;i<files.length;i++){
+      const fd = new FormData(); fd.append('file', files[i]);
+      const r = await fetch('/api/uploads/photo', {method:'POST', body:fd});
+      if(!r.ok) continue;
+      const up = await r.json();
+      articleQuill.insertEmbed(index, 'image', up.url, 'user');
+      // Quill hе поддерживает alt из коробки — проставляем его прямо в DOM
+      // редактора; readArticlePayload() читает root.innerHTML, так что при
+      // сохранении подпись уедет вместе с картинкой.
+      const imgs = articleQuill.root.querySelectorAll(`img[src="${CSS.escape(up.url)}"]`);
+      const imgEl = imgs[imgs.length-1];
+      if(imgEl){ imgEl.alt = captions[i]; imgEl.title = captions[i]; }
+      index += 1;
+    }
+    articleQuill.insertText(index, '\n', 'user');
+    articleQuill.setSelection(index+1);
+  };
+  input.click();
+}
+
+async function readArticlePayload(){
+  let coverUrl = document.getElementById('m-cover-url').value.trim();
+  const fileEl = document.getElementById('m-cover-file');
+  if(fileEl.files.length){
+    const up = await uploadFile(fileEl);
+    if(up) coverUrl = up.url;
+  }
+  return {
+    title: document.getElementById('m-title').value.trim(),
+    slug: document.getElementById('m-slug').value.trim() || null,
+    excerpt: document.getElementById('m-excerpt').value.trim() || null,
+    cover_url: coverUrl || null,
+    body: articleQuill.root.innerHTML,
+    district: document.getElementById('m-district').value || null,
+    featured_checkpoint_ids: readPicker('m-featured-cps'),
+    featured_trail_ids: readPicker('m-featured-trails'),
+    is_published: document.getElementById('m-published').checked,
+  };
+}
+
+function openCreateArticle(){
+  modalAction = async ()=>{
+    const payload = await readArticlePayload();
+    if(!payload.title){alert('Введите заголовок');return;}
+    const art = await api('POST','/articles',payload);
+    if(art){ closeModal(); await loadArticles(); }
+  };
+  showModal('Новая статья', articleFormHtml());
+  initArticleEditor();
+}
+
+function openEditArticle(id){
+  const a = articlesCache.find(x=>x.id===id);
+  if(!a) return;
+  modalAction = async ()=>{
+    const payload = await readArticlePayload();
+    if(!payload.title){alert('Введите заголовок');return;}
+    const updated = await api('PATCH',`/articles/${id}`,payload);
+    if(updated){ closeModal(); await loadArticles(); }
+  };
+  showModal('Редактировать статью', articleFormHtml(a));
+  initArticleEditor(a.body);
+}
+
+async function deleteArticleAndRefresh(id){
+  if(!confirm('Удалить статью?')) return;
+  await api('DELETE',`/articles/${id}`);
+  await loadArticles();
+}
+
+// ── Критерии фильтрации: общий блок формы для маршрута и точки ──────
+function extraFieldsHtml(v){
+  v = v || {};
+  const surfaceChecked = v.surface_types || [];
+  return `
+    <div class="field"><label>Сложность</label>
+      <select id="m-difficulty">${DIFFICULTY_OPTS.map(o=>`<option value="${o.code}" ${o.code===(v.difficulty||'medium')?'selected':''}>${o.label}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label>Покрытие (можно несколько)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${SURFACE_OPTS.map(o=>`<label style="font-size:11px;display:flex;align-items:center;gap:3px"><input type="checkbox" class="m-surface" value="${o.code}" ${surfaceChecked.includes(o.code)?'checked':''}>${o.label}</label>`).join('')}
+      </div>
+    </div>
+    <div class="field"><label>Доступ на машине</label>
+      <select id="m-access-type">${ACCESS_OPTS.map(o=>`<option value="${o.code}" ${o.code===(v.access_type||'foot_only')?'selected':''}>${o.label}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label>Сезонность</label>
+      <select id="m-seasonality">${SEASON_OPTS.map(o=>`<option value="${o.code}" ${o.code===(v.seasonality||'year_round')?'selected':''}>${o.label}</option>`).join('')}</select>
+    </div>
+    <div class="field"><label>Округ</label>
+      <select id="m-district">
+        <option value="">— не указан —</option>
+        ${DISTRICT_OPTS.map(o=>`<option value="${o.code}" ${o.code===(v.district||'')?'selected':''}>${o.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field"><label>Популярность</label>
+      <select id="m-popularity">${POPULARITY_OPTS.map(o=>`<option value="${o.code}" ${o.code===(v.popularity||'normal')?'selected':''}>${o.label}</option>`).join('')}</select>
+      <div class="field-hint">Влияет на бейдж «ТОП» и на то, как часто место/маршрут выпадает в случайной подборке на сайте</div>
+    </div>
+    <div class="field"><label><input type="checkbox" id="m-weather-warning" ${v.weather_warning?'checked':''}> Осторожно после дождя</label>
+      <div class="field-hint">Погодное предупреждение — покажется бейджем на карточке, это не фильтр</div>
+    </div>
+    <div class="field"><label><input type="checkbox" id="m-is-paid" ${v.is_paid?'checked':''}> Платный вход</label></div>
+    <div class="field"><label>Комментарий по цене</label><input id="m-price-note" value="${escHtml(v.price_note||'')}" placeholder="300₽ с человека"></div>
+    <div class="field"><label>Снаряжение (через запятую)</label>
+      <input id="m-equipment" list="equipment-tags-list" value="${escHtml((v.equipment_tags||[]).join(', '))}" placeholder="треккинговые палки, каска">
+    </div>
+    <div class="field"><label><input type="checkbox" id="m-kid-friendly" ${v.kid_friendly?'checked':''}> Подходит с детьми</label>
+      <div class="field-hint">Ставь, если пройдёт человек с ребёнком на руках/в переноске по всей тропе</div>
+    </div>`;
+}
+
+function readExtraFields(){
+  return {
+    difficulty: document.getElementById('m-difficulty').value,
+    surface_types: Array.from(document.querySelectorAll('.m-surface:checked')).map(el=>el.value),
+    access_type: document.getElementById('m-access-type').value,
+    seasonality: document.getElementById('m-seasonality').value,
+    district: document.getElementById('m-district').value || null,
+    popularity: document.getElementById('m-popularity').value,
+    weather_warning: document.getElementById('m-weather-warning').checked,
+    is_paid: document.getElementById('m-is-paid').checked,
+    price_note: document.getElementById('m-price-note').value.trim() || null,
+    equipment_tags: document.getElementById('m-equipment').value.split(',').map(s=>s.trim()).filter(Boolean),
+    kid_friendly: document.getElementById('m-kid-friendly').checked,
+  };
+}
+
+function criteriaBadgesHtml(o){
+  let b = '';
+  if(o.kid_friendly) b += ' <span title="Подходит с детьми">👶</span>';
+  if(o.is_paid) b += ' <span title="Платно">💰</span>';
+  if(o.weather_warning) b += ' <span title="Осторожно после дождя">⚠️</span>';
+  return b;
+}
+
+// ── Рендер панели маршрутов ────────────────────────────────────────
+function formatDuration(min){
+  if(!min) return '';
+  const h = Math.floor(min/60), m = min%60;
+  if(h && m) return `${h} ч ${m} мин`;
+  if(h) return `${h} ч`;
+  return `${m} мин`;
+}
+
+function renderTrailList(trails){
+  const el = document.getElementById('trail-list');
+  if(!trails.length){el.innerHTML='<div class="notice">Нет маршрутов</div>';return;}
+  el.innerHTML = trails.map(t=>{
+    const metaBits = [`${t.segments.length} сегм.`, `${t.checkpoints.length} точек`];
+    if(t.duration_minutes) metaBits.push(formatDuration(t.duration_minutes));
+    if(t.category) metaBits.push(categoryLabel(t.category));
+    return `
+    <div class="trail-item ${t.id===activeTrailId?'active':''}" id="trail-item-${t.id}" onclick="selectTrail(${t.id})">
+      <div class="tname">${escHtml(t.name)}${criteriaBadgesHtml(t)}</div>
+      <div class="tmeta">${metaBits.join(' · ')}</div>
+      <div class="tactions" onclick="event.stopPropagation()">
+        <button class="btn btn-gray btn-sm" onclick='openEditTrail(${JSON.stringify(t)})'>✏️ Ред.</button>
+        <button class="btn btn-orange btn-sm" onclick="openTrailPhotos(${t.id})">📷 Фото (${t.photos.length})</button>
+        <button class="btn btn-red btn-sm" onclick="deleteTrail(${t.id})">🗑 Удалить</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderStandalone(cps){
+  const el = document.getElementById('standalone-list');
+  if(!cps.length){el.innerHTML='<div class="notice">Нет отдельных точек</div>';return;}
+  el.innerHTML = cps.map(c=>`
+    <div class="cp-item">
+      <span class="cp-num">★</span>
+      <b>${escHtml(c.name)}</b>${criteriaBadgesHtml(c)} <span style="color:#aaa">${categoryLabel(c.category)}</span>
+      <div class="tactions" style="margin-top:4px">
+        <button class="btn btn-gray btn-sm" onclick="openEditCp(${c.id})">✏️</button>
+        <button class="btn btn-red btn-sm" onclick="deleteCp(${c.id})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── Выбор активного маршрута ───────────────────────────────────────
+async function selectTrail(id){
+  activeTrailId = id;
+  const trails = await api('GET','/trails');
+  renderTrailList(trails||[]);
+  const trail = (trails||[]).find(t=>t.id===id);
+  if(!trail) return;
+
+  document.getElementById('active-trail-name').textContent = trail.name;
+  document.getElementById('segments-section').style.display='';
+  document.getElementById('seg-div').style.display='';
+  document.getElementById('checkpoints-section').style.display='';
+
+  // очистить старые слои
+  Object.values(segLayers).forEach(l=>drawnItems.removeLayer(l));
+  Object.values(cpLayers).forEach(l=>map.removeLayer(l));
+  Object.keys(segLayers).forEach(k=>delete segLayers[k]);
+  Object.keys(cpLayers).forEach(k=>delete cpLayers[k]);
+
+  renderSegments(trail.segments);
+  renderCheckpoints(trail.checkpoints);
+  trail.segments.forEach(s=>drawSegOnMap(s));
+  trail.checkpoints.forEach(c=>drawCpOnMap(c));
+
+  updateDrawButtonsState();
+  document.getElementById('mode-indicator').textContent = `Активный маршрут: «${trail.name}». Жмите «➕ Сегмент» и кликайте по карте, чтобы нарисовать тропу, либо «📍 Точка», чтобы поставить точку.`;
+  document.getElementById('trail-item-'+id)?.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+// ── Сегменты ───────────────────────────────────────────────────────
+function renderSegments(segs){
+  const el = document.getElementById('segment-list');
+  if(!segs.length){el.innerHTML='<div class="notice">Нет сегментов</div>';return;}
+  const labels = {easy:'Лёгкий',medium:'Средний',hard:'Сложный'};
+  el.innerHTML = segs.map((s,i)=>`
+    <div class="seg-item">
+      <span class="seg-dot ${s.difficulty}"></span>
+      <span style="flex:1">Сегмент ${i+1} — ${labels[s.difficulty]||s.difficulty}</span>
+      <select onchange="changeDiff(${s.id},this.value)" style="font-size:11px;border:1px solid #ddd;border-radius:4px;padding:2px 4px">
+        ${['easy','medium','hard'].map(d=>`<option value="${d}" ${d===s.difficulty?'selected':''}>${labels[d]}</option>`).join('')}
+      </select>
+      <button class="btn btn-red btn-sm" onclick="deleteSegment(${s.id})">🗑</button>
+    </div>`).join('');
+}
+
+function drawSegOnMap(s){
+  const layer = L.geoJSON(s.geojson,{style:{color:DIFF_COLOR[s.difficulty]||'#888',weight:5}}).addTo(drawnItems);
+  layer.bindPopup(`Сегмент #${s.id} — ${s.difficulty}<br><button onclick="deleteSegment(${s.id})" style="margin-top:4px;padding:2px 8px;background:#e74c3c;color:#fff;border:none;border-radius:4px;cursor:pointer">Удалить</button>`);
+  segLayers[s.id] = layer;
+}
+
+async function changeDiff(segId, newDiff){
+  await api('PATCH',`/segments/${segId}`,{difficulty:newDiff});
+  if(activeTrailId) await selectTrail(activeTrailId);
+}
+
+async function deleteSegment(id){
+  if(!confirm('Удалить сегмент?')) return;
+  await api('DELETE',`/segments/${id}`);
+  if(activeTrailId) await selectTrail(activeTrailId);
+}
+
+// ── Чекпоинты ──────────────────────────────────────────────────────
+function renderCheckpoints(cps){
+  const el = document.getElementById('checkpoint-list');
+  if(!cps.length){el.innerHTML='<div class="notice">Нет чекпоинтов</div>';return;}
+  el.innerHTML = cps.map((c,i)=>`
+    <div class="cp-item">
+      <span class="cp-num">${i+1}</span>
+      <b>${escHtml(c.name)}</b>${criteriaBadgesHtml(c)} <span style="color:#aaa;font-size:11px">${categoryLabel(c.category)}</span>
+      ${c.photos.length?`<div class="photo-list">${c.photos.map(p=>`<div class="photo-thumb"><img src="${p.thumb_url||p.url}" onerror="this.style.display='none'"><button class="del-photo" onclick="deletePhoto(${p.id})">✕</button></div>`).join('')}</div>`:''}
+      <div class="tactions" style="margin-top:4px">
+        <button class="btn btn-gray btn-sm" onclick="openEditCp(${c.id})">✏️ Ред.</button>
+        <button class="btn btn-orange btn-sm" onclick="openAddPhoto(${c.id})">📷 Фото</button>
+        <button class="btn btn-red btn-sm" onclick="deleteCp(${c.id})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+function drawCpOnMap(c){
+  const numIcon = L.divIcon({html:`<div style="background:#1D9E75;color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)">${c.order_index+1}</div>`,className:'',iconSize:[24,24],iconAnchor:[12,12]});
+  const m = L.marker([c.lat,c.lon],{icon:numIcon}).addTo(map);
+  let photoHtml = c.photos.map(p=>`<img src="${p.thumb_url||p.url}" style="width:100%;border-radius:6px;margin-top:4px" onerror="this.style.display='none'">`).join('');
+  m.bindPopup(`<b>${escHtml(c.name)}</b>${c.category?`<br><span style="font-size:11px;color:#888">${categoryLabel(c.category)}</span>`:''}${c.description?`<br><span style="font-size:12px">${escHtml(c.description)}</span>`:''}${photoHtml}<br><button onclick="openEditCp(${c.id})" style="margin-top:6px;padding:2px 8px;background:#1D9E75;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px">Редактировать</button>`);
+  cpLayers[c.id] = m;
+}
+
+async function deleteCp(id){
+  if(!confirm('Удалить точку?')) return;
+  await api('DELETE',`/checkpoints/${id}`);
+  if(cpLayers[id]){map.removeLayer(cpLayers[id]);delete cpLayers[id];}
+  if(activeTrailId) await selectTrail(activeTrailId);
+  await loadStandalone();
+}
+
+async function deletePhoto(id){
+  if(!confirm('Удалить фото?')) return;
+  await api('DELETE',`/photos/${id}`);
+  if(activeTrailId) await selectTrail(activeTrailId);
+  await loadStandalone();
+}
+
+// ── Рисование ──────────────────────────────────────────────────────
+function startDrawSegment(){
+  if(!activeTrailId){alert('Сначала выберите или создайте маршрут');return;}
+  drawMode='segment';
+  document.getElementById('mode-indicator').textContent='🖊 Рисуйте сегмент: кликайте по карте, двойной клик — завершить';
+  new L.Draw.Polyline(map,{shapeOptions:{color:DIFF_COLOR[document.getElementById('seg-difficulty').value],weight:5}}).enable();
+}
+
+function startDrawCheckpoint(){
+  if(!activeTrailId){alert('Сначала выберите или создайте маршрут');return;}
+  drawMode='checkpoint';
+  document.getElementById('mode-indicator').textContent='📍 Кликните на карте, чтобы поставить точку';
+  new L.Draw.Marker(map).enable();
+}
+
+function startDrawStandaloneCheckpoint(){
+  drawMode='standalone';
+  document.getElementById('mode-indicator').textContent='📍 Кликните на карте, чтобы поставить отдельную точку';
+  new L.Draw.Marker(map).enable();
+}
+
+map.on(L.Draw.Event.CREATED, async function(e){
+  pendingLayer = e.layer;
+  drawnItems.addLayer(pendingLayer);
+
+  if(drawMode==='segment'){
+    const diff = document.getElementById('seg-difficulty').value;
+    const latlngs = pendingLayer.getLatLngs().map(p=>[p.lng,p.lat]);
+    const seg = await api('POST',`/trails/${activeTrailId}/segments`,{
+      difficulty:diff,
+      order_index:999,
+      geojson:{type:'LineString',coordinates:latlngs}
+    });
+    if(seg) await selectTrail(activeTrailId);
+    drawnItems.removeLayer(pendingLayer);
+    document.getElementById('mode-indicator').textContent=`✅ Сегмент добавлен. Продолжайте рисовать или выберите другой инструмент.`;
+
+  } else if(drawMode==='checkpoint' || drawMode==='standalone'){
+    const ll = pendingLayer.getLatLng();
+    openCreateCp(ll.lng, ll.lat, drawMode==='checkpoint' ? activeTrailId : null);
+    drawnItems.removeLayer(pendingLayer);
+  }
+  drawMode=null;
+});
+
+// Обработка редактирования через Draw.Edit
+map.on(L.Draw.Event.EDITED, async function(e){
+  // После редактирования линий через edit-mode — обновляем сегменты
+  // (упрощённая версия: просто перезагружаем маршрут)
+  if(activeTrailId) await selectTrail(activeTrailId);
+});
+
+// ── Маршруты CRUD ──────────────────────────────────────────────────
+function openCreateTrail(){
+  modalAction = async ()=>{
+    const name = document.getElementById('m-name').value.trim();
+    const desc = descQuill.root.innerHTML;
+    if(!name){alert('Введите название');return;}
+    const duration = document.getElementById('m-duration').value;
+    const t = await api('POST','/trails',{
+      name, description:desc,
+      category_id: document.getElementById('m-cat').value || null,
+      duration_minutes: duration ? parseInt(duration) : null,
+      ...readExtraFields(),
+    });
+    if(!t) return;
+    const fileEl = document.getElementById('m-photo-file');
+    const photoUrl = document.getElementById('m-photo').value.trim();
+    if(fileEl.files.length){
+      const up = await uploadFile(fileEl);
+      if(up) await api('POST',`/trails/${t.id}/photos`,{url:up.url, thumb_url:up.thumb_url});
+    } else if(photoUrl){
+      await api('POST',`/trails/${t.id}/photos`,{url:photoUrl});
+    }
+    closeModal();
+    await loadAll();
+    // Новый маршрут сразу становится активным — можно сразу добавлять точки и сегменты
+    await selectTrail(t.id);
+  };
+  showModal('Новый маршрут',`
+    <div class="field"><label>Название маршрута</label><input id="m-name" placeholder="Водопады Руфабго"></div>
+    <div class="field"><label>Категория</label><select id="m-cat">${categoryOptionsHtml('trail', null)}</select></div>
+    <div class="field"><label>Длительность (минут)</label><input id="m-duration" type="number" min="0" placeholder="180"><div class="field-hint">Например, 180 = 3 часа</div></div>
+    <div class="field"><label>Описание</label>${descEditorHtml()}</div>
+    ${extraFieldsHtml()}
+    <div class="field"><label>Обложка — файл (необязательно)</label><input id="m-photo-file" type="file" accept="image/jpeg,image/png,image/webp"></div>
+    <div class="field"><label>...или ссылка на фото</label><input id="m-photo" placeholder="https://..."></div>
+    <div class="field-hint">После сохранения маршрут станет активным — сразу сможете рисовать тропу и ставить точки на карте.</div>`);
+  initDescEditor();
+}
+
+function openEditTrail(t){
+  modalAction = async ()=>{
+    const newName = document.getElementById('m-name').value.trim();
+    const newDesc = descQuill.root.innerHTML;
+    if(!newName){alert('Введите название');return;}
+    const dur = document.getElementById('m-duration').value;
+    const updated = await api('PATCH',`/trails/${t.id}`,{
+      name:newName, description:newDesc,
+      category_id: document.getElementById('m-cat').value || null,
+      duration_minutes: dur ? parseInt(dur) : null,
+      ...readExtraFields(),
+    });
+    if(updated){
+      const fileEl = document.getElementById('m-photo-file');
+      const photoUrl = document.getElementById('m-photo').value.trim();
+      if(fileEl.files.length){
+        const up = await uploadFile(fileEl);
+        if(up) await api('POST',`/trails/${t.id}/photos`,{url:up.url, thumb_url:up.thumb_url});
+      } else if(photoUrl){
+        await api('POST',`/trails/${t.id}/photos`,{url:photoUrl});
+      }
+    }
+    closeModal();
+    await loadAll();
+    if(activeTrailId===t.id) await selectTrail(t.id);
+  };
+  showModal('Редактировать маршрут',`
+    <div class="field"><label>Название маршрута</label><input id="m-name" value="${escHtml(t.name)}"></div>
+    <div class="field"><label>Категория</label><select id="m-cat">${categoryOptionsHtml('trail', t.category_id)}</select></div>
+    <div class="field"><label>Длительность (минут)</label><input id="m-duration" type="number" min="0" value="${t.duration_minutes||''}"></div>
+    <div class="field"><label>Описание</label>${descEditorHtml()}</div>
+    ${extraFieldsHtml(t)}
+    <div class="field"><label>Добавить фото — файл (необязательно)</label><input id="m-photo-file" type="file" accept="image/jpeg,image/png,image/webp"></div>
+    <div class="field"><label>...или ссылка на фото</label><input id="m-photo" placeholder="https://..."></div>
+    <div class="field-hint">Все фото маршрута и их удаление — кнопка «📷 Фото» в списке слева.</div>`);
+  initDescEditor(t.description);
+}
+
+async function deleteTrail(id){
+  if(!confirm('Удалить маршрут и все его сегменты / точки?')) return;
+  await api('DELETE',`/trails/${id}`);
+  if(activeTrailId===id){
+    activeTrailId=null;
+    document.getElementById('segments-section').style.display='none';
+    document.getElementById('checkpoints-section').style.display='none';
+    document.getElementById('seg-div').style.display='none';
+    Object.values(segLayers).forEach(l=>drawnItems.removeLayer(l));
+    Object.values(cpLayers).forEach(l=>map.removeLayer(l));
+    document.getElementById('mode-indicator').textContent = 'Сначала создайте или выберите маршрут слева — тогда кнопки «Сегмент» и «Точка» станут активны';
+  }
+  await loadAll();
+}
+
+// ── Фото маршрута ──────────────────────────────────────────────────
+async function openTrailPhotos(trailId){
+  const trails = await api('GET','/trails');
+  const trail = (trails||[]).find(t=>t.id===trailId);
+  if(!trail) return;
+  modalAction = async ()=>{
+    const fileEl = document.getElementById('m-photo-file');
+    const url = document.getElementById('m-photo-url').value.trim();
+    const caption = document.getElementById('m-photo-cap').value.trim();
+    let added = null;
+    if(fileEl.files.length){
+      const up = await uploadFile(fileEl);
+      if(up) added = await api('POST',`/trails/${trailId}/photos`,{url:up.url, thumb_url:up.thumb_url, caption});
+    } else if(url){
+      added = await api('POST',`/trails/${trailId}/photos`,{url, caption});
+    }
+    if(added){ closeModal(); await loadAll(); openTrailPhotos(trailId); }
+    else closeModal();
+  };
+  const photosHtml = trail.photos.map(p=>`
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+      <img src="${p.thumb_url||p.url}" style="width:40px;height:40px;object-fit:cover;border-radius:4px">
+      <button onclick="deleteTrailPhotoAndRefresh(${p.id},${trailId})" style="background:#e74c3c;color:#fff;border:none;padding:2px 6px;border-radius:4px;cursor:pointer;font-size:11px">✕</button>
+    </div>`).join('');
+  showModal(`Фото маршрута: ${escHtml(trail.name)}`,`
+    ${photosHtml?`<div class="field"><label>Существующие фото</label>${photosHtml}</div>`:'<div class="notice">Пока нет фото</div>'}
+    <div class="field"><label>Загрузить файл (jpg/png/webp)</label><input id="m-photo-file" type="file" accept="image/jpeg,image/png,image/webp"></div>
+    <div class="field"><label>...или ссылка на фото</label><input id="m-photo-url" placeholder="https://..."></div>
+    <div class="field"><label>Подпись (необязательно)</label><input id="m-photo-cap" placeholder="Вид сверху..."></div>`);
+}
+
+async function deleteTrailPhotoAndRefresh(photoId, trailId){
+  if(!confirm('Удалить фото?')) return;
+  await api('DELETE',`/photos/${photoId}`);
+  closeModal();
+  openTrailPhotos(trailId);
+}
+
+// ── Чекпоинты CRUD ─────────────────────────────────────────────────
+function openCreateCp(lon, lat, trailId){
+  const orderHint = trailId ? '(порядковый номер в маршруте, с 0)' : '';
+  modalAction = async ()=>{
+    const name = document.getElementById('m-name').value.trim();
+    if(!name){alert('Введите название');return;}
+    const dur = document.getElementById('m-duration').value;
+    const cp = await api('POST','/checkpoints',{
+      trail_id: trailId,
+      name,
+      category_id: document.getElementById('m-cat').value || null,
+      description: descQuill.root.innerHTML,
+      order_index: parseInt(document.getElementById('m-order').value)||0,
+      duration_minutes: dur ? parseInt(dur) : null,
+      lon, lat,
+      ...readExtraFields(),
+    });
+    if(cp){
+      const fileEl = document.getElementById('m-photo-file');
+      const photoUrl = document.getElementById('m-photo').value.trim();
+      if(fileEl.files.length){
+        const up = await uploadFile(fileEl);
+        if(up) await api('POST',`/checkpoints/${cp.id}/photos`,{url:up.url, thumb_url:up.thumb_url});
+      } else if(photoUrl){
+        await api('POST',`/checkpoints/${cp.id}/photos`,{url:photoUrl});
+      }
+      closeModal();
+      await loadEquipmentTags();
+      if(trailId) await selectTrail(trailId);
+      else await loadStandalone();
+    }
+  };
+  showModal('Новая точка',`
+    <div class="field"><label>Название</label><input id="m-name" placeholder="Водопад №1"></div>
+    <div class="field"><label>Категория</label><select id="m-cat">${categoryOptionsHtml('checkpoint', null)}</select></div>
+    <div class="field"><label>Описание</label>${descEditorHtml()}</div>
+    <div class="field"><label>Номер по порядку ${orderHint}</label><input id="m-order" type="number" value="0" min="0"></div>
+    <div class="field"><label>Длительность посещения (минут, необязательно)</label><input id="m-duration" type="number" min="0" placeholder="30"></div>
+    ${extraFieldsHtml()}
+    <div class="field"><label>Фото — файл (jpg/png/webp)</label><input id="m-photo-file" type="file" accept="image/jpeg,image/png,image/webp"></div>
+    <div class="field"><label>...или ссылка на фото</label><input id="m-photo" placeholder="https://..."></div>`);
+  initDescEditor();
+}
+
+async function openEditCp(id){
+  const all = await api('GET','/checkpoints');
+  const cp = (all||[]).find(c=>c.id===id);
+  if(!cp) return;
+  editingId = id;
+  modalAction = async ()=>{
+    const name = document.getElementById('m-name').value.trim();
+    if(!name){alert('Введите название');return;}
+    const dur = document.getElementById('m-duration').value;
+    await api('PATCH',`/checkpoints/${id}`,{
+      name,
+      category_id: document.getElementById('m-cat').value || null,
+      description: descQuill.root.innerHTML,
+      order_index: parseInt(document.getElementById('m-order').value)||0,
+      duration_minutes: dur ? parseInt(dur) : null,
+      ...readExtraFields(),
+    });
+    const fileEl = document.getElementById('m-photo-file');
+    const photoUrl = document.getElementById('m-photo').value.trim();
+    if(fileEl.files.length){
+      const up = await uploadFile(fileEl);
+      if(up) await api('POST',`/checkpoints/${id}/photos`,{url:up.url, thumb_url:up.thumb_url});
+    } else if(photoUrl){
+      await api('POST',`/checkpoints/${id}/photos`,{url:photoUrl});
+    }
+    closeModal();
+    await loadEquipmentTags();
+    if(cp.trail_id) await selectTrail(cp.trail_id);
+    else { if(cpLayers[id]){map.removeLayer(cpLayers[id]);delete cpLayers[id];} await loadStandalone(); }
+  };
+  const photosHtml = cp.photos.map(p=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><img src="${p.thumb_url||p.url}" style="width:40px;height:40px;object-fit:cover;border-radius:4px"><button onclick="deleteCpPhotoAndRefresh(${p.id},${id})" style="background:#e74c3c;color:#fff;border:none;padding:2px 6px;border-radius:4px;cursor:pointer;font-size:11px">✕</button></div>`).join('');
+  showModal(`Редактировать: ${escHtml(cp.name)}`,`
+    <div class="field"><label>Название</label><input id="m-name" value="${escHtml(cp.name)}"></div>
+    <div class="field"><label>Категория</label><select id="m-cat">${categoryOptionsHtml('checkpoint', cp.category_id)}</select></div>
+    <div class="field"><label>Описание</label>${descEditorHtml()}</div>
+    <div class="field"><label>Номер по порядку</label><input id="m-order" type="number" value="${cp.order_index}" min="0"></div>
+    <div class="field"><label>Длительность посещения (минут, необязательно)</label><input id="m-duration" type="number" min="0" value="${cp.duration_minutes||''}"></div>
+    ${extraFieldsHtml(cp)}
+    ${photosHtml?`<div class="field"><label>Существующие фото</label>${photosHtml}</div>`:''}
+    <div class="field"><label>Добавить фото — файл</label><input id="m-photo-file" type="file" accept="image/jpeg,image/png,image/webp"></div>
+    <div class="field"><label>...или ссылка на фото</label><input id="m-photo" placeholder="https://..."></div>`);
+  initDescEditor(cp.description);
+}
+
+async function deleteCpPhotoAndRefresh(photoId, cpId){
+  if(!confirm('Удалить фото?')) return;
+  await api('DELETE',`/photos/${photoId}`);
+  closeModal();
+  openEditCp(cpId);
+}
+
+function openAddPhoto(cpId){
+  modalAction = async ()=>{
+    const fileEl = document.getElementById('m-photo-file');
+    const url = document.getElementById('m-photo-url').value.trim();
+    const caption = document.getElementById('m-photo-cap').value;
+    if(fileEl.files.length){
+      const up = await uploadFile(fileEl);
+      if(up) await api('POST',`/checkpoints/${cpId}/photos`,{url:up.url, thumb_url:up.thumb_url, caption});
+    } else if(url){
+      await api('POST',`/checkpoints/${cpId}/photos`,{url, caption});
+    } else {
+      alert('Выберите файл или введите ссылку'); return;
+    }
+    closeModal();
+    if(activeTrailId) await selectTrail(activeTrailId);
+    await loadStandalone();
+  };
+  showModal('Добавить фото',`
+    <div class="field"><label>Файл (jpg/png/webp)</label><input id="m-photo-file" type="file" accept="image/jpeg,image/png,image/webp"></div>
+    <div class="field"><label>...или ссылка на фото</label><input id="m-photo-url" placeholder="https://..."></div>
+    <div class="field"><label>Подпись (необязательно)</label><input id="m-photo-cap" placeholder="Вид сверху..."></div>`);
+}
+
+// ── Модалка ────────────────────────────────────────────────────────
+function showModal(title, bodyHtml){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=bodyHtml;
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('show'); modalAction=null;}
+function modalConfirm(){if(modalAction) modalAction();}
+
+// ── Утилиты ────────────────────────────────────────────────────────
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── Старт ──────────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>

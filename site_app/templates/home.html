@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+
+{% block title %}АдыГид — личный гид по Адыгее{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow">Привет</p>
+      <h1 class="page-title">Меня зовут [Ваше имя] — я провожу здесь, в горах Адыгеи, и собрал АдыГид, чтобы делиться тем, что действительно стоит увидеть</h1>
+      <p class="about-text">Здесь — места и маршруты, которые я сам прошёл и проверил, без воды и рекламных описаний. Если вы впервые в Адыгее — начните со статей ниже, они помогут быстро сориентироваться.</p>
+      <p class="about-text">[Место для короткой личной истории: как вы начали водить людей по Адыгее, что вас зацепило в этих горах.]</p>
+    </div>
+
+    <div>
+      <p class="hl-label">Случайное место — ловите впечатления</p>
+      <div class="highlight-card" id="highlight-card">
+        <div class="hl-cover" style="{% if highlight.cover %}background-image:url('{{ highlight.cover }}'){% endif %}">
+          <span class="hl-tag">{{ highlight.tag_label }}</span>
+        </div>
+        <div class="hl-body">
+          <h3>{{ highlight.name }}</h3>
+          <p>{{ highlight.excerpt or '' }}</p>
+          <div class="hl-actions">
+            <a class="btn btn-primary hl-open" href="{{ highlight.url }}">Смотреть</a>
+            <button class="btn btn-ghost" id="regenerate-btn" type="button">Перегенерировать</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>С чего начать</h2>
+      <a class="see-all" href="/stati">Все статьи →</a>
+    </div>
+    {% if articles %}
+    <div class="grid">
+      {% for a in articles %}{{ cards.article_card(a) }}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">Статей пока нет — добавьте первую в админке.</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Подборка мест</h2>
+      <a class="see-all" href="/mesta">Все места →</a>
+    </div>
+    {% if places %}
+    <div class="grid">
+      {% for p in places %}{{ cards.place_card(p) }}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">Мест пока нет — добавьте первое в админке.</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Подборка маршрутов</h2>
+      <a class="see-all" href="/marshruty">Все маршруты →</a>
+    </div>
+    {% if routes %}
+    <div class="grid">
+      {% for r in routes %}{{ cards.route_card(r) }}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">Маршрутов пока нет — добавьте первый в админке.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

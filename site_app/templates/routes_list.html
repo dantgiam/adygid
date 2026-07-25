@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+
+{% block title %}Маршруты по Адыгее — АдыГид{% endblock %}
+{% block meta_description %}Пешие, конные, джип- и сплав-маршруты по Адыгее с фильтром по округу и сложности.{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:40px">
+  <div class="wrap">
+    <p class="eyebrow">Каталог</p>
+    <h1 class="page-title">Маршруты</h1>
+
+    <form class="filters" method="get" action="/marshruty">
+      <select name="type">
+        <option value="">Любой тип</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {{ 'selected' if selected.type == c.id|string else '' }}>{{ c.icon or '' }} {{ c.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="district">
+        <option value="">Любой округ</option>
+        {% for slug, label in districts.items() %}
+        <option value="{{ slug }}" {{ 'selected' if selected.district == slug else '' }}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <select name="difficulty">
+        <option value="">Любая сложность</option>
+        <option value="easy" {{ 'selected' if selected.difficulty == 'easy' else '' }}>Лёгкая</option>
+        <option value="medium" {{ 'selected' if selected.difficulty == 'medium' else '' }}>Средняя</option>
+        <option value="hard" {{ 'selected' if selected.difficulty == 'hard' else '' }}>Сложная</option>
+      </select>
+      <label class="check"><input type="checkbox" name="kid" value="1" {{ 'checked' if selected.kid == '1' else '' }}> Можно с детьми</label>
+      <a class="reset" href="/marshruty">Сбросить</a>
+    </form>
+
+    <p class="result-count">{{ routes|length }} маршрут{{ 'ов' if routes|length == 0 or routes|length >= 5 else ('а' if routes|length in [2,3,4] else '') }}</p>
+
+    {% if routes %}
+    <div class="grid">
+      {% for r in routes %}{{ cards.route_card(r) }}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">По этим фильтрам ничего не нашлось — попробуйте сбросить часть условий.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

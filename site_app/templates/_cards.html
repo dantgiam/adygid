@@ -1,0 +1,46 @@
+{% macro place_card(item) %}
+<a class="card" href="{{ item.url }}">
+  <div class="cover" style="{% if item.cover %}background-image:url('{{ item.cover }}'){% endif %}">
+    {% if item.popularity == 'top' %}<span class="top-badge">ТОП</span>{% endif %}
+  </div>
+  <div class="body">
+    <h3>{{ item.name }}</h3>
+    {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
+    <div class="tags">
+      {% if item.district_label %}<span class="tag">{{ item.district_label }}</span>{% endif %}
+      {% if item.category and item.category.name %}<span class="tag">{{ item.category.icon or '' }} {{ item.category.name }}</span>{% endif %}
+      {% if item.is_paid %}<span class="tag">Платно</span>{% endif %}
+      {% if item.kid_friendly %}<span class="tag">Для детей</span>{% endif %}
+    </div>
+  </div>
+</a>
+{% endmacro %}
+
+{% macro route_card(item) %}
+<a class="card" href="{{ item.url }}">
+  <div class="cover" style="{% if item.cover %}background-image:url('{{ item.cover }}'){% endif %}">
+    {% if item.popularity == 'top' %}<span class="top-badge">ТОП</span>{% endif %}
+  </div>
+  <div class="body">
+    <h3>{{ item.name }}</h3>
+    {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
+    <div class="tags">
+      {% if item.district_label %}<span class="tag">{{ item.district_label }}</span>{% endif %}
+      {% if item.category and item.category.name %}<span class="tag">{{ item.category.icon or '' }} {{ item.category.name }}</span>{% endif %}
+      {% if item.difficulty_label %}<span class="tag">{{ item.difficulty_label }}</span>{% endif %}
+      {% if item.duration_label %}<span class="tag">{{ item.duration_label }}</span>{% endif %}
+    </div>
+  </div>
+</a>
+{% endmacro %}
+
+{% macro article_card(item) %}
+<a class="card article-card" href="{{ item.url }}">
+  <div class="cover" style="{% if item.cover %}background-image:url('{{ item.cover }}'){% endif %}"></div>
+  <div class="body">
+    {% if item.district_label %}<span class="kicker">{{ item.district_label }}</span>{% endif %}
+    <h3>{{ item.title }}</h3>
+    {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
+  </div>
+</a>
+{% endmacro %}

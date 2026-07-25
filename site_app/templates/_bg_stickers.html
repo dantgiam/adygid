@@ -1,0 +1,42 @@
+<div class="bg-stickers" aria-hidden="true">
+  <!-- Только в боковых полях (вне колонки контента) — не задевают текст.
+       top в px, а не vh — стикеры разложены по всей длине страницы и
+       скроллятся вместе с лентой.
+
+       Горизонталь считается не фиксированным vw/px, а долей (K) от РЕАЛЬНОЙ
+       ширины бокового поля: left/right = calc(((100% - 1160px)/2) * K).
+       У каждого стикера своя K (0.05–0.4) — поэтому они не выстраиваются в
+       линейку у края или у текста, а рассыпаны по всей ширине поля, и с
+       ростом экрана расстояния между ними тоже растут пропорционально, а не
+       остаётся мёртвая пустота посередине.
+
+       deco-near (K ~0.05–0.2, видно от 1400px) — ближе к краю.
+       deco-mid  (K ~0.28–0.4, видно от 1650px) — ближе к центру/тексту;
+       требует больше свободного поля, поэтому появляется позже. -->
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-01.png" style="top:20px;left:calc(((100% - 1160px)/2) * 0.06);width:56px;opacity:.5;transform:rotate(-8deg)">
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-05.png" style="top:60px;right:calc(((100% - 1160px)/2) * 0.07);width:54px;opacity:.5;transform:rotate(9deg)">
+
+  <img class="deco-item deco-mid" src="/assets/stickers/sticker-06.png" style="top:260px;left:calc(((100% - 1160px)/2) * 0.34);width:50px;opacity:.46;transform:rotate(-10deg)">
+  <img class="deco-item deco-mid" src="/assets/stickers/sticker-20.png" style="top:300px;right:calc(((100% - 1160px)/2) * 0.32);width:52px;opacity:.46;transform:rotate(11deg)">
+
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-19.png" style="top:420px;left:calc(((100% - 1160px)/2) * 0.11);width:52px;opacity:.48;transform:rotate(6deg)">
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-23.png" style="top:460px;right:calc(((100% - 1160px)/2) * 0.10);width:56px;opacity:.5;transform:rotate(-11deg)">
+
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-14.png" style="top:680px;left:calc(((100% - 1160px)/2) * 0.05);width:58px;opacity:.5;transform:rotate(-5deg)">
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-09.png" style="top:720px;right:calc(((100% - 1160px)/2) * 0.06);width:60px;opacity:.48;transform:rotate(15deg)">
+
+  <img class="deco-item deco-mid" src="/assets/stickers/sticker-12.png" style="top:900px;left:calc(((100% - 1160px)/2) * 0.40);width:46px;opacity:.44;transform:rotate(8deg)">
+  <img class="deco-item deco-mid" src="/assets/stickers/sticker-02.png" style="top:940px;right:calc(((100% - 1160px)/2) * 0.38);width:50px;opacity:.44;transform:rotate(-13deg)">
+
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-11.png" style="top:1140px;left:calc(((100% - 1160px)/2) * 0.15);width:48px;opacity:.45;transform:rotate(10deg)">
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-25.png" style="top:1180px;right:calc(((100% - 1160px)/2) * 0.16);width:50px;opacity:.46;transform:rotate(-7deg)">
+
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-08.png" style="top:1620px;left:calc(((100% - 1160px)/2) * 0.08);width:60px;opacity:.5;transform:rotate(-14deg)">
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-15.png" style="top:1660px;right:calc(((100% - 1160px)/2) * 0.09);width:66px;opacity:.5;transform:rotate(-9deg)">
+
+  <img class="deco-item deco-mid" src="/assets/stickers/sticker-18.png" style="top:2000px;left:calc(((100% - 1160px)/2) * 0.36);width:64px;opacity:.48;transform:rotate(-24deg)">
+  <img class="deco-item deco-mid" src="/assets/stickers/sticker-21.png" style="top:2040px;right:calc(((100% - 1160px)/2) * 0.34);width:50px;opacity:.44;transform:rotate(14deg)">
+
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-04.png" style="top:2480px;left:calc(((100% - 1160px)/2) * 0.12);width:50px;opacity:.46;transform:rotate(12deg)">
+  <img class="deco-item deco-near" src="/assets/stickers/sticker-07.png" style="top:2520px;right:calc(((100% - 1160px)/2) * 0.13);width:58px;opacity:.48;transform:rotate(-16deg)">
+</div>
