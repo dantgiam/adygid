@@ -24,14 +24,15 @@
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    <div class="detail-hero" style="{% if place.cover %}background-image:url('{{ place.cover }}'){% endif %}">
-      <button type="button" class="fav-btn" data-type="place" data-id="{{ place.id }}" aria-label="Добавить в избранное">★</button>
-    </div>
+    <div class="detail-hero" style="{% if place.cover %}background-image:url('{{ place.cover }}'){% endif %}"></div>
 
     <div class="detail-grid">
       <div class="detail-body">
         <p class="eyebrow">{{ place.category.name if place.category else 'Место' }}{% if place.district_label %} · {{ place.district_label }}{% endif %}</p>
-        <h1 class="page-title">{{ place.name }}</h1>
+        <div class="title-row">
+          <h1 class="page-title">{{ place.name }}</h1>
+          <button type="button" class="fav-btn fav-btn-lg" data-type="place" data-id="{{ place.id }}" aria-label="Добавить в избранное">★ В избранное</button>
+        </div>
         {% if place.trail %}<p class="lede">Часть маршрута <a href="{{ place.trail.url }}" style="color:var(--accent-3)">{{ place.trail.name }}</a></p>{% endif %}
         {% if place.description_html %}{{ place.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
@@ -43,7 +44,7 @@
 
         <div class="like-row">
           <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="checkpoint" data-id="{{ place.id }}">
-            <span class="like-heart">♥</span> <span class="like-text">Пригодилось</span>
+            <span class="like-heart">♥</span> <span class="like-text">Понравилось</span>
             <span class="like-count">{{ like.count }}</span>
           </button>
         </div>
@@ -68,7 +69,7 @@
 {% if nearby %}
 <section class="section">
   <div class="wrap">
-    <div class="section-head"><h2>Рядом также</h2></div>
+    <div class="section-head"><h2>Места рядом:</h2></div>
     <div class="grid">
       {% for p in nearby %}{{ cards.place_card(p) }}{% endfor %}
     </div>
@@ -79,7 +80,7 @@
 {% if similar %}
 <section class="section">
   <div class="wrap">
-    <div class="section-head"><h2>Похожие места</h2></div>
+    <div class="section-head"><h2>Похожие места:</h2></div>
     <div class="grid">
       {% for p in similar %}{{ cards.place_card(p) }}{% endfor %}
     </div>

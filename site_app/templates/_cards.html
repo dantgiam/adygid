@@ -13,6 +13,7 @@
       {% if item.is_paid %}<span class="tag">Платно</span>{% endif %}
       {% if item.kid_friendly %}<span class="tag">Для детей</span>{% endif %}
       {% if item.distance_label %}<span class="tag">📍 {{ item.distance_label }}</span>{% endif %}
+      {% if item.likes_label %}<span class="tag tag-likes">♥ {{ item.likes_label }}</span>{% endif %}
     </div>
   </div>
 </a>
@@ -32,6 +33,7 @@
       {% if item.category and item.category.name %}<span class="tag">{{ item.category.icon or '' }} {{ item.category.name }}</span>{% endif %}
       {% if item.difficulty_label %}<span class="tag">{{ item.difficulty_label }}</span>{% endif %}
       {% if item.duration_label %}<span class="tag">{{ item.duration_label }}</span>{% endif %}
+      {% if item.likes_label %}<span class="tag tag-likes">♥ {{ item.likes_label }}</span>{% endif %}
     </div>
   </div>
 </a>

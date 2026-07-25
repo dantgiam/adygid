@@ -166,6 +166,7 @@ h1.article-title {
   font-size: 12px; padding: 3px 9px; border-radius: 6px; background: var(--bg-elevated);
   border: 1px solid var(--border); color: var(--text-muted);
 }
+.tag-likes { color: #e0554a; border-color: #f2c9c5; background: #fdf1f0; }
 
 /* ── Article card variant ────────────────────────*/
 .article-card .cover { height: 130px; }
@@ -189,7 +190,7 @@ h1.article-title {
 .result-count { font-size: 13.5px; color: var(--text-muted); margin: -14px 0 20px; }
 
 /* ── Detail page ──────────────────────────────────*/
-.detail-hero { height: 320px; border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; background: linear-gradient(135deg, var(--accent-soft), var(--bg-elevated)); background-size: cover; background-position: center; }
+.detail-hero { height: clamp(280px, 38vw, 460px); border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; background: linear-gradient(135deg, var(--accent-soft), var(--bg-elevated)); background-size: cover; background-position: center; }
 .detail-grid { display: grid; grid-template-columns: 1fr 300px; gap: 40px; align-items: start; }
 @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
 .detail-body p { font-size: 16px; color: var(--text); max-width: 68ch; margin: 0 0 16px; }
@@ -314,26 +315,37 @@ h1.article-title {
 .fav-btn:active { transform: scale(0.9); }
 .fav-btn-card { position: absolute; top: 10px; left: 10px; }
 .detail-hero { position: relative; }
-.detail-hero .fav-btn { position: absolute; top: 14px; left: 14px; width: 38px; height: 38px; font-size: 17px; }
 
-/* ── Лайк «Пригодилось» ──────────────────────────────────────────────── */
+/* Более заметная кнопка избранного на детальной странице — рядом с
+   заголовком, а не мелкой звёздочкой поверх фото. */
+.title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.fav-btn-lg {
+  flex-shrink: 0; width: auto; height: auto; border-radius: 999px;
+  background: var(--bg-card); border: 1.5px solid var(--border); color: var(--text-muted);
+  padding: 9px 16px; font-size: 14px; font-weight: 600; gap: 7px; margin-top: 4px;
+}
+.fav-btn-lg:hover { border-color: var(--gold); color: var(--gold-dark); }
+.fav-btn-lg.active { border-color: var(--gold); background: var(--gold-soft); color: var(--gold-dark); }
+
+/* ── Лайк «Понравилось» ──────────────────────────────────────────────── */
 .like-row { margin: 8px 0 28px; }
 .like-btn {
-  display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px;
-  border-radius: 999px; border: 1px solid var(--border); background: var(--bg-card);
-  font-size: 14px; color: var(--text-muted); cursor: pointer; transition: border-color .15s ease, color .15s ease;
+  display: inline-flex; align-items: center; gap: 9px; padding: 12px 22px;
+  border-radius: 999px; border: 2px solid #e0554a; background: var(--bg-card);
+  font-size: 15.5px; font-weight: 600; color: #e0554a; cursor: pointer;
+  transition: background .15s ease, color .15s ease;
 }
-.like-btn:hover { border-color: var(--accent); }
-.like-btn .like-heart { color: var(--border); transition: color .15s ease; }
-.like-btn.liked { color: var(--accent-dark); border-color: var(--accent); }
-.like-btn.liked .like-heart { color: #e0554a; }
-.like-btn .like-count { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); }
+.like-btn:hover { background: rgba(224, 85, 74, .08); }
+.like-btn .like-heart { font-size: 18px; }
+.like-btn.liked { background: #e0554a; color: #fff; }
+.like-btn .like-count { font-variant-numeric: tabular-nums; font-weight: 700; }
 
 /* ── Шкала сложности — точки + подсказка со всеми уровнями ─────────────── */
 .diff-widget { position: relative; display: inline-flex; align-items: center; gap: 8px; }
 .diff-dots { display: inline-flex; gap: 3px; }
 .diff-dots .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
 .diff-dots .dot.on { background: var(--gold); }
+.diff-label { font-weight: 700; }
 .diff-info-btn {
   width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-card);
   color: var(--text-muted); font-size: 11px; line-height: 1; cursor: pointer; padding: 0;
@@ -348,9 +360,7 @@ h1.article-title {
 .diff-popover ul { list-style: none; margin: 0; padding: 0; }
 .diff-popover li { font-size: 13px; line-height: 1.45; color: var(--text-muted); margin-bottom: 10px; }
 .diff-popover li:last-child { margin-bottom: 0; }
-.diff-popover li b { color: var(--text); }
-.diff-popover li.current { color: var(--text); }
-.diff-popover li.current b { color: var(--accent-dark); }
+.diff-popover li.current { font-weight: 700; color: var(--text); }
 
 /* ── Статья: боковое оглавление ─────────────────────────────────────────── */
 .article-layout { display: block; }

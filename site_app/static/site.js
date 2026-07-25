@@ -64,6 +64,9 @@ document.querySelectorAll("form.filters").forEach((form) => {
 
   function paintButton(btn, active) {
     btn.classList.toggle("active", active);
+    if (btn.classList.contains("fav-btn-lg")) {
+      btn.textContent = active ? "★ В избранном" : "★ В избранное";
+    }
   }
 
   function initButtons() {
@@ -98,9 +101,51 @@ document.querySelectorAll("form.filters").forEach((form) => {
   });
 
   initButtons();
+
+  // ── Блок «Избранное» на главной — показываем, только если что-то уже
+  // сохранено; пустой раздел никому не нужен и не рендерится вовсе. ──────
+  function escapeHtml(s) {
+    const div = document.createElement("div");
+    div.textContent = s || "";
+    return div.innerHTML;
+  }
+
+  async function renderFavoritesSection() {
+    const grid = document.getElementById("favorites-grid");
+    const section = document.getElementById("favorites-section");
+    if (!grid || !section) return;
+
+    const favorites = readFavorites();
+    if (!favorites.length) return;
+
+    const items = favorites.map((f) => `${f.type}:${f.id}`).join(",");
+    try {
+      const res = await fetch(`/api/site/favorites?items=${encodeURIComponent(items)}`);
+      if (!res.ok) throw new Error("bad response");
+      const data = await res.json();
+      if (!data.length) return;
+
+      grid.innerHTML = data.map((item) => {
+        const url = item.kind === "route" ? `/marshruty/${item.id}` : `/mesta/${item.id}`;
+        const cover = item.cover ? `background-image:url('${item.cover}')` : "";
+        return `<a class="card" href="${url}">
+          <div class="cover" style="${cover}"></div>
+          <div class="body">
+            <h3>${escapeHtml(item.name)}</h3>
+            ${item.excerpt ? `<p class="excerpt">${escapeHtml(item.excerpt)}</p>` : ""}
+          </div>
+        </a>`;
+      }).join("");
+      section.style.display = "";
+    } catch (e) {
+      // тихо игнорируем — раздел просто останется скрытым
+    }
+  }
+
+  renderFavoritesSection();
 })();
 
-// ── Лайк «Пригодилось» — публичный счётчик на сервере ────────────────────
+// ── Лайк «Понравилось» — публичный счётчик на сервере ────────────────────
 document.querySelectorAll(".like-btn").forEach((btn) => {
   btn.addEventListener("click", async () => {
     if (btn.disabled) return;

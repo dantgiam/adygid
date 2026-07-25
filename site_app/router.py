@@ -64,6 +64,13 @@ def _duration_label(minutes: Optional[int]) -> Optional[str]:
     return f"{m} мин"
 
 
+def _likes_label(count: int) -> str:
+    n = abs(count) % 100
+    n1 = n % 10
+    word = "человек" if (11 <= n <= 14 or n1 in (0, 1) or n1 >= 5) else "человека"
+    return f"Оценили: {count} {word}"
+
+
 def _rich_text_html(text: Optional[str]) -> str:
     """Текст из Quill-редактора (статьи, описания мест/маршрутов) уже HTML —
     отдаём как есть (авторизуется только через админку). Записи, заведённые
@@ -250,6 +257,19 @@ def _like_info(db: Session, request: Request, subject_type: str, subject_id: int
             )
         ).first() is not None
     return {"count": _like_count(db, subject_type, subject_id), "liked": liked}
+
+
+def _like_counts_map(db: Session, subject_type: str, ids: list) -> dict:
+    """Батч-версия _like_count — одним запросом для списка карточек (главная),
+    вместо запроса на каждую карточку по отдельности."""
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(Like.subject_id, func.count()).where(
+            Like.subject_type == subject_type, Like.subject_id.in_(ids)
+        ).group_by(Like.subject_id)
+    ).all()
+    return {subject_id: count for subject_id, count in rows}
 
 
 @router.post("/api/likes/{subject_type}/{subject_id}")
@@ -480,6 +500,41 @@ def api_random(db: Session = Depends(get_db)):
     return _pick_highlight(db)
 
 
+@router.get("/api/site/favorites")
+def api_favorites(items: str = "", db: Session = Depends(get_db)):
+    """Избранное живёт только в localStorage браузера — сервер лишь
+    досдаёт карточки по списку "place:24,route:8" для рендера на главной."""
+    place_ids, route_ids = [], []
+    for token in items.split(","):
+        kind, _, raw_id = token.strip().partition(":")
+        if not raw_id.isdigit():
+            continue
+        if kind == "place":
+            place_ids.append(int(raw_id))
+        elif kind == "route":
+            route_ids.append(int(raw_id))
+
+    places_by_id = {
+        cp.id: cp for cp in db.execute(select(Checkpoint).where(Checkpoint.id.in_(place_ids))).scalars().all()
+    } if place_ids else {}
+    routes_by_id = {
+        t.id: t for t in db.execute(select(Trail).where(Trail.id.in_(route_ids))).scalars().all()
+    } if route_ids else {}
+
+    result = []
+    for pid in place_ids:
+        if pid in places_by_id:
+            card = _place_card_dict(places_by_id[pid])
+            card["kind"] = "place"
+            result.append(card)
+    for tid in route_ids:
+        if tid in routes_by_id:
+            card = _route_card_dict(routes_by_id[tid])
+            card["kind"] = "route"
+            result.append(card)
+    return result
+
+
 # ─────────────────────────────────────────────
 #  Главная
 # ─────────────────────────────────────────────
@@ -493,18 +548,24 @@ def home(request: Request, db: Session = Depends(get_db)):
             select(Article).where(Article.is_published == True).order_by(Article.created_at.desc()).limit(6)
         ).scalars().all()
     ]
-    places = [
-        _place_card_dict(cp)
-        for cp in db.execute(
-            select(Checkpoint).order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(6)
-        ).scalars().all()
-    ]
-    routes = [
-        _route_card_dict(t)
-        for t in db.execute(
-            select(Trail).order_by(_POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(6)
-        ).scalars().all()
-    ]
+    place_rows = db.execute(
+        select(Checkpoint).order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(6)
+    ).scalars().all()
+    places = [_place_card_dict(cp) for cp in place_rows]
+    place_likes = _like_counts_map(db, "checkpoint", [cp.id for cp in place_rows])
+    for p in places:
+        if place_likes.get(p["id"]):
+            p["likes_label"] = _likes_label(place_likes[p["id"]])
+
+    route_rows = db.execute(
+        select(Trail).order_by(_POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(6)
+    ).scalars().all()
+    routes = [_route_card_dict(t) for t in route_rows]
+    route_likes = _like_counts_map(db, "trail", [t.id for t in route_rows])
+    for r in routes:
+        if route_likes.get(r["id"]):
+            r["likes_label"] = _likes_label(route_likes[r["id"]])
+
     wizard_categories = db.execute(
         select(Category).where(Category.is_public == True, Category.type.in_(["checkpoint", "both"]))
     ).scalars().all()

@@ -26,14 +26,15 @@
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    <div class="detail-hero" style="{% if route.cover %}background-image:url('{{ route.cover }}'){% endif %}">
-      <button type="button" class="fav-btn" data-type="route" data-id="{{ route.id }}" aria-label="Добавить в избранное">★</button>
-    </div>
+    <div class="detail-hero" style="{% if route.cover %}background-image:url('{{ route.cover }}'){% endif %}"></div>
 
     <div class="detail-grid">
       <div class="detail-body">
         <p class="eyebrow">{{ route.category.name if route.category else 'Маршрут' }}{% if route.district_label %} · {{ route.district_label }}{% endif %}</p>
-        <h1 class="page-title">{{ route.name }}</h1>
+        <div class="title-row">
+          <h1 class="page-title">{{ route.name }}</h1>
+          <button type="button" class="fav-btn fav-btn-lg" data-type="route" data-id="{{ route.id }}" aria-label="Добавить в избранное">★ В избранное</button>
+        </div>
         {% if route.description_html %}{{ route.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
         {% if route.checkpoints %}
@@ -53,7 +54,7 @@
 
         <div class="like-row">
           <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="trail" data-id="{{ route.id }}">
-            <span class="like-heart">♥</span> <span class="like-text">Пригодилось</span>
+            <span class="like-heart">♥</span> <span class="like-text">Понравилось</span>
             <span class="like-count">{{ like.count }}</span>
           </button>
         </div>
@@ -79,7 +80,7 @@
 {% if nearby %}
 <section class="section">
   <div class="wrap">
-    <div class="section-head"><h2>Рядом также</h2></div>
+    <div class="section-head"><h2>Места рядом:</h2></div>
     <div class="grid">
       {% for p in nearby %}{{ cards.place_card(p) }}{% endfor %}
     </div>
@@ -90,7 +91,7 @@
 {% if similar %}
 <section class="section">
   <div class="wrap">
-    <div class="section-head"><h2>Похожие маршруты</h2></div>
+    <div class="section-head"><h2>Похожие маршруты:</h2></div>
     <div class="grid">
       {% for r in similar %}{{ cards.route_card(r) }}{% endfor %}
     </div>

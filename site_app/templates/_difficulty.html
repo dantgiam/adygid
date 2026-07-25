@@ -4,13 +4,13 @@
   <span class="diff-dots" aria-hidden="true">
     {% for i in range(1, 5) %}<span class="dot{{ ' on' if i <= info.dots else '' }}"></span>{% endfor %}
   </span>
-  <span class="diff-label">{{ info.label }}</span>
+  <span class="diff-label" style="color: {{ levels[info.code].color }}">{{ info.label }}</span>
   <button type="button" class="diff-info-btn" aria-label="Что означают уровни сложности">?</button>
   <div class="diff-popover">
     <ul>
       {% for code, item in levels.items() %}
       <li class="{{ 'current' if code == info.code else '' }}">
-        <b>{{ item.title }}</b> — {{ item.text }}
+        <b style="color: {{ item.color }}">{{ item.title }}</b> — {{ item.text }}
       </li>
       {% endfor %}
     </ul>
