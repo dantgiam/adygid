@@ -66,8 +66,23 @@
         <div class="paper">
           <textarea class="paper-title" id="a-title" rows="1" placeholder="Заголовок статьи"
                     oninput="autoGrow(this); scheduleAutosave()"></textarea>
-          <div id="article-editor"></div>
+
+          <!-- Кнопка «+» едет за курсором и вставляет блок ровно в то место,
+               где стоит каретка. На узких экранах прячется — там работает
+               панель вставки внизу. -->
+          <div class="editor-wrap">
+            <button type="button" class="insert-plus" id="insert-plus"
+                    title="Вставить фото, коллаж или ссылку" onclick="toggleInsertMenu(event)">+</button>
+            <div class="insert-menu" id="insert-menu" hidden>
+              <button type="button" onclick="runInsert('photo')"><span>🖼</span> Фото с подписью</button>
+              <button type="button" onclick="runInsert('collage')"><span>▥</span> Коллаж 2–4 фото</button>
+              <button type="button" onclick="runInsert('link')"><span>🔗</span> Ссылка на место или маршрут</button>
+            </div>
+            <div id="article-editor"></div>
+          </div>
+
           <div class="insert-bar">
+            <span class="insert-bar-label">Вставить в текст:</span>
             <button class="btn btn-ghost btn-sm" onclick="insertPhoto()">Фото</button>
             <button class="btn btn-ghost btn-sm" onclick="insertCollage()">Коллаж 2–4 фото</button>
             <button class="btn btn-ghost btn-sm" onclick="insertInternalLink()">Ссылка на место/маршрут</button>

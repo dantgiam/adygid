@@ -498,7 +498,47 @@ function initArticleQuill() {
     },
   });
   articleQuill.on('text-change', scheduleAutosave);
+  // Кнопка «+» должна стоять напротив той строки, где сейчас курсор
+  articleQuill.on('editor-change', positionInsertPlus);
 }
+
+// ── Плавающая кнопка вставки у текущей строки ──────────────────
+function positionInsertPlus() {
+  const plus = document.getElementById('insert-plus');
+  if (!plus || !articleQuill) return;
+  const range = articleQuill.getSelection();
+  if (!range) { plus.classList.remove('visible'); hideInsertMenu(); return; }
+  // getBounds отдаёт координаты относительно контейнера редактора, а кнопка
+  // лежит в .editor-wrap с тем же верхом — значит top можно брать как есть.
+  const bounds = articleQuill.getBounds(range.index, 0);
+  plus.style.top = bounds.top + 'px';
+  plus.classList.add('visible');
+}
+
+function toggleInsertMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('insert-menu');
+  const plus = document.getElementById('insert-plus');
+  if (!menu.hidden) { hideInsertMenu(); return; }
+  menu.style.top = (parseFloat(plus.style.top || 0) + 36) + 'px';
+  menu.hidden = false;
+}
+
+function hideInsertMenu() {
+  const menu = document.getElementById('insert-menu');
+  if (menu) menu.hidden = true;
+}
+
+function runInsert(kind) {
+  hideInsertMenu();
+  if (kind === 'photo') insertPhoto();
+  else if (kind === 'collage') insertCollage();
+  else insertInternalLink();
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#insert-menu') && !e.target.closest('#insert-plus')) hideInsertMenu();
+});
 
 function openArticleEditor(id) {
   editingArticleId = id;
@@ -727,7 +767,19 @@ function pickFiles(multiple) {
 async function insertPhoto() { await photoFlow(false); }
 async function insertCollage() { await photoFlow(true); }
 
+function currentInsertIndex() {
+  // Пока курсор ни разу не ставили, вставляем в конец текста, а не в начало —
+  // иначе первая же картинка окажется перед заголовком статьи.
+  const range = articleQuill.getSelection();
+  return range ? range.index : articleQuill.getLength() - 1;
+}
+
 async function photoFlow(multiple) {
+  // Позицию курсора запоминаем ДО открытия диалога: пока пользователь выбирает
+  // файл и печатает подписи, фокус уходит из редактора, и спрашивать позицию
+  // потом — значит рисковать вставкой не туда.
+  const at = currentInsertIndex();
+
   const files = await pickFiles(multiple);
   if (!files.length) return;
   const chosen = multiple ? files.slice(0, 4) : files.slice(0, 1);
@@ -755,7 +807,7 @@ async function photoFlow(multiple) {
     document.getElementById('modal-save').disabled = false;
 
     if (uploaded.length) {
-      let index = articleQuill.getSelection(true).index;
+      let index = at;
       uploaded.forEach(item => {
         articleQuill.insertEmbed(index, 'image', item.url, 'user');
         // Quill не умеет alt из коробки — проставляем прямо в DOM редактора,
@@ -774,6 +826,11 @@ async function photoFlow(multiple) {
 }
 
 function insertInternalLink() {
+  // Выделение запоминаем до открытия модалки — по той же причине, что и в photoFlow
+  const savedRange = articleQuill.getSelection();
+  const at = savedRange ? savedRange.index : articleQuill.getLength() - 1;
+  const selLength = savedRange ? savedRange.length : 0;
+
   const places = checkpoints.filter(c => c.show_as_place);
   const rows = [
     ...places.map(p => ({ url: `/mesta/${p.id}`, label: p.name, kind: 'Место' })),
@@ -793,13 +850,13 @@ function insertInternalLink() {
     </div>`, () => {
     const picked = document.querySelector('input[name=link-target]:checked');
     if (!picked) { toast('Выберите объект', true); return; }
-    const range = articleQuill.getSelection(true);
-    if (range.length > 0) {
-      articleQuill.format('link', picked.value, 'user');
+    if (selLength > 0) {
+      // Был выделен текст — превращаем его в ссылку, не подменяя формулировку
+      articleQuill.formatText(at, selLength, 'link', picked.value, 'user');
     } else {
       const label = picked.dataset.label;
-      articleQuill.insertText(range.index, label, { link: picked.value }, 'user');
-      articleQuill.setSelection(range.index + label.length);
+      articleQuill.insertText(at, label, { link: picked.value }, 'user');
+      articleQuill.setSelection(at + label.length);
     }
     scheduleAutosave();
     closeModal();

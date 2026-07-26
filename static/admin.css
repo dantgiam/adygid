@@ -295,8 +295,38 @@ a { color: var(--accent); }
 #article-editor .ql-editor a { color: var(--accent-dark); text-decoration: underline; }
 #article-editor .ql-editor img { max-width: 100%; border-radius: 10px; margin: 4px 0 10px; }
 
+/* Плавающая «+» у текущей строки — вставка ровно туда, где стоит курсор */
+.editor-wrap { position: relative; }
+.insert-plus {
+  position: absolute; left: -46px; width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--border); background: var(--card); color: var(--muted);
+  font-size: 19px; line-height: 1; display: none; align-items: center; justify-content: center;
+  transition: transform .15s ease, border-color .15s ease, color .15s ease;
+}
+.insert-plus.visible { display: flex; }
+.insert-plus:hover { border-color: var(--accent); color: var(--accent); transform: rotate(90deg); }
+
+.insert-menu {
+  position: absolute; left: -46px; z-index: 40; min-width: 250px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 6px;
+}
+.insert-menu[hidden] { display: none; }
+.insert-menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+  padding: 9px 11px; border: none; background: none; border-radius: 7px; font-size: 13.5px;
+}
+.insert-menu button:hover { background: var(--bg); }
+.insert-menu button span { font-size: 15px; width: 20px; flex: none; }
+
+/* В узкой колонке места под «+» нет — там работает панель внизу */
+@media (max-width: 1100px) {
+  .insert-plus, .insert-menu { display: none !important; }
+}
+
 /* Панель вставки блоков под текстом */
-.insert-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; padding-top: 18px; border-top: 1px dashed var(--border); }
+.insert-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 22px; padding-top: 18px; border-top: 1px dashed var(--border); }
+.insert-bar-label { font-size: 12.5px; color: var(--muted); margin-right: 2px; }
 
 /* Описание маршрута/места — набирается сразу в типографике сайта
    (.detail-body там: текст гротеском 16px, заголовки — засечками). */
