@@ -67,6 +67,9 @@ with engine.begin() as _conn:
     _conn.execute(text("ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS duration_minutes INTEGER"))
     _conn.execute(text("ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true"))
     _conn.execute(text("ALTER TABLE articles ADD COLUMN IF NOT EXISTS faq JSONB NOT NULL DEFAULT '[]'::jsonb"))
+    # DEFAULT true — все точки, заведённые до появления флага, уже показывались
+    # в «Местах», и сайт после миграции не должен измениться.
+    _conn.execute(text("ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS show_as_place BOOLEAN NOT NULL DEFAULT true"))
 
 # Дефолтные категории — засеваются один раз при первом старте, если таблица пустая
 _DEFAULT_CATEGORIES = [
@@ -266,6 +269,7 @@ class CheckpointIn(ExtraCriteriaIn):
     description: Optional[str] = None
     order_index: int = 0
     duration_minutes: Optional[int] = None
+    show_as_place: Optional[bool] = None
     lon: float
     lat: float
 
@@ -275,8 +279,13 @@ class CheckpointUpdate(ExtraCriteriaIn):
     description: Optional[str] = None
     order_index: Optional[int] = None
     duration_minutes: Optional[int] = None
+    show_as_place: Optional[bool] = None
     lon: Optional[float] = None
     lat: Optional[float] = None
+
+class CheckpointOrderIn(BaseModel):
+    """Новый порядок точек маршрута — список id в нужной последовательности."""
+    ids: List[int]
 
 class PhotoIn(BaseModel):
     url: str
@@ -556,6 +565,9 @@ def list_checkpoints(trail_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/checkpoints", status_code=201)
 def create_checkpoint(body: CheckpointIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    # Отдельно стоящая точка — это всегда место на сайте; точка внутри маршрута
+    # по умолчанию только его часть, пока её явно не «выделили».
+    show_as_place = body.show_as_place if body.show_as_place is not None else (body.trail_id is None)
     cp = Checkpoint(
         trail_id=body.trail_id,
         name=body.name,
@@ -563,6 +575,7 @@ def create_checkpoint(body: CheckpointIn, db: Session = Depends(get_db), _: bool
         description=body.description,
         order_index=body.order_index,
         duration_minutes=body.duration_minutes,
+        show_as_place=show_as_place,
         geom=f"SRID=4326;POINT({body.lon} {body.lat})",
         **_extra_criteria_kwargs(body),
     )
@@ -578,11 +591,29 @@ def update_checkpoint(cp_id: int, body: CheckpointUpdate, db: Session = Depends(
     if body.description is not None: cp.description = body.description
     if body.order_index is not None: cp.order_index = body.order_index
     if body.duration_minutes is not None: cp.duration_minutes = body.duration_minutes
+    if body.show_as_place is not None: cp.show_as_place = body.show_as_place
     if body.lon is not None and body.lat is not None:
         cp.geom = f"SRID=4326;POINT({body.lon} {body.lat})"
     _apply_extra_criteria(cp, body)
     db.commit(); db.refresh(cp)
     return _cp_out(cp)
+
+
+@app.patch("/api/trails/{trail_id}/checkpoints/order")
+def reorder_checkpoints(trail_id: int, body: CheckpointOrderIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    """Перестановка точек маршрута — принимает полный список id в новом порядке.
+    Чужие точки игнорируем, чтобы кривой запрос не растащил другие маршруты."""
+    _get_or_404(db, Trail, trail_id)
+    own = {
+        cp.id: cp
+        for cp in db.execute(select(Checkpoint).where(Checkpoint.trail_id == trail_id)).scalars().all()
+    }
+    for index, cp_id in enumerate(body.ids):
+        cp = own.get(cp_id)
+        if cp is not None:
+            cp.order_index = index
+    db.commit()
+    return {"ok": True}
 
 
 @app.delete("/api/checkpoints/{cp_id}")
@@ -625,6 +656,7 @@ def _cp_out(c: Checkpoint):
         "description": c.description,
         "order_index": c.order_index,
         "duration_minutes": c.duration_minutes,
+        "show_as_place": c.show_as_place,
         "lon": shp.x,
         "lat": shp.y,
         "photos": [_photo_out(p) for p in c.photos],

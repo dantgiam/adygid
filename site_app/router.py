@@ -109,16 +109,28 @@ _IMG_ATTR_RE = re.compile(r'(\w[\w-]*)\s*=\s*"([^"]*)"')
 
 
 def _render_article_gallery(html: str) -> str:
-    """Редактор статей (Quill) вставляет коллаж как несколько <img> подряд в
-    одном <p>, с подписью в alt каждой картинки. Здесь на рендере страницы
-    группируем такой параграф в галерею-коллаж со счётчиком "N/M" и подписью
-    под каждым фото (визуально — как в Т—Ж). Параграфы с одной картинкой не
-    трогаем — они остаются обычной вставкой на всю ширину."""
+    """Редактор статей (Quill) вставляет фото как <img> внутри <p>, с подписью
+    в alt каждой картинки. Здесь на рендере страницы несколько картинок подряд
+    группируем в галерею-коллаж со счётчиком "N/M", а одиночное фото с подписью
+    оборачиваем в <figure> с подписью под ним (визуально — как в Т—Ж).
+    Фото без подписи остаётся обычной вставкой на всю ширину."""
 
     def repl(match: "re.Match[str]") -> str:
         img_tags = _IMG_TAG_RE.findall(match.group(1))
         if len(img_tags) < 2:
-            return match.group(0)
+            if not img_tags:
+                return match.group(0)
+            attrs = dict(_IMG_ATTR_RE.findall(img_tags[0]))
+            caption = unescape(attrs.get("alt", "")).strip()
+            if not caption:
+                return match.group(0)
+            src = unescape(attrs.get("src", ""))
+            return (
+                '<figure class="article-figure">'
+                f'<img src="{escape(src, quote=True)}" alt="{escape(caption, quote=True)}" loading="lazy">'
+                f'<figcaption>{escape(caption)}</figcaption>'
+                '</figure>'
+            )
         total = len(img_tags)
         items = []
         for i, attrs_str in enumerate(img_tags, start=1):
@@ -198,7 +210,7 @@ def _nearby_places(db: Session, lat: float, lon: float, exclude_id: Optional[int
     карточки с добавленным расстоянием."""
     point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
     dist = func.ST_DistanceSphere(Checkpoint.geom, point).label("distance_m")
-    q = select(Checkpoint, dist)
+    q = select(Checkpoint, dist).where(Checkpoint.show_as_place == True)
     if exclude_id is not None:
         q = q.where(Checkpoint.id != exclude_id)
     q = q.order_by(dist).limit(limit)
@@ -432,7 +444,9 @@ def _route_detail_dict(t: Trail) -> dict:
         "checkpoints": [
             {
                 "name": cp.name,
-                "url": f"/mesta/{cp.id}",
+                # Ссылка только у точек, выделенных в самостоятельные места —
+                # у остальных страницы нет, ведут в 404.
+                "url": f"/mesta/{cp.id}" if cp.show_as_place else None,
                 "category_name": cp.category.name if cp.category else None,
             }
             for cp in ordered_cps
@@ -445,7 +459,9 @@ def _route_detail_dict(t: Trail) -> dict:
 # ─────────────────────────────────────────────
 
 def _footer_stats(db: Session) -> dict:
-    places = db.execute(select(func.count()).select_from(Checkpoint)).scalar() or 0
+    places = db.execute(
+        select(func.count()).select_from(Checkpoint).where(Checkpoint.show_as_place == True)
+    ).scalar() or 0
     trails = db.execute(select(func.count()).select_from(Trail)).scalar() or 0
     return {"places": places, "trails": trails}
 
@@ -470,7 +486,7 @@ def _ctx(request: Request, db: Session, **extra) -> dict:
 # ─────────────────────────────────────────────
 
 def _pick_highlight(db: Session) -> dict:
-    checkpoints = db.execute(select(Checkpoint)).scalars().all()
+    checkpoints = db.execute(select(Checkpoint).where(Checkpoint.show_as_place == True)).scalars().all()
     trails = db.execute(select(Trail)).scalars().all()
     pool = [("place", cp) for cp in checkpoints] + [("route", t) for t in trails]
 
@@ -515,7 +531,10 @@ def api_favorites(items: str = "", db: Session = Depends(get_db)):
             route_ids.append(int(raw_id))
 
     places_by_id = {
-        cp.id: cp for cp in db.execute(select(Checkpoint).where(Checkpoint.id.in_(place_ids))).scalars().all()
+        cp.id: cp
+        for cp in db.execute(
+            select(Checkpoint).where(Checkpoint.id.in_(place_ids), Checkpoint.show_as_place == True)
+        ).scalars().all()
     } if place_ids else {}
     routes_by_id = {
         t.id: t for t in db.execute(select(Trail).where(Trail.id.in_(route_ids))).scalars().all()
@@ -591,7 +610,7 @@ def places_list(
     kid: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    q = select(Checkpoint)
+    q = select(Checkpoint).where(Checkpoint.show_as_place == True)
     if type and type.isdigit():
         q = q.where(Checkpoint.category_id == int(type))
     if district:
@@ -619,7 +638,9 @@ def places_list(
 @router.get("/mesta/{place_id}")
 def place_detail(request: Request, place_id: int, db: Session = Depends(get_db)):
     cp = db.get(Checkpoint, place_id)
-    if not cp:
+    # Промежуточная точка маршрута — не самостоятельное место, своей страницы
+    # у неё нет (иначе в индекс попадут пустышки вроде «развилка у ручья»).
+    if not cp or not cp.show_as_place:
         raise HTTPException(404, "Место не найдено")
 
     place = _place_detail_dict(cp)
@@ -630,7 +651,9 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
     similar = []
     if conditions:
         rows = db.execute(
-            select(Checkpoint).where(Checkpoint.id != cp.id, or_(*conditions)).limit(4)
+            select(Checkpoint).where(
+                Checkpoint.id != cp.id, Checkpoint.show_as_place == True, or_(*conditions)
+            ).limit(4)
         ).scalars().all()
         similar = [_place_card_dict(r) for r in rows]
 
@@ -742,7 +765,7 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     featured_places = []
     for cid in a.featured_checkpoint_ids or []:
         cp = db.get(Checkpoint, cid)
-        if cp:
+        if cp and cp.show_as_place:
             featured_places.append(_place_card_dict(cp))
 
     featured_routes = []
@@ -789,7 +812,11 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     if a.district:
         exclude_ids = set(a.featured_checkpoint_ids or [])
         rows = db.execute(
-            select(Checkpoint).where(Checkpoint.district == a.district, Checkpoint.id.notin_(exclude_ids)).limit(4)
+            select(Checkpoint).where(
+                Checkpoint.district == a.district,
+                Checkpoint.show_as_place == True,
+                Checkpoint.id.notin_(exclude_ids),
+            ).limit(4)
         ).scalars().all()
         similar_places = [_place_card_dict(r) for r in rows]
 
@@ -842,7 +869,9 @@ def sitemap_xml(db: Session = Depends(get_db)):
         ("/klub", None, "monthly"),
     ]
 
-    for cp in db.execute(select(Checkpoint.id, Checkpoint.created_at)).all():
+    for cp in db.execute(
+        select(Checkpoint.id, Checkpoint.created_at).where(Checkpoint.show_as_place == True)
+    ).all():
         urls.append((f"/mesta/{cp.id}", cp.created_at.date().isoformat() if cp.created_at else None, "monthly"))
     for t in db.execute(select(Trail.id, Trail.created_at)).all():
         urls.append((f"/marshruty/{t.id}", t.created_at.date().isoformat() if t.created_at else None, "monthly"))

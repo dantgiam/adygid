@@ -44,7 +44,7 @@
           <div class="checkpoint-row">
             <span class="num">{{ loop.index }}</span>
             <div>
-              <div class="cname"><a href="{{ cp.url }}" style="color:inherit">{{ cp.name }}</a></div>
+              <div class="cname">{% if cp.url %}<a href="{{ cp.url }}" style="color:inherit">{{ cp.name }}</a>{% else %}{{ cp.name }}{% endif %}</div>
               {% if cp.category_name %}<div class="cmeta">{{ cp.category_name }}</div>{% endif %}
             </div>
           </div>

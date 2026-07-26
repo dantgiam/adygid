@@ -109,6 +109,11 @@ class Checkpoint(Base):
     district    = Column(String(30), nullable=True)                          # maikop / khadzhokh / dakhovskaya / lagonaki / guzeripl
     popularity  = Column(String(20), nullable=False, default="normal")       # normal / popular / top
 
+    # Показывать ли точку в разделе «Места» отдельной карточкой. Промежуточные
+    # точки маршрута (развилки, привалы) нужны только внутри маршрута — для них
+    # флаг снят, и своей страницы у них нет.
+    show_as_place = Column(Boolean, nullable=False, default=True)
+
     category = relationship("Category")
     trail    = relationship("Trail", back_populates="checkpoints")
     photos   = relationship("Photo", back_populates="checkpoint", cascade="all, delete-orphan")

@@ -280,6 +280,13 @@ h1.article-title {
 .article-gallery-counter { flex: none; font-weight: 700; color: var(--text); }
 .article-gallery-text { flex: 1; min-width: 0; }
 
+/* Одиночное фото с подписью — та же типографика подписи, что в коллаже */
+.article-figure { margin: 36px 0; }
+.article-figure img { width: 100%; border-radius: 10px; display: block; margin: 0; }
+.article-figure figcaption {
+  margin-top: 12px; font-family: var(--font-body); font-size: 14px; line-height: 1.4; color: var(--text-muted);
+}
+
 .featured-row { margin: 32px 0; }
 .featured-row h4 { font-family: var(--font-body); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 0 0 14px; }
 
