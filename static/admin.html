@@ -56,6 +56,7 @@
         <span class="toggle-track"></span>
         <span class="toggle-label">Опубликована</span>
       </label>
+      <button class="btn btn-ghost" onclick="previewArticle()">Предпросмотр</button>
       <button class="btn btn-primary" onclick="saveArticle()">Сохранить</button>
     </div>
 
@@ -219,6 +220,17 @@
       <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
       <button class="btn btn-primary" id="modal-save">Сохранить</button>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════ ПРЕДПРОСМОТР ══════════════ -->
+<div class="modal-backdrop" id="preview-backdrop" hidden onclick="if(event.target===this) closePreview()">
+  <div class="modal modal-preview">
+    <div class="modal-head">
+      <h2>Так это будет выглядеть на сайте</h2>
+      <button class="modal-close" onclick="closePreview()">×</button>
+    </div>
+    <iframe id="preview-frame" title="Предпросмотр"></iframe>
   </div>
 </div>
 

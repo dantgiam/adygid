@@ -754,6 +754,27 @@ def _article_out(a: Article):
 
 
 # ─────────────────────────────────────────────
+#  PREVIEW — прогоняем несохранённый текст через тот же рендер, что и сайт,
+#  чтобы предпросмотр в админке не разъезжался с реальной страницей.
+# ─────────────────────────────────────────────
+
+class PreviewIn(BaseModel):
+    kind: str = "article"          # article | description
+    html: str = ""
+
+
+@app.post("/api/preview")
+def render_preview(body: PreviewIn, _: bool = Depends(require_admin)):
+    from site_app.router import _add_toc_anchors, _render_article_gallery, _rich_text_html
+
+    rendered = _rich_text_html(body.html)
+    if body.kind == "article":
+        rendered = _render_article_gallery(rendered)
+        rendered, _toc = _add_toc_anchors(rendered)
+    return {"html": rendered}
+
+
+# ─────────────────────────────────────────────
 #  STATIC
 # ─────────────────────────────────────────────
 

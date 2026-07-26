@@ -164,8 +164,52 @@ function showModal(title, bodyHtml, onSave, opts) {
   document.getElementById('modal').classList.toggle('modal-wide', !!opts.wide);
   document.getElementById('modal-foot').style.display = opts.hideFooter ? 'none' : '';
   document.getElementById('modal-save').textContent = opts.saveLabel || 'Сохранить';
+
+  // Кнопка предпросмотра живёт слева в подвале модалки и появляется только
+  // там, где есть что показывать.
+  const old = document.getElementById('modal-preview');
+  if (old) old.remove();
+  if (opts.preview) {
+    const btn = document.createElement('button');
+    btn.id = 'modal-preview';
+    btn.className = 'btn btn-ghost';
+    btn.textContent = 'Предпросмотр';
+    btn.onclick = opts.preview;
+    document.getElementById('modal-foot').prepend(btn);
+  }
+
   modalSaveHandler = onSave;
   document.getElementById('modal-backdrop').hidden = false;
+}
+
+// ── Предпросмотр в вёрстке сайта ───────────────────────────────
+// HTML собирает сервер тем же кодом, что и публичную страницу, а стили
+// берём из настоящего /assets/site.css — поэтому предпросмотр не может
+// разъехаться с реальным сайтом.
+async function openPreview(kind, html, heading, eyebrow) {
+  const res = await api('POST', '/preview', { kind, html: html || '' });
+  if (!res) return;
+
+  const bodyClass = kind === 'article' ? 'article-body' : 'detail-body';
+  const titleClass = kind === 'article' ? 'article-title' : 'page-title';
+  const doc = `<!doctype html><html lang="ru"><head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/assets/site.css">
+    <style>body{background:#fff}main{padding:28px 0}</style></head>
+    <body><main><section class="section" style="padding:0"><div class="wrap">
+      ${eyebrow ? `<p class="eyebrow">${escHtml(eyebrow)}</p>` : ''}
+      ${heading ? `<h1 class="${titleClass}">${escHtml(heading)}</h1>` : ''}
+      <div class="${bodyClass}">${res.html}</div>
+    </div></section></main></body></html>`;
+
+  const frame = document.getElementById('preview-frame');
+  frame.srcdoc = doc;
+  document.getElementById('preview-backdrop').hidden = false;
+}
+
+function closePreview() {
+  document.getElementById('preview-backdrop').hidden = true;
+  document.getElementById('preview-frame').srcdoc = '';
 }
 
 function closeModal() {
@@ -551,6 +595,15 @@ function applyDraft(d) {
   setSaveState('Черновик восстановлен', true);
 }
 
+function previewArticle() {
+  openPreview(
+    'article',
+    articleQuill ? articleQuill.root.innerHTML : '',
+    document.getElementById('a-title').value.trim(),
+    'Статья',
+  );
+}
+
 async function saveArticle() {
   const title = document.getElementById('a-title').value.trim();
   if (!title) { toast('Введите заголовок', true); return; }
@@ -824,7 +877,15 @@ function openRouteForm(id) {
       toast('Маршрут сохранён');
       if (!t) openRouteMap(saved.id);
     }
-  }, { wide: true });
+  }, {
+    wide: true,
+    preview: () => openPreview(
+      'description',
+      readDescEditor() || '',
+      document.getElementById('t-name').value.trim(),
+      'Маршрут',
+    ),
+  });
   initDescEditor(v.description || '');
 }
 
@@ -1127,7 +1188,15 @@ function openPointForm(id, creating) {
         renderPlaces();
       }
     }
-  }, { wide: true });
+  }, {
+    wide: true,
+    preview: () => openPreview(
+      'description',
+      readDescEditor() || '',
+      document.getElementById('p-name').value.trim(),
+      'Место',
+    ),
+  });
   initDescEditor(v.description || '');
 }
 
