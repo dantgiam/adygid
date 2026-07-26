@@ -33,7 +33,7 @@
         <p class="eyebrow">{{ route.category.name if route.category else 'Маршрут' }}{% if route.district_label %} · {{ route.district_label }}{% endif %}</p>
         <div class="title-row">
           <h1 class="page-title">{{ route.name }}</h1>
-          <button type="button" class="fav-btn fav-btn-lg" data-type="route" data-id="{{ route.id }}" aria-label="Добавить в избранное">★ В избранное</button>
+          <button type="button" class="fav-btn fav-btn-lg" data-type="route" data-id="{{ route.id }}" aria-label="Добавить в избранное">{{ cards.fav_icon() }}<span class="fav-btn-text">В избранное</span></button>
         </div>
         {% if route.description_html %}{{ route.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
@@ -54,7 +54,7 @@
 
         <div class="like-row">
           <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="trail" data-id="{{ route.id }}">
-            <span class="like-heart">♥</span> <span class="like-text">Понравилось</span>
+            {{ cards.heart_icon() }} <span class="like-text">Понравилось</span>
             <span class="like-count">{{ like.count }}</span>
           </button>
         </div>

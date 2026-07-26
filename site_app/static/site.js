@@ -64,9 +64,8 @@ document.querySelectorAll("form.filters").forEach((form) => {
 
   function paintButton(btn, active) {
     btn.classList.toggle("active", active);
-    if (btn.classList.contains("fav-btn-lg")) {
-      btn.textContent = active ? "★ В избранном" : "★ В избранное";
-    }
+    const label = btn.querySelector(".fav-btn-text");
+    if (label) label.textContent = active ? "В избранном" : "В избранное";
   }
 
   function initButtons() {

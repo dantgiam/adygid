@@ -305,15 +305,21 @@ h1.article-title {
 }
 
 /* ── Избранное — звёздочка, чисто клиентское состояние (localStorage) ──── */
+.fav-icon { width: 16px; height: 16px; display: block; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.fav-btn.active .fav-icon { fill: currentColor; }
 .fav-btn {
-  border: none; background: rgba(28, 35, 28, .45); color: rgba(255,255,255,.75);
-  width: 32px; height: 32px; border-radius: 50%; font-size: 15px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; transition: color .15s ease, transform .12s ease;
+  border: none; background: rgba(28, 35, 28, .45); color: rgba(255,255,255,.85);
+  width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: color .15s ease, transform .12s ease, opacity .15s ease;
 }
 .fav-btn:hover { color: var(--gold); }
 .fav-btn.active { color: var(--gold); }
 .fav-btn:active { transform: scale(0.9); }
-.fav-btn-card { position: absolute; top: 10px; left: 10px; }
+
+/* На карточках звёздочка не мозолит глаза каждому месту в подборке —
+   видна только при наведении, либо постоянно, если место уже в избранном. */
+.fav-btn-card { position: absolute; top: 10px; left: 10px; opacity: 0; }
+.card:hover .fav-btn-card, .fav-btn-card.active { opacity: 1; }
 .detail-hero { position: relative; }
 
 /* Более заметная кнопка избранного на детальной странице — рядом с
@@ -324,10 +330,13 @@ h1.article-title {
   background: var(--bg-card); border: 1.5px solid var(--border); color: var(--text-muted);
   padding: 9px 16px; font-size: 14px; font-weight: 600; gap: 7px; margin-top: 4px;
 }
+.fav-btn-lg .fav-icon { width: 17px; height: 17px; }
 .fav-btn-lg:hover { border-color: var(--gold); color: var(--gold-dark); }
 .fav-btn-lg.active { border-color: var(--gold); background: var(--gold-soft); color: var(--gold-dark); }
 
 /* ── Лайк «Понравилось» ──────────────────────────────────────────────── */
+.like-icon { width: 19px; height: 19px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.like-btn.liked .like-icon { fill: currentColor; }
 .like-row { margin: 8px 0 28px; }
 .like-btn {
   display: inline-flex; align-items: center; gap: 9px; padding: 12px 22px;
@@ -336,7 +345,6 @@ h1.article-title {
   transition: background .15s ease, color .15s ease;
 }
 .like-btn:hover { background: rgba(224, 85, 74, .08); }
-.like-btn .like-heart { font-size: 18px; }
 .like-btn.liked { background: #e0554a; color: #fff; }
 .like-btn .like-count { font-variant-numeric: tabular-nums; font-weight: 700; }
 
