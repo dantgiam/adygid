@@ -1,0 +1,20 @@
+{% macro doors_grid(doors, title, note) %}
+<section class="section doors-section">
+  <div class="wrap">
+    <div class="section-head"><h2>{{ title }}</h2></div>
+    {% if note %}<p class="section-note">{{ note }}</p>{% endif %}
+    <div class="doors">
+      {% for d in doors %}
+      <a class="door" href="{{ d.url }}">
+        <span class="door-icon" aria-hidden="true">{{ d.icon }}</span>
+        <span class="door-main">
+          <span class="door-title">{{ d.door }}</span>
+          {% if d.hint %}<span class="door-hint">{{ d.hint }}</span>{% endif %}
+        </span>
+        <span class="door-arrow" aria-hidden="true">→</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endmacro %}

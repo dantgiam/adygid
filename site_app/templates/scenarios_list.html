@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% import "_doors.html" as doors_ui %}
+
+{% block title %}Куда поехать в Адыгею — подбор под вашу ситуацию{% endblock %}
+{% block meta_description %}Выберите свою ситуацию — впервые в Адыгее, с детьми, без машины, зимой или серьёзный треккинг — и получите готовый набор мест и маршрутов.{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:40px;padding-bottom:0">
+  <div class="wrap">
+    <p class="eyebrow">Подбор</p>
+    <h1 class="page-title">Куда поехать</h1>
+    <p class="section-note">Адыгея у всех разная: с ребёнком на руках и с рюкзаком на неделю — это два разных региона. Выберите, что ближе к вашей ситуации.</p>
+  </div>
+</section>
+
+{{ doors_ui.doors_grid(doors, 'Ваша ситуация') }}
+{% endblock %}

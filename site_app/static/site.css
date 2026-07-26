@@ -357,6 +357,33 @@ h1.article-title {
   margin: 0; font-size: 12.5px; font-weight: 600; color: var(--accent-dark);
 }
 
+/* ── Развилка по ситуации — главный вход на сайт ──*/
+.doors-section { padding-top: 8px; }
+.doors { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.door {
+  display: flex; align-items: center; gap: 14px; padding: 18px 20px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+  transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.door:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
+.door-icon { font-size: 26px; line-height: 1; flex: none; }
+.door-main { flex: 1; min-width: 0; }
+.door-title { display: block; font-family: var(--font-display); font-size: 19px; }
+.door-hint { display: block; font-size: 13.5px; color: var(--text-muted); margin-top: 3px; }
+.door-arrow { color: var(--accent); font-size: 18px; flex: none; transition: transform .15s ease; }
+.door:hover .door-arrow { transform: translateX(3px); }
+
+/* ── Переход в клуб ───────────────────────────────*/
+.club-cta-section { padding: 32px 0; }
+.club-cta {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+  background: var(--accent-soft); border: 1px solid #C6E4C8; border-radius: var(--radius);
+  padding: 22px 26px;
+}
+.club-cta-text { font-size: 15px; color: var(--text); max-width: 62ch; }
+.club-cta-text b { display: block; font-size: 17px; margin-bottom: 4px; }
+.club-cta .btn { flex: none; }
+
 /* ── Округа ───────────────────────────────────────*/
 .district-card .body { padding: 20px; }
 .district-card h3 { font-size: 20px; }

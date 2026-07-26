@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+{% import "_doors.html" as doors_ui %}
+
+{% block title %}{{ scenario.title }} — АдыГид{% endblock %}
+{% block meta_description %}{{ scenario.seo_description }}{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:40px">
+  <div class="wrap">
+    <p class="eyebrow"><a href="/kuda" style="color:inherit">Куда поехать</a></p>
+    <h1 class="page-title">{{ scenario.title }}</h1>
+    <p class="lede district-lead">{{ scenario.lead }}</p>
+
+    {% if scenario.tips %}
+    <div class="facts">
+      <h4>Что учесть</h4>
+      <ul>{% for tip in scenario.tips %}<li>{{ tip }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{% if scenario.places %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>Места:</h2></div>
+    <div class="grid">{% for p in scenario.places %}{{ cards.place_card(p) }}{% endfor %}</div>
+  </div>
+</section>
+{% endif %}
+
+{% if scenario.routes %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>Маршруты:</h2></div>
+    <div class="grid">{% for r in scenario.routes %}{{ cards.route_card(r) }}{% endfor %}</div>
+  </div>
+</section>
+{% endif %}
+
+{% if scenario.articles %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>Почитать по теме:</h2></div>
+    <div class="grid">{% for a in scenario.articles %}{{ cards.article_card(a) }}{% endfor %}</div>
+  </div>
+</section>
+{% endif %}
+
+{% if not scenario.places and not scenario.routes %}
+<section class="section">
+  <div class="wrap">
+    <div class="empty-state">Под этот сценарий пока ничего не подобралось — скоро появится.</div>
+  </div>
+</section>
+{% endif %}
+
+{% include "_club_cta.html" %}
+
+{% if doors %}
+{{ doors_ui.doors_grid(doors, 'Другая ситуация?') }}
+{% endif %}
+{% endblock %}
