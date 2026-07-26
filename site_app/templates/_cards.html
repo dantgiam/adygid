@@ -32,6 +32,7 @@
   <div class="body">
     <h3>{{ item.name }}</h3>
     {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
+    {% if item.relation %}<p class="card-relation">{{ item.relation }}</p>{% endif %}
     <div class="tags">
       {% if item.district_label %}<span class="tag">{{ item.district_label }}</span>{% endif %}
       {% if item.category and item.category.name %}<span class="tag">{{ item.category.icon or '' }} {{ item.category.name }}</span>{% endif %}

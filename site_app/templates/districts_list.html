@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Округа Адыгеи — куда ехать и что где смотреть{% endblock %}
+{% block meta_description %}Адыгея по округам: Хаджох, Даховская, плато Лагонаки, Гузерипль и окрестности Майкопа. Что находится в каждом, сколько там мест и маршрутов.{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:40px">
+  <div class="wrap">
+    <p class="eyebrow">География</p>
+    <h1 class="page-title">Округа Адыгеи</h1>
+    <p class="section-note">Почти всё интересное в республике укладывается в пять районов вдоль одной дороги. Выберите округ, чтобы посмотреть, что в нём есть и стоит ли делать его базой поездки.</p>
+
+    <div class="grid">
+      {% for d in districts_list %}
+      <a class="card district-card" href="{{ d.url }}">
+        <div class="body">
+          <h3>{{ d.label }}</h3>
+          <p class="excerpt">{{ d.lead }}</p>
+          <div class="tags">
+            {% if d.places %}<span class="tag">{{ d.places }} мест</span>{% endif %}
+            {% if d.routes %}<span class="tag">{{ d.routes }} маршрут{{ '' if d.routes == 1 else ('а' if d.routes < 5 else 'ов') }}</span>{% endif %}
+          </div>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

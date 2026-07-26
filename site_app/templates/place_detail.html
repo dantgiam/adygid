@@ -28,12 +28,12 @@
 
     <div class="detail-grid">
       <div class="detail-body">
-        <p class="eyebrow">{{ place.category.name if place.category else 'Место' }}{% if place.district_label %} · {{ place.district_label }}{% endif %}</p>
+        <p class="eyebrow">{{ place.category.name if place.category else 'Место' }}{% if place.district_label %} · {% if place.district_url %}<a href="{{ place.district_url }}" style="color:inherit">{{ place.district_label }}</a>{% else %}{{ place.district_label }}{% endif %}{% endif %}</p>
         <div class="title-row">
           <h1 class="page-title">{{ place.name }}</h1>
           <button type="button" class="fav-btn fav-btn-lg" data-type="place" data-id="{{ place.id }}" aria-label="Добавить в избранное">{{ cards.fav_icon() }}<span class="fav-btn-text">В избранное</span></button>
         </div>
-        {% if place.trail %}<p class="lede">Часть маршрута <a href="{{ place.trail.url }}" style="color:var(--accent-3)">{{ place.trail.name }}</a></p>{% endif %}
+        {% if place.updated_label %}<p class="updated-note">{{ place.updated_label }}</p>{% endif %}
         {% if place.description_html %}{{ place.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
         {% if place.photos and place.photos|length > 1 %}
@@ -65,6 +65,17 @@
     </div>
   </div>
 </section>
+
+{% if related_routes %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>Маршруты с этим местом:</h2></div>
+    <div class="grid">
+      {% for r in related_routes %}{{ cards.route_card(r) }}{% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
 
 {% if nearby %}
 <section class="section">

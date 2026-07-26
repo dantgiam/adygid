@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+
+{% block title %}{{ district.label }} — что посмотреть и какие маршруты рядом{% endblock %}
+{% block meta_description %}{{ district.lead }}{% endblock %}
+
+{% block extra_ld %}
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@type": "Place",
+  "name": district.label,
+  "description": district.lead,
+  "url": canonical_url,
+  "address": {"@type": "PostalAddress", "addressRegion": "Республика Адыгея", "addressCountry": "RU"}
+} | tojson }}
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:40px">
+  <div class="wrap">
+    <p class="eyebrow"><a href="/okrugi" style="color:inherit">Округа</a></p>
+    <h1 class="page-title">{{ district.label }}</h1>
+    <p class="lede district-lead">{{ district.lead }}</p>
+
+    {% if district.facts %}
+    <div class="facts">
+      <h4>Коротко о районе</h4>
+      <ul>
+        {% for fact in district.facts %}<li>{{ fact }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+{% if district.places %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Места в этом округе:</h2>
+      <a class="see-all" href="/mesta?district={{ district.slug }}">Открыть в фильтре →</a>
+    </div>
+    <div class="grid">{% for p in district.places %}{{ cards.place_card(p) }}{% endfor %}</div>
+  </div>
+</section>
+{% endif %}
+
+{% if district.routes %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <h2>Маршруты:</h2>
+      <a class="see-all" href="/marshruty?district={{ district.slug }}">Открыть в фильтре →</a>
+    </div>
+    <div class="grid">{% for r in district.routes %}{{ cards.route_card(r) }}{% endfor %}</div>
+  </div>
+</section>
+{% endif %}
+
+{% if district.articles %}
+<section class="section">
+  <div class="wrap">
+    <div class="section-head"><h2>Статьи про этот округ:</h2></div>
+    <div class="grid">{% for a in district.articles %}{{ cards.article_card(a) }}{% endfor %}</div>
+  </div>
+</section>
+{% endif %}
+
+{% if not district.places and not district.routes %}
+<section class="section">
+  <div class="wrap">
+    <div class="empty-state">В этом округе пока ничего не добавлено — скоро появится.</div>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

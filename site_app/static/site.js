@@ -1,33 +1,123 @@
-// Случайное место/маршрут — прогрессивное улучшение поверх серверного рендера.
+// Случайное место/маршрут — колода карточек поверх серверного рендера.
 (function () {
   const card = document.getElementById("highlight-card");
   const btn = document.getElementById("regenerate-btn");
   if (!btn || !card) return;
 
-  btn.addEventListener("click", async () => {
-    btn.disabled = true;
-    btn.textContent = "Ищу...";
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let nextItem = null;      // следующая карточка, взятая заранее
+  let busy = false;
+
+  // Тянем следующую заранее, чтобы клик срабатывал мгновенно, а не ждал сеть.
+  async function prefetch() {
     try {
       const res = await fetch("/api/site/random");
-      if (!res.ok) throw new Error("bad response");
-      const data = await res.json();
-      if (!data) return;
-
-      card.querySelector(".hl-tag").textContent = data.tag_label;
-      card.querySelector(".hl-cover").style.backgroundImage = data.cover
-        ? `url('${data.cover}')`
-        : "";
-      card.querySelector("h3").textContent = data.name;
-      card.querySelector("p").textContent = data.excerpt || "";
-      const link = card.querySelector(".hl-open");
-      link.href = data.url;
+      if (res.ok) nextItem = await res.json();
     } catch (e) {
-      // тихо игнорируем — карточка просто останется прежней
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Перегенерировать";
+      nextItem = null;
     }
+  }
+
+  function paint(data) {
+    if (!data) return;
+    card.querySelector(".hl-tag").textContent = data.tag_label;
+    card.querySelector(".hl-cover").style.backgroundImage = data.cover ? `url('${data.cover}')` : "";
+    card.querySelector("h3").textContent = data.name;
+    card.querySelector("p").textContent = data.excerpt || "";
+    card.querySelector(".hl-open").href = data.url;
+  }
+
+  async function deal(direction) {
+    if (busy) return;
+    busy = true;
+    card.classList.remove("nudge");
+
+    // Если предзагрузка не успела — ждём её здесь, но это редкий случай.
+    if (!nextItem) await prefetch();
+    const data = nextItem;
+    nextItem = null;
+    prefetch();
+
+    if (!data) { busy = false; return; }
+
+    if (reduceMotion) {
+      paint(data);
+      busy = false;
+      return;
+    }
+
+    card.style.setProperty("--dir", direction >= 0 ? 1 : -1);
+    card.classList.add("tossing");
+    card.addEventListener("animationend", function onToss() {
+      card.removeEventListener("animationend", onToss);
+      card.classList.remove("tossing");
+      card.style.transform = "";
+      paint(data);
+      card.classList.add("dealing");
+      card.addEventListener("animationend", function onDeal() {
+        card.removeEventListener("animationend", onDeal);
+        card.classList.remove("dealing");
+        busy = false;
+      }, { once: true });
+    }, { once: true });
+  }
+
+  btn.addEventListener("click", () => deal(1));
+
+  // ── Свайп/перетаскивание верхней карточки ──
+  let startX = 0, startY = 0, dx = 0, dragging = false;
+  const THRESHOLD = 90;
+
+  card.addEventListener("pointerdown", (e) => {
+    // Клики по кнопкам внутри карточки не должны превращаться в свайп
+    if (busy || e.target.closest("a, button")) return;
+    dragging = true; dx = 0;
+    startX = e.clientX; startY = e.clientY;
+    card.classList.add("dragging");
+    card.setPointerCapture(e.pointerId);
   });
+
+  card.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    dx = e.clientX - startX;
+    // Вертикальный жест — это скролл страницы, не наше дело
+    if (Math.abs(e.clientY - startY) > Math.abs(dx) && Math.abs(dx) < 12) return;
+    card.style.transform = `translateX(${dx}px) rotate(${dx / 22}deg)`;
+    card.style.opacity = String(Math.max(0.45, 1 - Math.abs(dx) / 420));
+  });
+
+  function endDrag(e) {
+    if (!dragging) return;
+    dragging = false;
+    card.classList.remove("dragging");
+    try { card.releasePointerCapture(e.pointerId); } catch (err) { /* уже отпущен */ }
+
+    if (Math.abs(dx) > THRESHOLD) {
+      card.style.transform = "";
+      card.style.opacity = "";
+      deal(dx);
+    } else {
+      // Не дотянули — карточка мягко возвращается на место
+      card.classList.add("settling");
+      card.style.transform = "";
+      card.style.opacity = "";
+      setTimeout(() => card.classList.remove("settling"), 240);
+    }
+    dx = 0;
+  }
+
+  card.addEventListener("pointerup", endDrag);
+  card.addEventListener("pointercancel", endDrag);
+
+  // Однократный намёк, что карточку можно тянуть — только при первом визите
+  try {
+    if (!reduceMotion && !localStorage.getItem("adygid_deck_hinted")) {
+      card.classList.add("nudge");
+      localStorage.setItem("adygid_deck_hinted", "1");
+    }
+  } catch (e) { /* localStorage недоступен — просто без подсказки */ }
+
+  prefetch();
 })();
 
 // Автосабмит форм фильтров при смене любого поля

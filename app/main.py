@@ -70,6 +70,11 @@ with engine.begin() as _conn:
     # DEFAULT true — все точки, заведённые до появления флага, уже показывались
     # в «Местах», и сайт после миграции не должен измениться.
     _conn.execute(text("ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS show_as_place BOOLEAN NOT NULL DEFAULT true"))
+    for _t in ("trails", "checkpoints"):
+        _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT now()"))
+        # У записей, заведённых до появления колонки, берём дату создания —
+        # иначе на сайте они все окажутся «обновлёнными» в день миграции.
+        _conn.execute(text(f"UPDATE {_t} SET updated_at = created_at WHERE updated_at IS NULL"))
 
 # Дефолтные категории — засеваются один раз при первом старте, если таблица пустая
 _DEFAULT_CATEGORIES = [
@@ -471,6 +476,7 @@ def _trail_out(t: Trail):
         "category_id": t.category_id,
         "category": _category_out(t.category) if t.category else None,
         "duration_minutes": t.duration_minutes,
+        "updated_at": t.updated_at.isoformat() if t.updated_at else None,
         "segments": [_seg_out(s) for s in t.segments],
         "checkpoints": [_cp_out(c) for c in t.checkpoints],
         "photos": [_photo_out(p) for p in t.photos],
@@ -657,6 +663,7 @@ def _cp_out(c: Checkpoint):
         "order_index": c.order_index,
         "duration_minutes": c.duration_minutes,
         "show_as_place": c.show_as_place,
+        "updated_at": c.updated_at.isoformat() if c.updated_at else None,
         "lon": shp.x,
         "lat": shp.y,
         "photos": [_photo_out(p) for p in c.photos],

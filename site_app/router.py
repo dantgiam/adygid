@@ -20,6 +20,7 @@ from site_app.content import (
     CLUB_URL,
     DIFFICULTY_INFO,
     DIFFICULTY_LABELS,
+    DISTRICT_PAGES,
     DISTRICTS,
     POPULARITY_WEIGHT,
     SEASON_LABELS,
@@ -62,6 +63,20 @@ def _duration_label(minutes: Optional[int]) -> Optional[str]:
     if h:
         return f"{h} ч"
     return f"{m} мин"
+
+
+_MONTHS_RU = (
+    "января", "февраля", "марта", "апреля", "мая", "июня",
+    "июля", "августа", "сентября", "октября", "ноября", "декабря",
+)
+
+
+def _updated_label(dt) -> Optional[str]:
+    """«Проверено 26 июля 2026» — для описаний с ценами и состоянием троп
+    свежесть важнее, чем дата первой публикации."""
+    if not dt:
+        return None
+    return f"Проверено {dt.day} {_MONTHS_RU[dt.month - 1]} {dt.year}"
 
 
 def _likes_label(count: int) -> str:
@@ -220,6 +235,41 @@ def _nearby_places(db: Session, lat: float, lon: float, exclude_id: Optional[int
         card["distance_label"] = f"{distance_m / 1000:.1f} км"
         result.append(card)
     return result
+
+
+def _routes_for_place(db: Session, cp: Checkpoint, radius_km: float = 12.0, limit: int = 4) -> list:
+    """Обратная связь точка → маршрут. Сначала маршрут, частью которого точка
+    является, затем маршруты, чьи точки проходят поблизости — чтобы у
+    отдельно стоящих мест тоже была связь с маршрутами, а не только наоборот."""
+    cards, seen = [], set()
+
+    if cp.trail:
+        card = _route_card_dict(cp.trail)
+        card["relation"] = "Место на этом маршруте"
+        cards.append(card)
+        seen.add(cp.trail.id)
+
+    shp = to_shape(cp.geom)
+    point = func.ST_SetSRID(func.ST_MakePoint(shp.x, shp.y), 4326)
+    rows = db.execute(
+        select(Trail, func.min(func.ST_DistanceSphere(Checkpoint.geom, point)).label("d"))
+        .join(Checkpoint, Checkpoint.trail_id == Trail.id)
+        .where(Checkpoint.id != cp.id)
+        .group_by(Trail.id)
+        .having(func.min(func.ST_DistanceSphere(Checkpoint.geom, point)) < radius_km * 1000)
+        .order_by("d")
+        .limit(limit + len(seen))
+    ).all()
+
+    for trail, distance_m in rows:
+        if trail.id in seen:
+            continue
+        card = _route_card_dict(trail)
+        card["relation"] = f"Проходит в {distance_m / 1000:.1f} км отсюда"
+        cards.append(card)
+        seen.add(trail.id)
+
+    return cards[:limit]
 
 
 # ─────────────────────────────────────────────
@@ -412,6 +462,8 @@ def _place_detail_dict(cp: Checkpoint) -> dict:
         "yandex_url": _yandex_point_url(cp),
         "weather_url": _weather_url(to_shape(cp.geom).y, to_shape(cp.geom).x),
         "trail": {"name": cp.trail.name, "url": f"/marshruty/{cp.trail.id}"} if cp.trail else None,
+        "district_url": f"/okrugi/{cp.district}" if cp.district in DISTRICT_PAGES else None,
+        "updated_label": _updated_label(cp.updated_at),
     }
 
 
@@ -441,6 +493,9 @@ def _route_detail_dict(t: Trail) -> dict:
         "equipment_tags": t.equipment_tags or [],
         "yandex_url": _yandex_route_url(t),
         "weather_url": weather_url,
+        "gpx_url": f"/marshruty/{t.id}/track.gpx" if t.segments else None,
+        "district_url": f"/okrugi/{t.district}" if t.district in DISTRICT_PAGES else None,
+        "updated_label": _updated_label(t.updated_at),
         "checkpoints": [
             {
                 "name": cp.name,
@@ -659,11 +714,13 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
 
     shp = to_shape(cp.geom)
     nearby = [p for p in _nearby_places(db, shp.y, shp.x, exclude_id=cp.id, limit=5) if p["id"] != cp.id][:4]
+    related_routes = _routes_for_place(db, cp)
 
     return templates.TemplateResponse(
         "place_detail.html",
         _ctx(
             request, db, active_nav="places", place=place, similar=similar, nearby=nearby,
+            related_routes=related_routes,
             like=_like_info(db, request, "checkpoint", cp.id),
         ),
     )
@@ -738,6 +795,116 @@ def route_detail(request: Request, route_id: int, db: Session = Depends(get_db))
             request, db, active_nav="routes", route=route, similar=similar, nearby=nearby,
             like=_like_info(db, request, "trail", t.id),
         ),
+    )
+
+
+@router.get("/marshruty/{route_id}/track.gpx")
+def route_gpx(route_id: int, db: Session = Depends(get_db)):
+    """Трек маршрута в GPX — чтобы залить в навигатор и идти по нему там,
+    где нет связи. Ссылки на сайте пока нет: включим, когда тропы будут
+    отрисованы, а сейчас файл уже отдаётся по прямому адресу."""
+    t = db.get(Trail, route_id)
+    if not t:
+        raise HTTPException(404, "Маршрут не найден")
+
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<gpx version="1.1" creator="АдыГид" xmlns="http://www.topografix.com/GPX/1/1">',
+        f"<metadata><name>{escape(t.name)}</name><link href=\"{escape(SITE_URL)}/marshruty/{t.id}\"/></metadata>",
+    ]
+
+    for cp in sorted(t.checkpoints, key=lambda c: c.order_index):
+        shp = to_shape(cp.geom)
+        parts.append(
+            f'<wpt lat="{shp.y:.6f}" lon="{shp.x:.6f}"><name>{escape(cp.name)}</name></wpt>'
+        )
+
+    if t.segments:
+        parts.append(f"<trk><name>{escape(t.name)}</name>")
+        for seg in sorted(t.segments, key=lambda s: s.order_index):
+            parts.append("<trkseg>")
+            for lon, lat in to_shape(seg.geom).coords:
+                parts.append(f'<trkpt lat="{lat:.6f}" lon="{lon:.6f}"></trkpt>')
+            parts.append("</trkseg>")
+        parts.append("</trk>")
+
+    parts.append("</gpx>")
+    filename = f"adygid-route-{t.id}.gpx"
+    return Response(
+        "\n".join(parts),
+        media_type="application/gpx+xml",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ─────────────────────────────────────────────
+#  Округа — навигация по географии, а не только фильтр
+# ─────────────────────────────────────────────
+
+@router.get("/okrugi")
+def districts_index(request: Request, db: Session = Depends(get_db)):
+    items = []
+    for slug, label in DISTRICTS.items():
+        if slug not in DISTRICT_PAGES:
+            continue
+        places = db.execute(
+            select(func.count()).select_from(Checkpoint)
+            .where(Checkpoint.district == slug, Checkpoint.show_as_place == True)
+        ).scalar() or 0
+        routes = db.execute(
+            select(func.count()).select_from(Trail).where(Trail.district == slug)
+        ).scalar() or 0
+        items.append({
+            "slug": slug,
+            "label": label,
+            "url": f"/okrugi/{slug}",
+            "lead": DISTRICT_PAGES[slug]["lead"],
+            "places": places,
+            "routes": routes,
+        })
+    return templates.TemplateResponse(
+        "districts_list.html", _ctx(request, db, active_nav="districts", districts_list=items)
+    )
+
+
+@router.get("/okrugi/{slug}")
+def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
+    page = DISTRICT_PAGES.get(slug)
+    if not page:
+        raise HTTPException(404, "Округ не найден")
+
+    places = [
+        _place_card_dict(cp)
+        for cp in db.execute(
+            select(Checkpoint)
+            .where(Checkpoint.district == slug, Checkpoint.show_as_place == True)
+            .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc())
+        ).scalars().all()
+    ]
+    routes = [
+        _route_card_dict(t)
+        for t in db.execute(
+            select(Trail).where(Trail.district == slug).order_by(_POPULARITY_ORDER_TRAIL)
+        ).scalars().all()
+    ]
+    articles = [
+        _article_card_dict(a)
+        for a in db.execute(
+            select(Article).where(Article.is_published == True, Article.district == slug)
+        ).scalars().all()
+    ]
+
+    district = {
+        "slug": slug,
+        "label": DISTRICTS.get(slug, slug),
+        "lead": page["lead"],
+        "facts": page.get("facts", []),
+        "places": places,
+        "routes": routes,
+        "articles": articles,
+    }
+    return templates.TemplateResponse(
+        "district.html", _ctx(request, db, active_nav="districts", district=district)
     )
 
 
@@ -866,8 +1033,11 @@ def sitemap_xml(db: Session = Depends(get_db)):
         ("/mesta", None, "weekly"),
         ("/marshruty", None, "weekly"),
         ("/stati", None, "weekly"),
+        ("/okrugi", None, "monthly"),
         ("/klub", None, "monthly"),
     ]
+    for slug in DISTRICT_PAGES:
+        urls.append((f"/okrugi/{slug}", None, "monthly"))
 
     for cp in db.execute(
         select(Checkpoint.id, Checkpoint.created_at).where(Checkpoint.show_as_place == True)

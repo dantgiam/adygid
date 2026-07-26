@@ -30,11 +30,12 @@
 
     <div class="detail-grid">
       <div class="detail-body">
-        <p class="eyebrow">{{ route.category.name if route.category else 'Маршрут' }}{% if route.district_label %} · {{ route.district_label }}{% endif %}</p>
+        <p class="eyebrow">{{ route.category.name if route.category else 'Маршрут' }}{% if route.district_label %} · {% if route.district_url %}<a href="{{ route.district_url }}" style="color:inherit">{{ route.district_label }}</a>{% else %}{{ route.district_label }}{% endif %}{% endif %}</p>
         <div class="title-row">
           <h1 class="page-title">{{ route.name }}</h1>
           <button type="button" class="fav-btn fav-btn-lg" data-type="route" data-id="{{ route.id }}" aria-label="Добавить в избранное">{{ cards.fav_icon() }}<span class="fav-btn-text">В избранное</span></button>
         </div>
+        {% if route.updated_label %}<p class="updated-note">{{ route.updated_label }}</p>{% endif %}
         {% if route.description_html %}{{ route.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
         {% if route.checkpoints %}

@@ -33,19 +33,30 @@
 
     <div>
       <p class="hl-label">Случайное место — ловите впечатления</p>
-      <div class="highlight-card" id="highlight-card">
-        <div class="hl-cover" style="{% if highlight.cover %}background-image:url('{{ highlight.cover }}'){% endif %}">
-          <span class="hl-tag">{{ highlight.tag_label }}</span>
-        </div>
-        <div class="hl-body">
-          <h3>{{ highlight.name }}</h3>
-          <p>{{ highlight.excerpt or '' }}</p>
-          <div class="hl-actions">
-            <a class="btn btn-primary hl-open" href="{{ highlight.url }}">Смотреть</a>
-            <button class="btn btn-ghost" id="regenerate-btn" type="button">Перегенерировать</button>
+      <!-- Колода: две подложки создают ощущение стопки, верхняя карточка
+           смахивается свайпом или кнопкой «Ещё». -->
+      <div class="hl-deck" id="hl-deck">
+        <div class="hl-stack" aria-hidden="true"></div>
+        <div class="hl-stack" aria-hidden="true"></div>
+        <div class="highlight-card" id="highlight-card">
+          <div class="hl-cover" style="{% if highlight.cover %}background-image:url('{{ highlight.cover }}'){% endif %}">
+            <span class="hl-tag">{{ highlight.tag_label }}</span>
+          </div>
+          <div class="hl-body">
+            <h3>{{ highlight.name }}</h3>
+            <p>{{ highlight.excerpt or '' }}</p>
+            <div class="hl-actions">
+              <a class="btn btn-primary hl-open" href="{{ highlight.url }}">Смотреть</a>
+              <button class="btn btn-ghost" id="regenerate-btn" type="button">Ещё</button>
+            </div>
           </div>
         </div>
       </div>
+      <p class="hl-hint" id="hl-hint">
+        <span class="hl-hint-swipe">Смахните карточку</span>
+        <span class="hl-hint-click">Листайте колоду</span>
+        или нажмите «Ещё»
+      </p>
     </div>
   </div>
 </section>

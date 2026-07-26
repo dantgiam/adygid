@@ -35,6 +35,9 @@ class Trail(Base):
     category_id      = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     duration_minutes = Column(Integer, nullable=True)
     created_at       = Column(DateTime, server_default=func.now())
+    # Дата последней правки — показывается на сайте как «Проверено …»:
+    # для описаний с ценами и состоянием троп это сигнал свежести.
+    updated_at       = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     # ── Критерии фильтрации (см. adygid_filters_spec.md) ──
     # difficulty — интегральная сложность всего маршрута, выставляется автором
@@ -91,6 +94,7 @@ class Checkpoint(Base):
     order_index      = Column(Integer, nullable=False, default=0)
     geom             = Column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
     created_at       = Column(DateTime, server_default=func.now())
+    updated_at       = Column(DateTime, server_default=func.now(), onupdate=func.now())
     duration_minutes = Column(Integer, nullable=True)
 
     # ── Критерии фильтрации (см. adygid_filters_spec.md) — тот же набор, что у Trail,
