@@ -14,7 +14,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import get_db
-from app.models import Article, Category, Checkpoint, Like, Trail
+from app.models import Article, Category, Checkpoint, Like, Scenario, Trail
 from site_app.content import (
     ACCESS_LABELS,
     CLUB_URL,
@@ -23,7 +23,6 @@ from site_app.content import (
     DISTRICT_PAGES,
     DISTRICTS,
     POPULARITY_WEIGHT,
-    SCENARIOS,
     SEASON_LABELS,
 )
 
@@ -705,7 +704,7 @@ def home(request: Request, db: Session = Depends(get_db)):
         if route_likes.get(r["id"]):
             r["likes_label"] = _likes_label(route_likes[r["id"]])
 
-    doors = _scenario_doors()
+    doors = _scenario_doors(db)
     wizard_categories = db.execute(
         select(Category).where(Category.is_public == True, Category.type.in_(["checkpoint", "both"]))
     ).scalars().all()
@@ -924,56 +923,52 @@ def route_gpx(route_id: int, db: Session = Depends(get_db)):
 #  Сценарии — вход по ситуации человека
 # ─────────────────────────────────────────────
 
-def _scenario_conditions(model, filters: dict) -> list:
-    """Переводит правило отбора из content.py в условия запроса. Поля у
-    Checkpoint и Trail называются одинаково, поэтому одна функция работает
-    и для мест, и для маршрутов."""
+def _scenario_conditions(model, sc: Scenario) -> list:
+    """Переводит правило отбора сценария (поля filter_* в БД, редактируются
+    в админке) в условия запроса. Поля у Checkpoint и Trail называются
+    одинаково, поэтому одна функция работает и для мест, и для маршрутов.
+    Пустой список/None в filter_* — «без ограничения», условие не добавляется."""
     conditions = []
-    if "kid_friendly" in filters:
-        conditions.append(model.kid_friendly == filters["kid_friendly"])
-    if "popularity_in" in filters:
-        conditions.append(model.popularity.in_(filters["popularity_in"]))
-    if "difficulty_in" in filters:
-        conditions.append(model.difficulty.in_(filters["difficulty_in"]))
-    if "seasonality" in filters:
-        conditions.append(model.seasonality == filters["seasonality"])
-    if "access_in" in filters:
-        conditions.append(model.access_type.in_(filters["access_in"]))
+    if sc.filter_kid_friendly is not None:
+        conditions.append(model.kid_friendly == sc.filter_kid_friendly)
+    if sc.filter_popularity:
+        conditions.append(model.popularity.in_(sc.filter_popularity))
+    if sc.filter_difficulty:
+        conditions.append(model.difficulty.in_(sc.filter_difficulty))
+    if sc.filter_seasonality:
+        conditions.append(model.seasonality == sc.filter_seasonality)
+    if sc.filter_access:
+        conditions.append(model.access_type.in_(sc.filter_access))
     return conditions
 
 
-def _scenario_doors(current: Optional[str] = None) -> list:
+def _door_dict(sc: Scenario) -> dict:
+    return {"slug": sc.slug, "url": f"/kuda/{sc.slug}", "door": sc.door, "hint": sc.hint or "", "icon": sc.icon or ""}
+
+
+def _scenario_doors(db: Session, current: Optional[str] = None) -> list:
     """Двери развилки — один и тот же список на главной и внизу сценария."""
-    return [
-        {
-            "slug": slug,
-            "url": f"/kuda/{slug}",
-            "door": cfg["door"],
-            "hint": cfg.get("hint", ""),
-            "icon": cfg.get("icon", ""),
-        }
-        for slug, cfg in SCENARIOS.items()
-        if slug != current
-    ]
+    rows = db.execute(
+        select(Scenario).where(Scenario.is_published == True).order_by(Scenario.order_index, Scenario.id)
+    ).scalars().all()
+    return [_door_dict(sc) for sc in rows if sc.slug != current]
 
 
 @router.get("/kuda")
 def scenarios_index(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
         "scenarios_list.html",
-        _ctx(request, db, active_nav="scenarios", doors=_scenario_doors()),
+        _ctx(request, db, active_nav="scenarios", doors=_scenario_doors(db)),
     )
 
 
 @router.get("/kuda/{slug}")
 def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
-    cfg = SCENARIOS.get(slug)
-    if not cfg:
+    sc = db.execute(select(Scenario).where(Scenario.slug == slug, Scenario.is_published == True)).scalars().first()
+    if not sc:
         raise HTTPException(404, "Сценарий не найден")
 
-    filters = cfg.get("filters", {})
-
-    place_conditions = [Checkpoint.show_as_place == True] + _scenario_conditions(Checkpoint, filters)
+    place_conditions = [Checkpoint.show_as_place == True] + _scenario_conditions(Checkpoint, sc)
     places = [
         _place_card_dict(cp)
         for cp in db.execute(
@@ -983,7 +978,7 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         ).scalars().all()
     ]
 
-    route_conditions = _scenario_conditions(Trail, filters)
+    route_conditions = _scenario_conditions(Trail, sc)
     routes = [
         _route_card_dict(t)
         for t in db.execute(
@@ -993,31 +988,31 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         ).scalars().all()
     ]
 
-    slugs = cfg.get("article_slugs", [])
+    article_ids = sc.featured_article_ids or []
     articles = []
-    if slugs:
-        by_slug = {
-            a.slug: a
+    if article_ids:
+        by_id = {
+            a.id: a
             for a in db.execute(
-                select(Article).where(Article.slug.in_(slugs), Article.is_published == True)
+                select(Article).where(Article.id.in_(article_ids), Article.is_published == True)
             ).scalars().all()
         }
-        articles = [_article_card_dict(by_slug[s]) for s in slugs if s in by_slug]
+        articles = [_article_card_dict(by_id[i]) for i in article_ids if i in by_id]
 
     scenario = {
-        "slug": slug,
-        "title": cfg["title"],
-        "door": cfg["door"],
-        "lead": cfg["lead"],
-        "seo_description": cfg.get("seo_description", cfg["lead"]),
-        "tips": cfg.get("tips", []),
+        "slug": sc.slug,
+        "title": sc.title,
+        "door": sc.door,
+        "lead": sc.lead or "",
+        "seo_description": sc.seo_description or sc.lead or sc.title,
+        "tips": sc.tips or [],
         "places": places,
         "routes": routes,
         "articles": articles,
     }
     return templates.TemplateResponse(
         "scenario.html",
-        _ctx(request, db, active_nav="scenarios", scenario=scenario, doors=_scenario_doors(slug)),
+        _ctx(request, db, active_nav="scenarios", scenario=scenario, doors=_scenario_doors(db, slug)),
     )
 
 
@@ -1239,8 +1234,8 @@ def sitemap_xml(db: Session = Depends(get_db)):
         ("/okrugi", None, "monthly"),
         ("/klub", None, "monthly"),
     ]
-    for slug in SCENARIOS:
-        urls.append((f"/kuda/{slug}", None, "weekly"))
+    for row in db.execute(select(Scenario.slug).where(Scenario.is_published == True)).scalars().all():
+        urls.append((f"/kuda/{row}", None, "weekly"))
     for slug in DISTRICT_PAGES:
         urls.append((f"/okrugi/{slug}", None, "monthly"))
 

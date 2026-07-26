@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from PIL import Image
 
 from app.database import Base, engine, get_db
-from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like
+from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like, Scenario
 from app.slugs import slugify as _slugify, unique_slug as _unique_slug
 from site_app.router import router as site_router
 
@@ -130,6 +130,97 @@ with Session(engine) as _seed_db:
     for _c in _seed_db.execute(select(Category).where(Category.name.in_(_service_names))).scalars():
         _c.is_public = False
     _seed_db.commit()
+
+# Сценарии — засеваются один раз, если таблица пустая (первый деплой после
+# появления фичи). Дальше редактируются только через админку, этот список
+# больше не источник истины — не трогаем существующие строки при повторных
+# стартах, даже если текст здесь поменяется.
+_DEFAULT_SCENARIOS = [
+    dict(
+        slug="vpervye", icon="🧭", door="Впервые в Адыгее",
+        hint="Что смотреть, если приехали в первый раз",
+        title="Впервые в Адыгее: с чего начать",
+        lead="Если вы здесь впервые, начинать стоит не с самого сложного, а с самого показательного. Эти места дают понять, за чем вообще едут в Адыгею, и не требуют ни подготовки, ни специального снаряжения.",
+        seo_description="Что посмотреть в Адыгее в первый приезд: главные места, сколько закладывать времени и в каком порядке ехать.",
+        tips=[
+            "Почти всё интересное лежит вдоль одной дороги: Каменномостский — Даховская — Азишский перевал. Отдельно возвращаться никуда не придётся",
+            "Двух дней хватает, чтобы увидеть главное без спешки; за один день придётся выбирать между лёгкой прогулкой и выездом на плато",
+            "Наличные пригодятся: вход на тропы и парковки не везде принимают карты",
+        ],
+        filter_popularity=["top", "popular"], order_index=0,
+    ),
+    dict(
+        slug="s-detmi", icon="👶", door="Еду с детьми",
+        hint="Куда реально дойти с ребёнком",
+        title="Адыгея с детьми: куда идти, а что отложить",
+        lead="С детьми в Адыгее нормально — но не везде. Здесь собрано то, что проходится без риска и истерик: короткие оборудованные тропы, тёплая вода и места, где рядом есть кафе и туалет.",
+        seo_description="Адыгея с детьми: какие места и маршруты подходят малышам, где пройдёт коляска и что лучше отложить до школьного возраста.",
+        tips=[
+            "Закладывайте вдвое больше времени на любой маршрут — с ребёнком темп другой",
+            "Всегда держите план Б рядом: кафе или беседку, если ребёнок устанет раньше, чем закончится тропа",
+            "Коляска проедет по основным дорожкам Хаджохской теснины; на тропе к водопадам её лучше не брать — местами придётся нести ребёнка на руках",
+        ],
+        filter_kid_friendly=True, order_index=1,
+    ),
+    dict(
+        slug="bez-mashiny", icon="🚌", door="Без машины",
+        hint="Куда попасть на автобусе и пешком",
+        title="Адыгея без машины",
+        lead="Без своей машины Адыгея не закрыта — просто круг мест сужается. Сюда попало то, к чему асфальт идёт до самого входа: от Майкопа ходят рейсовые автобусы и маршрутки, дальше пешком или на местном такси.",
+        seo_description="Что посмотреть в Адыгее без машины: места, до которых можно добраться на автобусе, и как построить маршрут.",
+        tips=[
+            "Базой удобно делать Каменномостский: теснина прямо в посёлке, до тропы к водопадам — пара километров пешком",
+            "На плато Лагонаки рейсовый транспорт не идёт — туда только трансфер или экскурсия",
+            "Расписание автобусов в сезон плотнее; последний рейс обратно уточняйте заранее",
+        ],
+        filter_access=["paved"], order_index=2,
+    ),
+    dict(
+        slug="zimoy", icon="❄️", door="Зимой и в межсезонье",
+        hint="Что работает, когда наверху снег",
+        title="Адыгея зимой и в межсезонье",
+        lead="Зимой высокогорные маршруты закрыты снегом, но поездка не отменяется — меняется набор мест. Здесь то, что работает круглый год: ущелья, пещеры и термальные источники, которые зимой даже выигрывают.",
+        seo_description="Куда поехать в Адыгее зимой: какие места работают круглый год, что закрыто снегом и чем заняться в межсезонье.",
+        tips=[
+            "Термальные источники зимой смотрятся эффектнее, чем летом — пар над водой на фоне гор",
+            "В пещерах круглый год около +6 °C: зимой это уже не контраст, но тёплая одежда всё равно нужна",
+            "Дорогу на плато в снегопад могут закрыть без предупреждения — проверяйте перед выездом",
+        ],
+        filter_seasonality="year_round", order_index=3,
+    ),
+    dict(
+        slug="trekking", icon="🥾", door="Хочу серьёзный треккинг",
+        hint="Долгие маршруты и высота",
+        title="Серьёзные маршруты Адыгеи",
+        lead="Если прогулочные тропы уже неинтересны — вот то, ради чего сюда едут с рюкзаком: длинные выходы, набор высоты и заповедник. Здесь нужна форма, снаряжение и запас времени на погоду.",
+        seo_description="Сложные пешие маршруты Адыгеи: плато Лагонаки, заповедник, многодневные переходы и что для них нужно.",
+        tips=[
+            "В заповедник нужен пропуск, оформлять заранее — на месте это не решается",
+            "Погода наверху меняется за полчаса: ветрозащита и тёплая куртка обязательны даже в июле",
+            "Оставляйте день в запасе: в горах планы регулярно сдвигаются из-за дождя и тумана",
+        ],
+        filter_difficulty=["hard", "extreme"], order_index=4,
+    ),
+]
+_SCENARIO_ARTICLE_SLUGS = {
+    "vpervye": ["chto-posmotret-v-pervuyu-ochered", "edem-v-adygeyu-na-2-3-dnya"],
+    "s-detmi": ["adygeya-s-detmi"],
+    "bez-mashiny": ["kak-dobratsya-i-gde-ostanovitsya"],
+    "zimoy": ["termalnye-istochniki-adygei"],
+    "trekking": ["edem-v-adygeyu-na-nedelyu"],
+}
+with Session(engine) as _seed_db:
+    if _seed_db.execute(select(func.count()).select_from(Scenario)).scalar() == 0:
+        _slug_to_article_id = dict(_seed_db.execute(select(Article.slug, Article.id)).all())
+        for _sc in _DEFAULT_SCENARIOS:
+            _sc = dict(_sc)
+            _article_ids = [
+                _slug_to_article_id[s]
+                for s in _SCENARIO_ARTICLE_SLUGS.get(_sc["slug"], [])
+                if s in _slug_to_article_id
+            ]
+            _seed_db.add(Scenario(featured_article_ids=_article_ids, **_sc))
+        _seed_db.commit()
 
 
 # ─────────────────────────────────────────────
@@ -354,6 +445,34 @@ class ArticleUpdate(BaseModel):
     featured_checkpoint_ids: Optional[List[int]] = None
     featured_trail_ids: Optional[List[int]] = None
     is_published: Optional[bool] = None
+
+
+class ScenarioIn(BaseModel):
+    slug: Optional[str] = None
+    icon: Optional[str] = None
+    door: str
+    hint: Optional[str] = None
+    title: str
+    lead: Optional[str] = None
+    seo_description: Optional[str] = None
+    tips: List[str] = []
+    featured_article_ids: List[int] = []
+    # Три состояния — "any"/"yes"/"no" и "any"/"year_round"/"summer_only" —
+    # а не Optional[bool]/Optional[str] со смыслом «не трогать поле»: форма в
+    # админке всегда отправляет сценарий целиком, и если бы «неважно»
+    # кодировалось как None, вернуть фильтр в «неважно» после того, как он
+    # был выставлен, было бы нельзя (см. _apply_scenario).
+    filter_kid_friendly: str = "any"     # any | yes | no
+    filter_popularity: List[str] = []
+    filter_difficulty: List[str] = []
+    filter_seasonality: str = "any"      # any | year_round | summer_only
+    filter_access: List[str] = []
+    order_index: int = 0
+    is_published: bool = True
+
+class ScenarioUpdate(ScenarioIn):
+    door: Optional[str] = None
+    title: Optional[str] = None
 
 
 _EXTRA_CRITERIA_FIELDS = [
@@ -777,6 +896,92 @@ def _article_out(a: Article):
         "featured_checkpoint_ids": a.featured_checkpoint_ids or [],
         "featured_trail_ids": a.featured_trail_ids or [],
         "is_published": a.is_published,
+    }
+
+
+# ─────────────────────────────────────────────
+#  SCENARIOS — двери развилки на главной («Еду с детьми», «Без машины»...).
+#  Места и маршруты внутри не хранятся списком — сайт сам подбирает их из
+#  filter_*-полей на каждый рендер (site_app/router.py, _scenario_conditions).
+# ─────────────────────────────────────────────
+
+def _tri_to_kid(value: str) -> Optional[bool]:
+    return {"yes": True, "no": False}.get(value)
+
+
+def _tri_to_season(value: str) -> Optional[str]:
+    return value if value in ("year_round", "summer_only") else None
+
+
+def _apply_scenario(sc: Scenario, body: ScenarioIn):
+    if body.door is not None: sc.door = body.door
+    if body.title is not None: sc.title = body.title
+    sc.icon = body.icon
+    sc.hint = body.hint
+    sc.lead = body.lead
+    sc.seo_description = body.seo_description
+    sc.tips = body.tips or []
+    sc.featured_article_ids = body.featured_article_ids or []
+    sc.filter_kid_friendly = _tri_to_kid(body.filter_kid_friendly)
+    sc.filter_popularity = body.filter_popularity or []
+    sc.filter_difficulty = body.filter_difficulty or []
+    sc.filter_seasonality = _tri_to_season(body.filter_seasonality)
+    sc.filter_access = body.filter_access or []
+    sc.order_index = body.order_index
+    sc.is_published = body.is_published
+
+
+@app.get("/api/scenarios")
+def list_scenarios(db: Session = Depends(get_db)):
+    rows = db.execute(select(Scenario).order_by(Scenario.order_index, Scenario.id)).scalars().all()
+    return [_scenario_out(s) for s in rows]
+
+
+@app.post("/api/scenarios", status_code=201)
+def create_scenario(body: ScenarioIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    slug = _unique_slug(db, _slugify(body.slug or body.door), model=Scenario)
+    sc = Scenario(slug=slug)
+    _apply_scenario(sc, body)
+    db.add(sc); db.commit(); db.refresh(sc)
+    return _scenario_out(sc)
+
+
+@app.patch("/api/scenarios/{scenario_id}")
+def update_scenario(scenario_id: int, body: ScenarioUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    sc = _get_or_404(db, Scenario, scenario_id)
+    if body.slug is not None:
+        sc.slug = _unique_slug(db, _slugify(body.slug), exclude_id=scenario_id, model=Scenario)
+    _apply_scenario(sc, body)
+    db.commit(); db.refresh(sc)
+    return _scenario_out(sc)
+
+
+@app.delete("/api/scenarios/{scenario_id}")
+def delete_scenario(scenario_id: int, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    sc = _get_or_404(db, Scenario, scenario_id)
+    db.delete(sc); db.commit()
+    return {"ok": True}
+
+
+def _scenario_out(s: Scenario):
+    return {
+        "id": s.id,
+        "slug": s.slug,
+        "icon": s.icon,
+        "door": s.door,
+        "hint": s.hint,
+        "title": s.title,
+        "lead": s.lead,
+        "seo_description": s.seo_description,
+        "tips": s.tips or [],
+        "featured_article_ids": s.featured_article_ids or [],
+        "filter_kid_friendly": {True: "yes", False: "no"}.get(s.filter_kid_friendly, "any"),
+        "filter_popularity": s.filter_popularity or [],
+        "filter_difficulty": s.filter_difficulty or [],
+        "filter_seasonality": s.filter_seasonality or "any",
+        "filter_access": s.filter_access or [],
+        "order_index": s.order_index,
+        "is_published": s.is_published,
     }
 
 

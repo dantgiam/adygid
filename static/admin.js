@@ -49,6 +49,7 @@ let trails = [];
 let checkpoints = [];   // все точки (и отдельные, и внутри маршрутов)
 let articles = [];
 let equipmentTags = [];
+let scenarios = [];
 
 let activeTrail = null;      // маршрут, открытый в редакторе карты
 let map = null, placeMap = null;
@@ -1333,26 +1334,225 @@ async function deletePhoto(photoId, kind, ownerId) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  СЦЕНАРИИ — двери развилки на главной. Места и маршруты внутри не
+//  перечисляются: сайт сам подбирает их по filter_*-правилу на каждый рендер.
+// ═══════════════════════════════════════════════════════════════
+
+const ICON_CHOICES = [
+  '🧭','👶','🚌','❄️','🥾','⛰️','💧','🏔️','🚗','🎒','☀️','🌧️',
+  '🏕️','📸','💰','⏱️','🗺️','🧳','🌲','🏞️','⛺','🌊','🐾','🎣',
+];
+
+function renderScenarios() {
+  const el = document.getElementById('scenarios-list');
+  if (!scenarios.length) {
+    el.innerHTML = `<div class="empty"><b>Сценариев нет</b>Создайте первую дверь развилки — например, «Еду с детьми».</div>`;
+    return;
+  }
+  const sorted = [...scenarios].sort((a, b) => a.order_index - b.order_index);
+  el.innerHTML = sorted.map(s => {
+    const filters = [];
+    if (s.filter_kid_friendly !== 'any') filters.push(s.filter_kid_friendly === 'yes' ? 'с детьми' : 'не для детей');
+    if (s.filter_seasonality !== 'any') filters.push(s.filter_seasonality === 'year_round' ? 'круглый год' : 'только летом');
+    if (s.filter_popularity.length) filters.push('популярность: ' + s.filter_popularity.join(', '));
+    if (s.filter_difficulty.length) filters.push('сложность: ' + s.filter_difficulty.join(', '));
+    if (s.filter_access.length) filters.push('доступ: ' + s.filter_access.join(', '));
+    return `
+    <div class="row">
+      <div class="row-thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--accent-soft)">${s.icon || '🧭'}</div>
+      <div class="row-main">
+        <div class="row-title">${escHtml(s.door)}
+          ${s.is_published ? '' : '<span class="badge badge-draft">скрыт</span>'}
+        </div>
+        <div class="row-meta">
+          <span>/kuda/${escHtml(s.slug)}</span>
+          ${filters.length ? `<span>${escHtml(filters.join(' · '))}</span>` : '<span>без ограничений — берёт всё</span>'}
+        </div>
+      </div>
+      <div class="row-actions">
+        <a class="btn btn-ghost btn-sm" href="/kuda/${escAttr(s.slug)}" target="_blank" rel="noopener">Открыть</a>
+        <button class="btn btn-ghost btn-sm" onclick="openScenarioForm(${s.id})">Редактировать</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteScenario(${s.id})">Удалить</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function iconPickerHtml(selected) {
+  const chips = ICON_CHOICES.map(e =>
+    `<button type="button" class="icon-chip ${e === selected ? 'active' : ''}" data-icon="${e}" onclick="pickScenarioIcon(this)">${e}</button>`
+  ).join('');
+  return `<div class="icon-picker">
+    <div class="icon-grid">${chips}</div>
+    <input type="text" id="sc-icon" value="${escAttr(selected || '')}" maxlength="4" placeholder="или впишите свой эмодзи" oninput="syncScenarioIconInput()">
+  </div>`;
+}
+
+function pickScenarioIcon(btn) {
+  document.querySelectorAll('.icon-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('sc-icon').value = btn.dataset.icon;
+}
+
+function syncScenarioIconInput() {
+  const val = document.getElementById('sc-icon').value.trim();
+  document.querySelectorAll('.icon-chip').forEach(b => b.classList.toggle('active', b.dataset.icon === val));
+}
+
+function tipRowHtml(text) {
+  return `<div class="tip-row">
+    <input class="tip-input" value="${escAttr(text || '')}" placeholder="Например: возьмите наличные — карты принимают не везде">
+    <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.tip-row').remove()">×</button>
+  </div>`;
+}
+
+function addTipRow() {
+  document.getElementById('sc-tips').insertAdjacentHTML('beforeend', tipRowHtml(''));
+}
+
+function readTipRows() {
+  return Array.from(document.querySelectorAll('#sc-tips .tip-input')).map(el => el.value.trim()).filter(Boolean);
+}
+
+function multiChipsHtml(cssClass, opts, selected) {
+  selected = selected || [];
+  return `<div class="chips">${opts.map(o =>
+    `<label class="chip"><input type="checkbox" class="${cssClass}" value="${o.code}" ${selected.includes(o.code) ? 'checked' : ''}><span>${escHtml(o.label)}</span></label>`
+  ).join('')}</div>`;
+}
+
+function readMultiChips(cssClass) {
+  return Array.from(document.querySelectorAll(`.${cssClass}:checked`)).map(el => el.value);
+}
+
+function openScenarioForm(id) {
+  const s = id ? scenarios.find(x => x.id === id) : null;
+  const v = s || { icon: '🧭', filter_kid_friendly: 'any', filter_seasonality: 'any', filter_popularity: [], filter_difficulty: [], filter_access: [], tips: [], is_published: true, order_index: scenarios.length };
+
+  showModal(s ? 'Сценарий: ' + s.door : 'Новый сценарий', `
+    <div class="field"><label>Иконка</label>${iconPickerHtml(v.icon)}</div>
+    <div class="field"><label>Подпись на плитке развилки</label>
+      <input id="sc-door" value="${escAttr(v.door || '')}" placeholder="Еду с детьми">
+    </div>
+    <div class="field"><label>Подзаголовок на плитке (необязательно)</label>
+      <input id="sc-hint" value="${escAttr(v.hint || '')}" placeholder="Куда реально дойти с ребёнком">
+    </div>
+    <div class="field"><label>Заголовок страницы сценария</label>
+      <input id="sc-title" value="${escAttr(v.title || '')}" placeholder="Адыгея с детьми: куда идти, а что отложить">
+    </div>
+    <div class="field"><label>Ссылка страницы (slug)</label>
+      <input id="sc-slug" value="${escAttr(v.slug || '')}" placeholder="сгенерируется из подписи">
+    </div>
+    <div class="field"><label>Вступительный текст</label>
+      <textarea id="sc-lead" style="min-height:100px">${escHtml(v.lead || '')}</textarea>
+    </div>
+    <div class="field"><label>Описание для поиска (SEO)</label>
+      <textarea id="sc-seo">${escHtml(v.seo_description || '')}</textarea>
+    </div>
+    <div class="field"><label>Что учесть — короткие советы</label>
+      <div id="sc-tips">${(v.tips || []).map(tipRowHtml).join('')}</div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addTipRow()">+ Совет</button>
+    </div>
+    <div class="field"><label>Статьи по теме</label>
+      <div id="sc-articles"></div>
+    </div>
+
+    <details class="group" open>
+      <summary>Кого отбирать на эту страницу</summary>
+      <div class="group-body">
+        <div class="hint" style="margin:0 0 12px">Пусто = без ограничения по этому признаку, берётся всё подряд.</div>
+        <div class="field-row">
+          <div class="field"><label>С детьми</label>
+            <select id="sc-kid">
+              <option value="any" ${v.filter_kid_friendly === 'any' ? 'selected' : ''}>Неважно</option>
+              <option value="yes" ${v.filter_kid_friendly === 'yes' ? 'selected' : ''}>Подходит с детьми</option>
+              <option value="no" ${v.filter_kid_friendly === 'no' ? 'selected' : ''}>Не для детей</option>
+            </select>
+          </div>
+          <div class="field"><label>Сезонность</label>
+            <select id="sc-season">
+              <option value="any" ${v.filter_seasonality === 'any' ? 'selected' : ''}>Неважно</option>
+              <option value="year_round" ${v.filter_seasonality === 'year_round' ? 'selected' : ''}>Круглый год</option>
+              <option value="summer_only" ${v.filter_seasonality === 'summer_only' ? 'selected' : ''}>Только летом</option>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Популярность</label>${multiChipsHtml('sc-pop-check', POPULARITY_OPTS, v.filter_popularity)}</div>
+        <div class="field"><label>Сложность</label>${multiChipsHtml('sc-diff-check', DIFFICULTY_OPTS, v.filter_difficulty)}</div>
+        <div class="field" style="margin-bottom:0"><label>Доступ</label>${multiChipsHtml('sc-acc-check', ACCESS_OPTS, v.filter_access)}</div>
+      </div>
+    </details>
+
+    <div class="field-row" style="margin-top:14px">
+      <div class="field"><label>Порядок на развилке</label>
+        <input id="sc-order" type="number" value="${v.order_index}">
+      </div>
+      <div class="field">
+        <label class="toggle" style="margin-top:22px">
+          <input type="checkbox" id="sc-published" ${v.is_published !== false ? 'checked' : ''}>
+          <span class="toggle-track"></span>
+          <span class="toggle-label">Показывать на сайте</span>
+        </label>
+      </div>
+    </div>
+  `, async () => {
+    const payload = {
+      icon: document.getElementById('sc-icon').value.trim() || null,
+      door: document.getElementById('sc-door').value.trim(),
+      hint: document.getElementById('sc-hint').value.trim() || null,
+      title: document.getElementById('sc-title').value.trim(),
+      slug: document.getElementById('sc-slug').value.trim() || null,
+      lead: document.getElementById('sc-lead').value.trim() || null,
+      seo_description: document.getElementById('sc-seo').value.trim() || null,
+      tips: readTipRows(),
+      featured_article_ids: readPicker('sc-articles'),
+      filter_kid_friendly: document.getElementById('sc-kid').value,
+      filter_seasonality: document.getElementById('sc-season').value,
+      filter_popularity: readMultiChips('sc-pop-check'),
+      filter_difficulty: readMultiChips('sc-diff-check'),
+      filter_access: readMultiChips('sc-acc-check'),
+      order_index: parseInt(document.getElementById('sc-order').value, 10) || 0,
+      is_published: document.getElementById('sc-published').checked,
+    };
+    if (!payload.door || !payload.title) { toast('Заполните подпись и заголовок', true); return; }
+
+    const saved = s ? await api('PATCH', `/scenarios/${s.id}`, payload) : await api('POST', '/scenarios', payload);
+    if (saved) { await loadAll(); closeModal(); toast('Сценарий сохранён'); }
+  }, { wide: true });
+
+  document.getElementById('sc-articles').innerHTML = pickerHtml(articles, v.featured_article_ids || [], a => a.title);
+}
+
+async function deleteScenario(id) {
+  if (!confirm('Удалить сценарий? Дверь пропадёт с развилки на главной.')) return;
+  await api('DELETE', `/scenarios/${id}`);
+  await loadAll();
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  ЗАГРУЗКА ДАННЫХ
 // ═══════════════════════════════════════════════════════════════
 
 async function loadAll() {
-  const [cats, tr, cps, arts, tags] = await Promise.all([
+  const [cats, tr, cps, arts, tags, scs] = await Promise.all([
     api('GET', '/categories'),
     api('GET', '/trails'),
     api('GET', '/checkpoints'),
     api('GET', '/articles'),
     api('GET', '/equipment-tags'),
+    api('GET', '/scenarios'),
   ]);
   categories = cats || [];
   trails = tr || [];
   checkpoints = cps || [];
   articles = arts || [];
   equipmentTags = tags || [];
+  scenarios = scs || [];
 
   renderArticles();
   renderRoutes();
   renderPlaces();
+  renderScenarios();
 }
 
 loadAll();

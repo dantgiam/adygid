@@ -35,13 +35,13 @@ def slugify(text_: str) -> str:
     return slug or uuid.uuid4().hex[:8]
 
 
-def unique_slug(db: Session, base_slug: str, exclude_id: Optional[int] = None) -> str:
+def unique_slug(db: Session, base_slug: str, exclude_id: Optional[int] = None, model=Article) -> str:
     slug = base_slug
     i = 2
     while True:
-        q = select(Article.id).where(Article.slug == slug)
+        q = select(model.id).where(model.slug == slug)
         if exclude_id is not None:
-            q = q.where(Article.id != exclude_id)
+            q = q.where(model.id != exclude_id)
         if db.execute(q).first() is None:
             return slug
         slug = f"{base_slug}-{i}"

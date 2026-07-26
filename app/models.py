@@ -123,6 +123,42 @@ class Checkpoint(Base):
     photos   = relationship("Photo", back_populates="checkpoint", cascade="all, delete-orphan")
 
 
+class Scenario(Base):
+    """
+    Дверь развилки на главной («Еду с детьми», «Без машины» и т.п.) — вход
+    на сайт по ситуации человека, а не по типу контента.
+
+    Места и маршруты на странице сценария не перечисляются вручную: подходящие
+    вытягиваются из базы по filter_*-полям (site_app/router.py, _scenario_conditions).
+    Пустой список/None в filter_* значит «без ограничения по этому признаку» —
+    так работает и создание нового сценария (по умолчанию берёт всё), и сброс
+    фильтра обратно в «неважно» при редактировании.
+    """
+    __tablename__ = "scenarios"
+
+    id                    = Column(Integer, primary_key=True, index=True)
+    slug                  = Column(String(200), nullable=False, unique=True, index=True)
+    icon                  = Column(String(10), nullable=True)      # эмодзи на плитке
+    door                  = Column(String(255), nullable=False)    # подпись плитки в развилке
+    hint                  = Column(String(255), nullable=True)     # подзаголовок плитки
+    title                 = Column(String(255), nullable=False)    # заголовок страницы сценария
+    lead                  = Column(Text, nullable=True)
+    seo_description       = Column(String(500), nullable=True)
+    tips                  = Column(ARRAY(String(500)), nullable=False, default=list)
+    featured_article_ids  = Column(ARRAY(Integer), nullable=False, default=list)
+
+    # ── Правило отбора — см. docstring выше ──
+    filter_kid_friendly = Column(Boolean, nullable=True)
+    filter_popularity   = Column(ARRAY(String(20)), nullable=False, default=list)
+    filter_difficulty   = Column(ARRAY(String(20)), nullable=False, default=list)
+    filter_seasonality  = Column(String(20), nullable=True)
+    filter_access       = Column(ARRAY(String(30)), nullable=False, default=list)
+
+    order_index  = Column(Integer, nullable=False, default=0)
+    is_published = Column(Boolean, nullable=False, default=True)
+    created_at   = Column(DateTime, server_default=func.now())
+
+
 class Article(Base):
     """
     Статья для статей-хаба на публичном сайте (что взять с собой, куда поехать и т.д.).
