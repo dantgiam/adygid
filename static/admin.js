@@ -609,10 +609,11 @@ async function saveArticle() {
   if (!title) { toast('Введите заголовок', true); return; }
 
   let coverUrl = document.getElementById('a-cover-url').value.trim();
+  let coverThumb = null;
   const fileEl = document.getElementById('a-cover-file');
   if (fileEl.files.length) {
     const up = await uploadFile(fileEl.files[0]);
-    if (up) coverUrl = up.url;
+    if (up) { coverUrl = up.url; coverThumb = up.thumb_url; }
   }
 
   const payload = {
@@ -620,6 +621,7 @@ async function saveArticle() {
     slug: document.getElementById('a-slug').value.trim() || null,
     excerpt: document.getElementById('a-excerpt').value.trim() || null,
     cover_url: coverUrl || null,
+    cover_thumb_url: coverThumb,
     body: articleQuill.root.innerHTML,
     faq: readFaqRows(),
     district: document.getElementById('a-district').value || null,

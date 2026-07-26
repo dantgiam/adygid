@@ -81,6 +81,7 @@ with engine.begin() as _conn:
     _conn.execute(text("ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS duration_minutes INTEGER"))
     _conn.execute(text("ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true"))
     _conn.execute(text("ALTER TABLE articles ADD COLUMN IF NOT EXISTS faq JSONB NOT NULL DEFAULT '[]'::jsonb"))
+    _conn.execute(text("ALTER TABLE articles ADD COLUMN IF NOT EXISTS cover_thumb_url VARCHAR(500)"))
     # DEFAULT true — все точки, заведённые до появления флага, уже показывались
     # в «Местах», и сайт после миграции не должен измениться.
     _conn.execute(text("ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS show_as_place BOOLEAN NOT NULL DEFAULT true"))
@@ -333,6 +334,7 @@ class ArticleIn(BaseModel):
     slug: Optional[str] = None
     excerpt: Optional[str] = None
     cover_url: Optional[str] = None
+    cover_thumb_url: Optional[str] = None
     body: str = ""
     faq: Optional[List[FAQItemIn]] = None
     district: Optional[str] = None
@@ -345,6 +347,7 @@ class ArticleUpdate(BaseModel):
     slug: Optional[str] = None
     excerpt: Optional[str] = None
     cover_url: Optional[str] = None
+    cover_thumb_url: Optional[str] = None
     body: Optional[str] = None
     faq: Optional[List[FAQItemIn]] = None
     district: Optional[str] = None
@@ -723,6 +726,7 @@ def create_article(body: ArticleIn, db: Session = Depends(get_db), _: bool = Dep
         slug=slug,
         excerpt=body.excerpt,
         cover_url=body.cover_url,
+        cover_thumb_url=body.cover_thumb_url,
         body=body.body,
         faq=[item.model_dump() for item in body.faq] if body.faq is not None else [],
         district=body.district,
@@ -741,6 +745,7 @@ def update_article(article_id: int, body: ArticleUpdate, db: Session = Depends(g
     if body.slug is not None: a.slug = _unique_slug(db, _slugify(body.slug), exclude_id=article_id)
     if body.excerpt is not None: a.excerpt = body.excerpt
     if body.cover_url is not None: a.cover_url = body.cover_url
+    if body.cover_thumb_url is not None: a.cover_thumb_url = body.cover_thumb_url
     if body.body is not None: a.body = body.body
     if body.faq is not None: a.faq = [item.model_dump() for item in body.faq]
     if body.district is not None: a.district = body.district
@@ -765,6 +770,7 @@ def _article_out(a: Article):
         "title": a.title,
         "excerpt": a.excerpt,
         "cover_url": a.cover_url,
+        "cover_thumb_url": a.cover_thumb_url,
         "body": a.body,
         "faq": a.faq or [],
         "district": a.district,

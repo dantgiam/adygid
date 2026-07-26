@@ -136,6 +136,9 @@ class Article(Base):
     title                  = Column(String(255), nullable=False)
     excerpt                = Column(String(500), nullable=True)
     cover_url              = Column(String(500), nullable=True)
+    # Уменьшенная копия обложки — её показывают карточки статей; оригинал
+    # весит мегабайты и нужен только на самой странице.
+    cover_thumb_url        = Column(String(500), nullable=True)
     body                   = Column(Text, nullable=False, default="")
     # Список {"question": "...", "answer": "..."} — рендерится и текстом в
     # конце статьи, и как JSON-LD FAQPage для расширенного сниппета в поиске.

@@ -200,7 +200,16 @@ def _render_article_gallery(html: str) -> str:
 
 
 def _cover_of(photos) -> Optional[str]:
+    """Полноразмерное фото — для крупной обложки на детальной странице."""
     return photos[0].url if photos else None
+
+
+def _thumb_of(photos) -> Optional[str]:
+    """Для карточек берём миниатюру: оригиналы весят мегабайты, а показываются
+    полоской в 150px. Миниатюры создаются при загрузке — просто используем их."""
+    if not photos:
+        return None
+    return photos[0].thumb_url or photos[0].url
 
 
 def _category_lite(cat) -> Optional[dict]:
@@ -411,7 +420,7 @@ def _place_card_dict(cp: Checkpoint) -> dict:
         "url": f"/mesta/{cp.id}",
         "name": cp.name,
         "excerpt": _excerpt(cp.description),
-        "cover": _cover_of(cp.photos),
+        "cover": _thumb_of(cp.photos),
         "popularity": cp.popularity,
         "district_label": DISTRICTS.get(cp.district),
         "category": _category_lite(cp.category),
@@ -426,7 +435,7 @@ def _route_card_dict(t: Trail) -> dict:
         "url": f"/marshruty/{t.id}",
         "name": t.name,
         "excerpt": _excerpt(t.description),
-        "cover": _cover_of(t.photos),
+        "cover": _thumb_of(t.photos),
         "popularity": t.popularity,
         "district_label": DISTRICTS.get(t.district),
         "category": _category_lite(t.category),
@@ -441,7 +450,7 @@ def _article_card_dict(a: Article) -> dict:
         "url": f"/stati/{a.slug}",
         "title": a.title,
         "excerpt": a.excerpt,
-        "cover": a.cover_url,
+        "cover": a.cover_thumb_url or a.cover_url,
         "district_label": DISTRICTS.get(a.district),
     }
 
