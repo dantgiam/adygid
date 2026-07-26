@@ -528,3 +528,48 @@ h1.article-title {
 .chip:has(input:checked) { border-color: var(--accent); color: var(--accent-dark); background: var(--accent-soft); }
 .chip-check { margin-bottom: 14px; }
 .wizard-form .btn { width: 100%; }
+
+/* ── Лид-магнит внутри статьи ─────────────────────
+   Вставляется в поток чтения как рекомендация, а не как баннер: тот же
+   мягкий фон, что у блока клуба, без кричащих рамок. ── */
+.magnet {
+  margin: 36px 0; padding: 24px 26px; border-radius: var(--radius);
+  background: var(--gold-soft); border: 1px solid #EBD9A8;
+  font-family: var(--font-body);
+}
+.magnet-title { font-family: var(--font-body); font-weight: 700; font-size: 18px; margin: 0 0 8px; color: var(--text); }
+.magnet-text { font-size: 15.5px; color: var(--text); margin: 0 0 16px; max-width: 60ch; }
+.magnet-note { font-size: 13px; color: var(--text-muted); margin: 10px 0 0; }
+.magnet .magnet-btn { display: inline-flex; }
+
+/* Выбор мессенджера на <details> — работает без JavaScript */
+.magnet-choice { display: inline-block; }
+.magnet-choice summary { list-style: none; cursor: pointer; }
+.magnet-choice summary::-webkit-details-marker { display: none; }
+.magnet-choice[open] summary { display: none; }
+.magnet-options { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.magnet-options-label { font-size: 14px; color: var(--text-muted); }
+.magnet-option {
+  display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 9px;
+  background: var(--accent); color: #fff; font-weight: 600; font-size: 14.5px;
+}
+.magnet-option:hover { background: var(--accent-dark); }
+
+/* ── FAQ-блок: аккордеон ──────────────────────────*/
+.faq-page-block { margin-bottom: 36px; max-width: 68ch; }
+.faq-item[open] .faq-answer { animation: faq-reveal .22s ease; }
+@keyframes faq-reveal {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+.faq-answer p { margin: 10px 0 0 18px; font-size: 15px; color: var(--text-muted); }
+.faq-answer ul, .faq-answer ol { margin: 10px 0 0 18px; padding-left: 20px; color: var(--text-muted); font-size: 15px; }
+.faq-answer a { color: var(--accent); text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) {
+  .faq-item[open] .faq-answer { animation: none; }
+}
+
+/* Кнопка «?» у сложности — на телефоне в неё было не попасть пальцем */
+@media (hover: none) and (pointer: coarse) {
+  .diff-info-btn { width: 28px; height: 28px; font-size: 13px; }
+}

@@ -50,6 +50,8 @@ let checkpoints = [];   // все точки (и отдельные, и внут
 let articles = [];
 let equipmentTags = [];
 let scenarios = [];
+let magnets = [];
+let faqSets = [];
 
 let activeTrail = null;      // маршрут, открытый в редакторе карты
 let map = null, placeMap = null;
@@ -485,6 +487,7 @@ function setArticleBody(html) {
 
 function initArticleQuill() {
   if (articleQuill) return;
+  registerEmbedBlots();
   articleQuill = new Quill('#article-editor', {
     theme: 'bubble',
     placeholder: 'Текст статьи. Выделите фрагмент, чтобы отформатировать.',
@@ -533,6 +536,8 @@ function runInsert(kind) {
   hideInsertMenu();
   if (kind === 'photo') insertPhoto();
   else if (kind === 'collage') insertCollage();
+  else if (kind === 'magnet') insertMagnet();
+  else if (kind === 'faq') insertFaqSet();
   else insertInternalLink();
 }
 
@@ -584,6 +589,14 @@ function setSaveState(text, saved) {
 }
 
 // ── Автосохранение черновика в localStorage ────────────────────
+function readArticleBody() {
+  // В базу кладём пустые контейнеры блоков: содержимое подставляет сервер,
+  // иначе в статье осела бы копия текста магнита и правки не подхватывались.
+  const clone = articleQuill.root.cloneNode(true);
+  clone.querySelectorAll('.magnet-embed, .faq-embed').forEach(el => { el.innerHTML = ''; });
+  return clone.innerHTML;
+}
+
 function collectArticleDraft() {
   return {
     savedAt: Date.now(),
@@ -593,7 +606,7 @@ function collectArticleDraft() {
     cover_url: document.getElementById('a-cover-url').value,
     district: document.getElementById('a-district').value,
     is_published: document.getElementById('a-published').checked,
-    body: articleQuill ? articleQuill.root.innerHTML : '',
+    body: articleQuill ? readArticleBody() : '',
     faq: readFaqRows(),
   };
 }
@@ -639,7 +652,7 @@ function applyDraft(d) {
 function previewArticle() {
   openPreview(
     'article',
-    articleQuill ? articleQuill.root.innerHTML : '',
+    articleQuill ? readArticleBody() : '',
     document.getElementById('a-title').value.trim(),
     'Статья',
   );
@@ -663,7 +676,7 @@ async function saveArticle() {
     excerpt: document.getElementById('a-excerpt').value.trim() || null,
     cover_url: coverUrl || null,
     cover_thumb_url: coverThumb,
-    body: articleQuill.root.innerHTML,
+    body: readArticleBody(),
     faq: readFaqRows(),
     district: document.getElementById('a-district').value || null,
     featured_checkpoint_ids: readPicker('a-featured-cps'),
@@ -1587,17 +1600,330 @@ async function deleteScenario(id) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  БЛОКИ ДЛЯ СТАТЕЙ — лид-магниты и наборы вопросов
+//
+//  В теле статьи сохраняется только пустой <div> со ссылкой на id, а
+//  содержимое подставляет сервер на рендере — поэтому правка блока
+//  обновляет все статьи, где он вставлен. Внутри редактора в этот div
+//  рисуется превью, но оно вычищается при сохранении (readArticleBody),
+//  чтобы в базу не попала копия текста.
+// ═══════════════════════════════════════════════════════════════
+
+function registerEmbedBlots() {
+  if (window.__embedBlotsRegistered) return;
+  const BlockEmbed = Quill.import('blots/block/embed');
+
+  class MagnetBlot extends BlockEmbed {
+    static create(value) {
+      const node = super.create();
+      node.setAttribute('data-magnet-id', value.id);
+      node.setAttribute('contenteditable', 'false');
+      const m = magnets.find(x => String(x.id) === String(value.id));
+      node.innerHTML = '<span class="embed-tag">Лид-магнит</span><b>' +
+        escHtml(m ? m.title : 'блок удалён') + '</b>';
+      return node;
+    }
+    static value(node) { return { id: node.getAttribute('data-magnet-id') }; }
+  }
+  MagnetBlot.blotName = 'magnet';
+  MagnetBlot.tagName = 'div';
+  MagnetBlot.className = 'magnet-embed';
+
+  class FaqBlot extends BlockEmbed {
+    static create(value) {
+      const node = super.create();
+      node.setAttribute('data-faq-id', value.id);
+      node.setAttribute('contenteditable', 'false');
+      const f = faqSets.find(x => String(x.id) === String(value.id));
+      const cnt = f ? (f.items || []).length : 0;
+      node.innerHTML = '<span class="embed-tag">Вопросы</span><b>' +
+        escHtml(f ? f.name : 'набор удалён') + '</b>' +
+        (f ? '<span class="embed-meta">' + cnt + ' вопр.</span>' : '');
+      return node;
+    }
+    static value(node) { return { id: node.getAttribute('data-faq-id') }; }
+  }
+  FaqBlot.blotName = 'faqset';
+  FaqBlot.tagName = 'div';
+  FaqBlot.className = 'faq-embed';
+
+  Quill.register(MagnetBlot);
+  Quill.register(FaqBlot);
+  window.__embedBlotsRegistered = true;
+}
+
+function insertMagnet() {
+  if (!magnets.length) { toast('Сначала создайте лид-магнит во вкладке «Блоки»', true); return; }
+  pickEmbed('Вставить лид-магнит', magnets, m => m.name + ' — ' + m.title, (id) => {
+    const at = currentInsertIndex();
+    articleQuill.insertEmbed(at, 'magnet', { id: id }, 'user');
+    articleQuill.setSelection(at + 1);
+    scheduleAutosave();
+  });
+}
+
+function insertFaqSet() {
+  if (!faqSets.length) { toast('Сначала создайте набор вопросов во вкладке «Блоки»', true); return; }
+  pickEmbed('Вставить набор вопросов', faqSets, f => f.name + ' (' + (f.items || []).length + ' вопр.)', (id) => {
+    const at = currentInsertIndex();
+    articleQuill.insertEmbed(at, 'faqset', { id: id }, 'user');
+    articleQuill.setSelection(at + 1);
+    scheduleAutosave();
+  });
+}
+
+function pickEmbed(title, items, labelFn, onPick) {
+  const rows = items.map(it =>
+    '<label class="picker-item"><input type="radio" name="embed-target" value="' + it.id + '">' +
+    '<span>' + escHtml(labelFn(it)) + '</span></label>').join('');
+  showModal(title,
+    '<div class="picker"><input type="text" class="picker-search" placeholder="Поиск..." oninput="filterPicker(this)">' +
+    '<div class="picker-list">' + rows + '</div></div>',
+    () => {
+      const picked = document.querySelector('input[name=embed-target]:checked');
+      if (!picked) { toast('Выберите блок', true); return; }
+      onPick(parseInt(picked.value, 10));
+      closeModal();
+    }, { saveLabel: 'Вставить' });
+}
+
+// ── Списки блоков ──────────────────────────────────────────────
+function renderBlocks() {
+  const mEl = document.getElementById('magnets-list');
+  if (mEl) {
+    mEl.innerHTML = magnets.length ? magnets.map(m => {
+      const noLinks = !m.telegram_url && !m.max_url;
+      return '<div class="row">' +
+        '<div class="row-thumb block-icon">🎁</div>' +
+        '<div class="row-main"><div class="row-title">' + escHtml(m.name) +
+        (m.is_published ? '' : '<span class="badge badge-draft">скрыт</span>') +
+        (noLinks ? '<span class="badge badge-draft">нет ссылок — на сайте не показывается</span>' : '') +
+        '</div><div class="row-meta"><span>' + escHtml(m.title) + '</span></div></div>' +
+        '<div class="row-actions">' +
+        '<button class="btn btn-ghost btn-sm" onclick="openMagnetForm(' + m.id + ')">Редактировать</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="deleteMagnet(' + m.id + ')">Удалить</button>' +
+        '</div></div>';
+    }).join('') : '<div class="empty"><b>Магнитов нет</b>Создайте блок с приманкой и кнопкой в клуб.</div>';
+  }
+
+  const fEl = document.getElementById('faqsets-list');
+  if (fEl) {
+    fEl.innerHTML = faqSets.length ? faqSets.map(f =>
+      '<div class="row">' +
+      '<div class="row-thumb block-icon">❓</div>' +
+      '<div class="row-main"><div class="row-title">' + escHtml(f.name) +
+      (f.is_published ? '' : '<span class="badge badge-draft">скрыт</span>') +
+      (f.on_faq_page ? '<span class="badge badge-green">на странице «Вопросы»</span>' : '') +
+      '</div><div class="row-meta"><span>' + (f.items || []).length + ' вопросов</span></div></div>' +
+      '<div class="row-actions">' +
+      '<button class="btn btn-ghost btn-sm" onclick="openFaqSetForm(' + f.id + ')">Редактировать</button>' +
+      '<button class="btn btn-danger btn-sm" onclick="deleteFaqSet(' + f.id + ')">Удалить</button>' +
+      '</div></div>').join('') : '<div class="empty"><b>Наборов нет</b>Сгруппируйте частые вопросы, чтобы вставлять их в статьи.</div>';
+  }
+}
+
+// ── Лид-магнит: форма с живым предпросмотром ───────────────────
+function openMagnetForm(id) {
+  const m = id ? magnets.find(x => x.id === id) : null;
+  const v = m || { button_text: 'Забрать в клубе', is_published: true };
+  showModal(m ? 'Лид-магнит: ' + m.name : 'Новый лид-магнит',
+    '<div class="field"><label>Название (только для этого списка)</label>' +
+    '<input id="mg-name" value="' + escAttr(v.name || '') + '" placeholder="Чек-лист снаряжения" oninput="renderMagnetPreview()"></div>' +
+
+    '<div class="field"><label>Заголовок-приманка</label>' +
+    '<input id="mg-title" value="' + escAttr(v.title || '') + '" placeholder="Забыть что-то в горах обиднее, чем взять лишнее" oninput="renderMagnetPreview()"></div>' +
+
+    '<div class="field"><label>Пояснение</label>' +
+    '<textarea id="mg-text" placeholder="Что именно человек получит и где это лежит" oninput="renderMagnetPreview()">' + escHtml(v.text || '') + '</textarea></div>' +
+
+    '<div class="field-row">' +
+    '<div class="field"><label>Текст на кнопке</label>' +
+    '<input id="mg-btn" value="' + escAttr(v.button_text || '') + '" oninput="renderMagnetPreview()"></div>' +
+    '<div class="field"><label>Подпись под кнопкой</label>' +
+    '<input id="mg-note" value="' + escAttr(v.note || '') + '" placeholder="Без регистрации" oninput="renderMagnetPreview()"></div>' +
+    '</div>' +
+
+    '<div class="field"><label>Ссылка в Telegram</label>' +
+    '<input id="mg-tg" value="' + escAttr(v.telegram_url || '') + '" placeholder="https://t.me/..." oninput="renderMagnetPreview()"></div>' +
+
+    '<div class="field"><label>Ссылка в MAX</label>' +
+    '<input id="mg-max" value="' + escAttr(v.max_url || '') + '" placeholder="https://max.ru/..." oninput="renderMagnetPreview()">' +
+    '<div class="hint">Можно заполнить только одну — тогда выбор мессенджера читателю не показывается. Если не заполнить ни одной, блок на сайте не появится.</div></div>' +
+
+    '<label class="toggle" style="margin-bottom:14px"><input type="checkbox" id="mg-published" ' +
+    (v.is_published !== false ? 'checked' : '') + '><span class="toggle-track"></span>' +
+    '<span class="toggle-label">Показывать на сайте</span></label>' +
+
+    '<div class="field" style="margin-bottom:0"><label>Как это увидит читатель</label>' +
+    '<div class="block-preview" id="mg-preview"></div></div>',
+  async () => {
+    const payload = {
+      name: document.getElementById('mg-name').value.trim(),
+      title: document.getElementById('mg-title').value.trim(),
+      text: document.getElementById('mg-text').value.trim() || null,
+      button_text: document.getElementById('mg-btn').value.trim() || 'Забрать в клубе',
+      note: document.getElementById('mg-note').value.trim() || null,
+      telegram_url: document.getElementById('mg-tg').value.trim() || null,
+      max_url: document.getElementById('mg-max').value.trim() || null,
+      is_published: document.getElementById('mg-published').checked,
+    };
+    if (!payload.name || !payload.title) { toast('Заполните название и заголовок', true); return; }
+    const saved = m ? await api('PATCH', '/magnets/' + m.id, payload) : await api('POST', '/magnets', payload);
+    if (saved) { await loadAll(); closeModal(); toast('Магнит сохранён'); }
+  }, { wide: true });
+  renderMagnetPreview();
+}
+
+function renderMagnetPreview() {
+  const el = document.getElementById('mg-preview');
+  if (!el) return;
+  const title = document.getElementById('mg-title').value.trim();
+  const text = document.getElementById('mg-text').value.trim();
+  const btn = document.getElementById('mg-btn').value.trim() || 'Забрать в клубе';
+  const note = document.getElementById('mg-note').value.trim();
+  const links = [document.getElementById('mg-tg').value.trim(), document.getElementById('mg-max').value.trim()].filter(Boolean);
+
+  if (!links.length) {
+    el.innerHTML = '<div class="preview-warn">Ни одной ссылки не задано — на сайте блок показан не будет.</div>';
+    return;
+  }
+  const action = links.length === 1
+    ? '<span class="pv-btn">' + escHtml(btn) + '</span>'
+    : '<span class="pv-btn">' + escHtml(btn) + '</span>' +
+      '<div class="pv-options"><span>Куда вам удобнее?</span><span class="pv-opt">Telegram</span><span class="pv-opt">MAX</span></div>';
+
+  el.innerHTML = '<div class="pv-magnet"><p class="pv-title">' + escHtml(title || 'Заголовок-приманка') + '</p>' +
+    (text ? '<p class="pv-text">' + escHtml(text) + '</p>' : '') + action +
+    (note ? '<p class="pv-note">' + escHtml(note) + '</p>' : '') + '</div>';
+}
+
+async function deleteMagnet(id) {
+  if (!confirm('Удалить магнит? Из статей, где он вставлен, блок пропадёт.')) return;
+  await api('DELETE', '/magnets/' + id);
+  await loadAll();
+}
+
+// ── Набор вопросов: форма с предпросмотром-аккордеоном ─────────
+function openFaqSetForm(id) {
+  const f = id ? faqSets.find(x => x.id === id) : null;
+  const v = f || { items: [], is_published: true, on_faq_page: false, order_index: faqSets.length };
+  showModal(f ? 'Набор: ' + f.name : 'Новый набор вопросов',
+    '<div class="field-row">' +
+    '<div class="field"><label>Название набора</label>' +
+    '<input id="fs-name" value="' + escAttr(v.name || '') + '" placeholder="Общие вопросы"></div>' +
+    '<div class="field"><label>Заголовок над блоком</label>' +
+    '<input id="fs-title" value="' + escAttr(v.title || '') + '" placeholder="Частые вопросы"></div>' +
+    '</div>' +
+
+    '<div class="field"><label>Вопросы</label>' +
+    '<div class="hint" style="margin:0 0 8px">Перетаскивайте за ⠿, чтобы менять порядок.</div>' +
+    '<div id="fs-items">' + (v.items || []).map(faqItemRowHtml).join('') + '</div>' +
+    '<button type="button" class="btn btn-ghost btn-sm" onclick="addFaqItemRow()">+ Вопрос</button></div>' +
+
+    '<div class="field-row">' +
+    '<div class="field"><label>Порядок на странице «Вопросы»</label>' +
+    '<input id="fs-order" type="number" value="' + (v.order_index || 0) + '"></div>' +
+    '<div class="field" style="padding-top:22px">' +
+    '<label class="toggle" style="margin-bottom:8px"><input type="checkbox" id="fs-onpage" ' +
+    (v.on_faq_page ? 'checked' : '') + '><span class="toggle-track"></span>' +
+    '<span class="toggle-label">Показывать на /voprosy</span></label>' +
+    '<label class="toggle"><input type="checkbox" id="fs-published" ' +
+    (v.is_published !== false ? 'checked' : '') + '><span class="toggle-track"></span>' +
+    '<span class="toggle-label">Показывать на сайте</span></label>' +
+    '</div></div>' +
+
+    '<div class="field" style="margin-bottom:0"><label>Как это увидит читатель</label>' +
+    '<div class="block-preview" id="fs-preview"></div></div>',
+  async () => {
+    const payload = {
+      name: document.getElementById('fs-name').value.trim(),
+      title: document.getElementById('fs-title').value.trim() || null,
+      items: readFaqItemRows(),
+      on_faq_page: document.getElementById('fs-onpage').checked,
+      order_index: parseInt(document.getElementById('fs-order').value, 10) || 0,
+      is_published: document.getElementById('fs-published').checked,
+    };
+    if (!payload.name) { toast('Введите название набора', true); return; }
+    if (!payload.items.length) { toast('Добавьте хотя бы один вопрос', true); return; }
+    const saved = f ? await api('PATCH', '/faq-sets/' + f.id, payload) : await api('POST', '/faq-sets', payload);
+    if (saved) { await loadAll(); closeModal(); toast('Набор сохранён'); }
+  }, { wide: true });
+  bindFaqItemDrag();
+  renderFaqSetPreview();
+}
+
+function faqItemRowHtml(item) {
+  item = item || { question: '', answer: '' };
+  return '<div class="faq-item-row" draggable="true">' +
+    '<span class="pt-handle">⠿</span><div style="flex:1">' +
+    '<div class="field" style="margin-bottom:6px"><input class="fi-q" placeholder="Вопрос" value="' +
+    escAttr(item.question) + '" oninput="renderFaqSetPreview()"></div>' +
+    '<div class="field" style="margin-bottom:0"><textarea class="fi-a" placeholder="Ответ" oninput="renderFaqSetPreview()">' +
+    escHtml(item.answer || '') + '</textarea></div></div>' +
+    '<button type="button" class="btn btn-danger btn-sm" onclick="this.closest(\'.faq-item-row\').remove(); renderFaqSetPreview()">×</button></div>';
+}
+
+function addFaqItemRow() {
+  document.getElementById('fs-items').insertAdjacentHTML('beforeend', faqItemRowHtml());
+  bindFaqItemDrag();
+  renderFaqSetPreview();
+}
+
+function readFaqItemRows() {
+  return Array.from(document.querySelectorAll('#fs-items .faq-item-row')).map(row => ({
+    question: row.querySelector('.fi-q').value.trim(),
+    answer: row.querySelector('.fi-a').value.trim(),
+  })).filter(i => i.question && i.answer);
+}
+
+function renderFaqSetPreview() {
+  const el = document.getElementById('fs-preview');
+  if (!el) return;
+  const items = readFaqItemRows();
+  if (!items.length) { el.innerHTML = '<div class="preview-warn">Добавьте хотя бы один вопрос.</div>'; return; }
+  const title = document.getElementById('fs-title').value.trim() || 'Частые вопросы';
+  el.innerHTML = '<div class="pv-faq"><h4>' + escHtml(title) + '</h4>' +
+    items.map(i => '<details class="pv-faq-item"><summary>' + escHtml(i.question) + '</summary>' +
+      '<p>' + escHtml(i.answer) + '</p></details>').join('') + '</div>';
+}
+
+function bindFaqItemDrag() {
+  let dragged = null;
+  document.querySelectorAll('#fs-items .faq-item-row').forEach(row => {
+    row.ondragstart = () => { dragged = row; row.classList.add('dragging'); };
+    row.ondragend = () => { row.classList.remove('dragging'); };
+    row.ondragover = (e) => { e.preventDefault(); };
+    row.ondrop = (e) => {
+      e.preventDefault();
+      if (!dragged || dragged === row) return;
+      const rows = Array.from(row.parentNode.children);
+      if (rows.indexOf(dragged) < rows.indexOf(row)) row.after(dragged);
+      else row.before(dragged);
+      renderFaqSetPreview();
+    };
+  });
+}
+
+async function deleteFaqSet(id) {
+  if (!confirm('Удалить набор? Из статей, где он вставлен, блок пропадёт.')) return;
+  await api('DELETE', '/faq-sets/' + id);
+  await loadAll();
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  ЗАГРУЗКА ДАННЫХ
 // ═══════════════════════════════════════════════════════════════
 
 async function loadAll() {
-  const [cats, tr, cps, arts, tags, scs] = await Promise.all([
+  const [cats, tr, cps, arts, tags, scs, mgs, fqs] = await Promise.all([
     api('GET', '/categories'),
     api('GET', '/trails'),
     api('GET', '/checkpoints'),
     api('GET', '/articles'),
     api('GET', '/equipment-tags'),
     api('GET', '/scenarios'),
+    api('GET', '/magnets'),
+    api('GET', '/faq-sets'),
   ]);
   categories = cats || [];
   trails = tr || [];
@@ -1605,11 +1931,14 @@ async function loadAll() {
   articles = arts || [];
   equipmentTags = tags || [];
   scenarios = scs || [];
+  magnets = mgs || [];
+  faqSets = fqs || [];
 
   renderArticles();
   renderRoutes();
   renderPlaces();
   renderScenarios();
+  renderBlocks();
 }
 
 loadAll();

@@ -14,7 +14,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import get_db
-from app.models import Article, Category, Checkpoint, Like, Scenario, Trail
+from app.models import Article, Category, Checkpoint, FaqSet, Like, Magnet, Scenario, Trail
 from site_app.content import (
     ACCESS_LABELS,
     CLUB_URL,
@@ -197,6 +197,98 @@ def _render_article_gallery(html: str) -> str:
         return '<div class="article-gallery"><div class="article-gallery-track">' + "".join(items) + '</div></div>'
 
     return _GALLERY_PARAGRAPH_RE.sub(repl, html)
+
+
+_MAGNET_EMBED_RE = re.compile(r'<div[^>]*data-magnet-id="(\d+)"[^>]*>\s*</div>', re.IGNORECASE)
+_FAQ_EMBED_RE = re.compile(r'<div[^>]*data-faq-id="(\d+)"[^>]*>\s*</div>', re.IGNORECASE)
+
+
+def _magnet_html(m) -> str:
+    """Блок лид-магнита. Выбор мессенджера сделан на <details> — без единой
+    строчки JS: закрытый <summary> выглядит кнопкой, по клику раскрываются
+    два варианта. Если ссылка одна, промежуточный выбор не нужен и кнопка
+    сразу ведёт куда надо."""
+    links = [(u, label) for u, label in ((m.telegram_url, "Telegram"), (m.max_url, "MAX")) if u]
+    if not links:
+        return ""   # кнопка в никуда — лучше не показывать блок вовсе
+
+    text_html = f'<p class="magnet-text">{escape(m.text)}</p>' if m.text else ""
+    note_html = f'<p class="magnet-note">{escape(m.note)}</p>' if m.note else ""
+
+    if len(links) == 1:
+        url, _label = links[0]
+        action = (f'<a class="btn btn-primary magnet-btn" href="{escape(url, quote=True)}" '
+                  f'target="_blank" rel="noopener">{escape(m.button_text)}</a>')
+    else:
+        options = "".join(
+            f'<a class="magnet-option" href="{escape(u, quote=True)}" target="_blank" rel="noopener">{label}</a>'
+            for u, label in links
+        )
+        action = (
+            '<details class="magnet-choice">'
+            f'<summary class="btn btn-primary magnet-btn">{escape(m.button_text)}</summary>'
+            f'<div class="magnet-options"><span class="magnet-options-label">Куда вам удобнее?</span>{options}</div>'
+            '</details>'
+        )
+
+    return (
+        '<aside class="magnet">'
+        f'<p class="magnet-title">{escape(m.title)}</p>'
+        f'{text_html}{action}{note_html}'
+        '</aside>'
+    )
+
+
+def _faq_html(f) -> str:
+    items = f.items or []
+    if not items:
+        return ""
+    rows = "".join(
+        '<details class="faq-item">'
+        f'<summary>{escape(item.get("question", ""))}</summary>'
+        f'<div class="faq-answer">{_rich_text_html(item.get("answer", ""))}</div>'
+        '</details>'
+        for item in items
+    )
+    title = f'<h4>{escape(f.title)}</h4>' if f.title else '<h4>Частые вопросы</h4>'
+    return f'<div class="faq-block">{title}{rows}</div>'
+
+
+def _render_embeds(db: Session, html: str) -> tuple[str, list]:
+    """Подставляет в текст статьи содержимое вставленных блоков — лид-магнитов
+    и наборов вопросов. В самой статье хранится только ссылка на id, поэтому
+    правка блока в админке обновляет все статьи, где он вставлен.
+    Возвращает готовый HTML и список вопросов для общей JSON-LD разметки."""
+    collected_faq: list = []
+
+    magnet_ids = [int(i) for i in set(_MAGNET_EMBED_RE.findall(html))]
+    if magnet_ids:
+        magnets = {
+            m.id: m for m in db.execute(
+                select(Magnet).where(Magnet.id.in_(magnet_ids), Magnet.is_published == True)
+            ).scalars().all()
+        }
+        html = _MAGNET_EMBED_RE.sub(
+            lambda mt: _magnet_html(magnets[int(mt.group(1))]) if int(mt.group(1)) in magnets else "",
+            html,
+        )
+
+    faq_ids = [int(i) for i in set(_FAQ_EMBED_RE.findall(html))]
+    if faq_ids:
+        sets = {
+            f.id: f for f in db.execute(
+                select(FaqSet).where(FaqSet.id.in_(faq_ids), FaqSet.is_published == True)
+            ).scalars().all()
+        }
+        for fid in faq_ids:
+            if fid in sets:
+                collected_faq.extend(sets[fid].items or [])
+        html = _FAQ_EMBED_RE.sub(
+            lambda mt: _faq_html(sets[int(mt.group(1))]) if int(mt.group(1)) in sets else "",
+            html,
+        )
+
+    return html, collected_faq
 
 
 def _cover_of(photos) -> Optional[str]:
@@ -1140,10 +1232,16 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
 
     body_html = _render_article_gallery(_rich_text_html(a.body))
     body_html, toc = _add_toc_anchors(body_html)
+    # Вставленные в текст блоки подставляем последними: их разметка не должна
+    # попасть ни в галереи, ни в оглавление.
+    body_html, embedded_faq = _render_embeds(db, body_html)
 
+    # В сниппет поиска отдаём и «хвостовой» FAQ статьи, и все вопросы из
+    # вставленных в текст наборов — для поисковика это одна страница.
     faq = a.faq or []
+    all_faq = list(faq) + embedded_faq
     faq_ld = None
-    if faq:
+    if all_faq:
         # Jinja не умеет list comprehension в выражениях — список вопросов
         # для JSON-LD собираем здесь, а не в шаблоне.
         faq_ld = {
@@ -1155,7 +1253,7 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
                     "name": item["question"],
                     "acceptedAnswer": {"@type": "Answer", "text": item["answer"]},
                 }
-                for item in faq
+                for item in all_faq
             ],
         }
 
@@ -1196,6 +1294,35 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
 
 
 # ─────────────────────────────────────────────
+#  Общая страница вопросов
+# ─────────────────────────────────────────────
+
+@router.get("/voprosy")
+def faq_page(request: Request, db: Session = Depends(get_db)):
+    sets = db.execute(
+        select(FaqSet)
+        .where(FaqSet.is_published == True, FaqSet.on_faq_page == True)
+        .order_by(FaqSet.order_index, FaqSet.id)
+    ).scalars().all()
+
+    blocks = [{"title": f.title or f.name, "html": _faq_html(f)} for f in sets if f.items]
+    all_items = [i for f in sets for i in (f.items or [])]
+    faq_ld = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {"@type": "Question", "name": i["question"],
+             "acceptedAnswer": {"@type": "Answer", "text": i["answer"]}}
+            for i in all_items
+        ],
+    } if all_items else None
+
+    return templates.TemplateResponse(
+        "faq.html", _ctx(request, db, active_nav="faq", blocks=blocks, faq_ld=faq_ld)
+    )
+
+
+# ─────────────────────────────────────────────
 #  Клуб (заглушка)
 # ─────────────────────────────────────────────
 
@@ -1232,6 +1359,7 @@ def sitemap_xml(db: Session = Depends(get_db)):
         ("/stati", None, "weekly"),
         ("/kuda", None, "monthly"),
         ("/okrugi", None, "monthly"),
+        ("/voprosy", None, "monthly"),
         ("/klub", None, "monthly"),
     ]
     for row in db.execute(select(Scenario.slug).where(Scenario.is_published == True)).scalars().all():

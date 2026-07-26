@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Частые вопросы о поездке в Адыгею{% endblock %}
+{% block meta_description %}Ответы на частые вопросы о поездке в Адыгею: когда ехать, сколько дней закладывать, нужна ли машина, сколько стоят входы на маршруты.{% endblock %}
+
+{% block extra_ld %}
+{% if faq_ld %}
+<script type="application/ld+json">
+{{ faq_ld | tojson }}
+</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:40px">
+  <div class="wrap">
+    <p class="eyebrow">Вопросы</p>
+    <h1 class="page-title">Частые вопросы</h1>
+    <p class="section-note">То, что спрашивают чаще всего. Если ответа тут нет — спросите в клубе, там отвечают быстрее, чем обновляется сайт.</p>
+
+    {% if blocks %}
+      {% for block in blocks %}
+      <div class="faq-page-block">{{ block.html | safe }}</div>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">Вопросы скоро появятся.</div>
+    {% endif %}
+  </div>
+</section>
+
+{% include "_club_cta.html" %}
+{% endblock %}

@@ -367,6 +367,48 @@ a { color: var(--accent); }
 .tip-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 .tip-row .tip-input { flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; }
 
+/* ── Вкладка «Блоки» ──────────────────────────────────────────── */
+.blocks-section { margin-bottom: 34px; }
+.blocks-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.blocks-head h2 { font-size: 17px; font-weight: 700; }
+.row-thumb.block-icon { display: flex; align-items: center; justify-content: center; font-size: 22px; background: var(--accent-soft); }
+
+/* Вставленный блок внутри редактора статьи — плашка, а не живой блок:
+   реальное содержимое подставит сайт, здесь достаточно понять, что стоит */
+#article-editor .magnet-embed, #article-editor .faq-embed {
+  display: flex; align-items: center; gap: 10px; margin: 22px 0; padding: 14px 16px;
+  border-radius: 10px; border: 1px dashed #D8C48A; background: #FCF6E6;
+  font-family: var(--font); font-size: 14px; user-select: none;
+}
+#article-editor .faq-embed { border-color: #C6E4C8; background: var(--accent-soft); }
+#article-editor .embed-tag {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  padding: 3px 8px; border-radius: 999px; background: rgba(0,0,0,.06); flex: none;
+}
+#article-editor .embed-meta { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+
+/* Живой предпросмотр блока в форме */
+.block-preview { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: var(--bg); }
+.preview-warn { font-size: 13px; color: #96591B; background: #FFF4E5; border: 1px solid #F5DDBB; border-radius: 8px; padding: 10px 12px; }
+.pv-magnet { background: #FBF1D9; border: 1px solid #EBD9A8; border-radius: 10px; padding: 18px 20px; }
+.pv-title { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+.pv-text { font-size: 14px; color: var(--text); margin-bottom: 12px; }
+.pv-note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+.pv-btn { display: inline-flex; padding: 10px 18px; border-radius: 9px; background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; }
+.pv-options { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.pv-opt { padding: 7px 14px; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 600; }
+.pv-faq h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 10px; }
+.pv-faq-item { border-bottom: 1px solid var(--border); padding: 10px 0; }
+.pv-faq-item summary { font-weight: 600; cursor: pointer; font-size: 14.5px; }
+.pv-faq-item p { margin: 8px 0 0; font-size: 13.5px; color: var(--muted); }
+
+/* Строки вопросов в наборе — перетаскиваются за ⠿ */
+.faq-item-row {
+  display: flex; gap: 10px; align-items: flex-start; padding: 10px;
+  border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--card);
+}
+.faq-item-row.dragging { opacity: .4; }
+
 /* FAQ-строки */
 .faq-row { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; background: var(--bg); }
 .faq-row .field:last-child { margin-bottom: 8px; }

@@ -123,6 +123,61 @@ class Checkpoint(Base):
     photos   = relationship("Photo", back_populates="checkpoint", cascade="all, delete-orphan")
 
 
+class Magnet(Base):
+    """
+    Лид-магнит — акцентный блок внутри текста статьи: «у меня есть готовый
+    чек-лист, он в закреплённых» + кнопка в клуб.
+
+    Блок переиспользуемый: в теле статьи хранится только ссылка на id
+    (<div class="magnet-embed" data-magnet-id="N"></div>), а текст и ссылки
+    подставляются на рендере из этой таблицы. Поправил магнит — обновилось
+    везде, где он вставлен.
+
+    Ссылки на мессенджеры обе необязательные: если задана одна — читателя
+    ведём сразу в неё, если обе — сначала показываем выбор. Если не задано
+    ни одной, блок на сайте не выводится вовсе, чтобы не публиковать
+    кнопку в никуда.
+    """
+    __tablename__ = "magnets"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    name          = Column(String(255), nullable=False)   # служебное имя для списка в админке
+    title         = Column(String(255), nullable=False)   # заголовок-приманка
+    text          = Column(Text, nullable=True)           # пояснение под заголовком
+    button_text   = Column(String(120), nullable=False, default="Забрать в клубе")
+    note          = Column(String(255), nullable=True)    # мелкая подпись под кнопкой
+    telegram_url  = Column(String(500), nullable=True)
+    max_url       = Column(String(500), nullable=True)
+    is_published  = Column(Boolean, nullable=False, default=True)
+    created_at    = Column(DateTime, server_default=func.now())
+
+
+class FaqSet(Base):
+    """
+    Именованный набор вопросов-ответов («Общие», «Без машины», «С детьми»).
+
+    Вставляется в статью так же, как лид-магнит — по id
+    (<div class="faq-embed" data-faq-id="N"></div>), поэтому правка набора
+    подхватывается везде, где он вставлен. Ответы хранятся как HTML
+    (абзацы, списки, ссылки) — их набирают в визуальном редакторе.
+
+    items: [{"question": "...", "answer": "<p>...</p>"}] — порядок в списке
+    и есть порядок на странице.
+    """
+    __tablename__ = "faq_sets"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    slug         = Column(String(200), nullable=False, unique=True, index=True)
+    name         = Column(String(255), nullable=False)   # для списка в админке
+    title        = Column(String(255), nullable=True)    # заголовок над блоком
+    items        = Column(JSONB, nullable=False, default=list)
+    # Показывать ли набор на общей странице /voprosy
+    on_faq_page  = Column(Boolean, nullable=False, default=False)
+    order_index  = Column(Integer, nullable=False, default=0)
+    is_published = Column(Boolean, nullable=False, default=True)
+    created_at   = Column(DateTime, server_default=func.now())
+
+
 class Scenario(Base):
     """
     Дверь развилки на главной («Еду с детьми», «Без машины» и т.п.) — вход

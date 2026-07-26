@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from PIL import Image
 
 from app.database import Base, engine, get_db
-from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like, Scenario
+from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like, Scenario, Magnet, FaqSet
 from app.slugs import slugify as _slugify, unique_slug as _unique_slug
 from site_app.router import router as site_router
 
@@ -220,6 +220,78 @@ with Session(engine) as _seed_db:
                 if s in _slug_to_article_id
             ]
             _seed_db.add(Scenario(featured_article_ids=_article_ids, **_sc))
+        _seed_db.commit()
+
+# Четыре лид-магнита под самые частые запросы. Ссылки намеренно пустые —
+# их проставляет автор в админке, а до тех пор блок на сайте не выводится,
+# чтобы не публиковать кнопку, ведущую в никуда.
+_DEFAULT_MAGNETS = [
+    dict(
+        name="Чек-лист снаряжения",
+        title="Забыть что-то в горах обиднее, чем не взять лишнее",
+        text="Я собрал чек-лист по сезонам: что реально нужно летом, что зимой и что не пригодится никогда. Лежит в закреплённых сообщениях клуба, забирать бесплатно.",
+        button_text="Забрать чек-лист",
+        note="Без регистрации и рассылок",
+    ),
+    dict(
+        name="План на выходные",
+        title="Готовый план «Адыгея за выходные»",
+        text="Два дня по часам: во сколько выезжать, где ночевать, что успеть и в каком порядке, чтобы не метаться. Выложил в клубе одним сообщением.",
+        button_text="Посмотреть план",
+        note="Он в закреплённых",
+    ),
+    dict(
+        name="Транспорт без машины",
+        title="Шпаргалка: как доехать без машины",
+        text="Какие автобусы и маршрутки идут из Майкопа, откуда отправляются, сколько стоят и во сколько последний рейс обратно. Обновляю, когда меняется расписание.",
+        button_text="Открыть шпаргалку",
+        note="Обновляется каждый сезон",
+    ),
+    dict(
+        name="Бюджет поездки",
+        title="Сколько на самом деле стоит поездка в Адыгею",
+        text="Разложил по статьям: жильё, еда, входы на тропы, бензин и трансферы — с реальными суммами, а не «от 5000 рублей». В закреплённых клуба.",
+        button_text="Посмотреть расклад",
+        note="Цифры с моих последних поездок",
+    ),
+]
+with Session(engine) as _seed_db:
+    if _seed_db.execute(select(func.count()).select_from(Magnet)).scalar() == 0:
+        for _m in _DEFAULT_MAGNETS:
+            _seed_db.add(Magnet(**_m))
+        _seed_db.commit()
+
+# Стартовый набор частых вопросов — дальше правится только через админку.
+_DEFAULT_FAQ_SETS = [
+    dict(
+        slug="obshchie", name="Общие вопросы", title="Частые вопросы о поездке",
+        on_faq_page=True, order_index=0,
+        items=[
+            {"question": "Когда лучше ехать в Адыгею?",
+             "answer": "<p>С мая по сентябрь работают все пешие маршруты, включая высокогорные. Зимой плато закрыто снегом, но ущелья, пещеры и термальные источники работают круглый год — поездка не отменяется, просто меняется набор мест.</p>"},
+            {"question": "Сколько дней закладывать?",
+             "answer": "<p>Два дня — минимум, чтобы увидеть главное без спешки. За один день придётся выбирать между лёгкой прогулкой (теснина и водопады) и выездом на плато. Четыре-пять дней позволяют добавить Гузерипль и заповедник.</p>"},
+            {"question": "Нужна ли машина?",
+             "answer": "<p>Без машины реально посмотреть Хаджохскую теснину, водопады Руфабго и термальные источники — до них ходит рейсовый транспорт от Майкопа. На плато Лагонаки общественный транспорт не идёт, туда нужен трансфер или экскурсия.</p>"},
+            {"question": "Сколько стоит вход на маршруты?",
+             "answer": "<p>Большинство троп платные, но недорого — обычно несколько сотен рублей с человека. Цены меняются, поэтому конкретные суммы смотрите на страницах мест: там указана дата, на которую они актуальны.</p>"},
+        ],
+    ),
+    dict(
+        slug="s-detmi", name="С детьми", title="Вопросы про поездку с детьми",
+        on_faq_page=True, order_index=1,
+        items=[
+            {"question": "С какого возраста можно везти ребёнка?",
+             "answer": "<p>С малышами до 3-4 лет нормально проходятся Хаджохская теснина, термальные источники и первые водопады каскада Руфабго. Полный маршрут на плато и дальние точки каскада лучше отложить до школьного возраста.</p>"},
+            {"question": "Пройдёт ли коляска?",
+             "answer": "<p>По основным дорожкам Хаджохской теснины — да. На тропе к водопадам коляска будет только мешать: местами ступени, и ребёнка придётся нести на руках.</p>"},
+        ],
+    ),
+]
+with Session(engine) as _seed_db:
+    if _seed_db.execute(select(func.count()).select_from(FaqSet)).scalar() == 0:
+        for _f in _DEFAULT_FAQ_SETS:
+            _seed_db.add(FaqSet(**_f))
         _seed_db.commit()
 
 
@@ -983,6 +1055,133 @@ def _scenario_out(s: Scenario):
         "order_index": s.order_index,
         "is_published": s.is_published,
     }
+
+
+# ─────────────────────────────────────────────
+#  БЛОКИ ДЛЯ СТАТЕЙ — лид-магниты и наборы вопросов.
+#  Переиспользуемые: в теле статьи лежит только ссылка на id, содержимое
+#  подставляется на рендере, поэтому правка блока обновляет все статьи разом.
+# ─────────────────────────────────────────────
+
+class MagnetIn(BaseModel):
+    name: str
+    title: str
+    text: Optional[str] = None
+    button_text: str = "Забрать в клубе"
+    note: Optional[str] = None
+    telegram_url: Optional[str] = None
+    max_url: Optional[str] = None
+    is_published: bool = True
+
+class MagnetUpdate(MagnetIn):
+    name: Optional[str] = None
+    title: Optional[str] = None
+
+
+class FaqItemIn(BaseModel):
+    question: str
+    answer: str
+
+class FaqSetIn(BaseModel):
+    name: str
+    slug: Optional[str] = None
+    title: Optional[str] = None
+    items: List[FaqItemIn] = []
+    on_faq_page: bool = False
+    order_index: int = 0
+    is_published: bool = True
+
+class FaqSetUpdate(FaqSetIn):
+    name: Optional[str] = None
+
+
+def _magnet_out(m: Magnet):
+    return {
+        "id": m.id, "name": m.name, "title": m.title, "text": m.text,
+        "button_text": m.button_text, "note": m.note,
+        "telegram_url": m.telegram_url, "max_url": m.max_url,
+        "is_published": m.is_published,
+    }
+
+
+@app.get("/api/magnets")
+def list_magnets(db: Session = Depends(get_db)):
+    rows = db.execute(select(Magnet).order_by(Magnet.id)).scalars().all()
+    return [_magnet_out(m) for m in rows]
+
+
+@app.post("/api/magnets", status_code=201)
+def create_magnet(body: MagnetIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    m = Magnet(**body.model_dump())
+    db.add(m); db.commit(); db.refresh(m)
+    return _magnet_out(m)
+
+
+@app.patch("/api/magnets/{magnet_id}")
+def update_magnet(magnet_id: int, body: MagnetUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    m = _get_or_404(db, Magnet, magnet_id)
+    for field, value in body.model_dump().items():
+        if field in ("name", "title") and value is None:
+            continue          # обязательные поля не затираем пустотой
+        setattr(m, field, value)
+    db.commit(); db.refresh(m)
+    return _magnet_out(m)
+
+
+@app.delete("/api/magnets/{magnet_id}")
+def delete_magnet(magnet_id: int, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    m = _get_or_404(db, Magnet, magnet_id)
+    db.delete(m); db.commit()
+    return {"ok": True}
+
+
+def _faq_set_out(f: FaqSet):
+    return {
+        "id": f.id, "slug": f.slug, "name": f.name, "title": f.title,
+        "items": f.items or [], "on_faq_page": f.on_faq_page,
+        "order_index": f.order_index, "is_published": f.is_published,
+    }
+
+
+@app.get("/api/faq-sets")
+def list_faq_sets(db: Session = Depends(get_db)):
+    rows = db.execute(select(FaqSet).order_by(FaqSet.order_index, FaqSet.id)).scalars().all()
+    return [_faq_set_out(f) for f in rows]
+
+
+@app.post("/api/faq-sets", status_code=201)
+def create_faq_set(body: FaqSetIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    slug = _unique_slug(db, _slugify(body.slug or body.name), model=FaqSet)
+    f = FaqSet(
+        slug=slug, name=body.name, title=body.title,
+        items=[i.model_dump() for i in body.items],
+        on_faq_page=body.on_faq_page, order_index=body.order_index,
+        is_published=body.is_published,
+    )
+    db.add(f); db.commit(); db.refresh(f)
+    return _faq_set_out(f)
+
+
+@app.patch("/api/faq-sets/{set_id}")
+def update_faq_set(set_id: int, body: FaqSetUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    f = _get_or_404(db, FaqSet, set_id)
+    if body.slug is not None:
+        f.slug = _unique_slug(db, _slugify(body.slug), exclude_id=set_id, model=FaqSet)
+    if body.name is not None: f.name = body.name
+    f.title = body.title
+    f.items = [i.model_dump() for i in body.items]
+    f.on_faq_page = body.on_faq_page
+    f.order_index = body.order_index
+    f.is_published = body.is_published
+    db.commit(); db.refresh(f)
+    return _faq_set_out(f)
+
+
+@app.delete("/api/faq-sets/{set_id}")
+def delete_faq_set(set_id: int, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    f = _get_or_404(db, FaqSet, set_id)
+    db.delete(f); db.commit()
+    return {"ok": True}
 
 
 # ─────────────────────────────────────────────

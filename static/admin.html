@@ -18,6 +18,7 @@
     <button class="tab" data-tab="routes">Маршруты</button>
     <button class="tab" data-tab="places">Места</button>
     <button class="tab" data-tab="scenarios">Сценарии</button>
+    <button class="tab" data-tab="blocks">Блоки</button>
   </nav>
   <div class="topbar-actions">
     <button class="btn btn-ghost btn-sm" onclick="openCategories()">Категории</button>
@@ -77,6 +78,8 @@
               <button type="button" onclick="runInsert('photo')"><span>🖼</span> Фото с подписью</button>
               <button type="button" onclick="runInsert('collage')"><span>▥</span> Коллаж 2–4 фото</button>
               <button type="button" onclick="runInsert('link')"><span>🔗</span> Ссылка на место или маршрут</button>
+              <button type="button" onclick="runInsert('magnet')"><span>🎁</span> Лид-магнит</button>
+              <button type="button" onclick="runInsert('faq')"><span>❓</span> Набор вопросов</button>
             </div>
             <div id="article-editor"></div>
           </div>
@@ -86,6 +89,8 @@
             <button class="btn btn-ghost btn-sm" onclick="insertPhoto()">Фото</button>
             <button class="btn btn-ghost btn-sm" onclick="insertCollage()">Коллаж 2–4 фото</button>
             <button class="btn btn-ghost btn-sm" onclick="insertInternalLink()">Ссылка на место/маршрут</button>
+            <button class="btn btn-ghost btn-sm" onclick="insertMagnet()">Лид-магнит</button>
+            <button class="btn btn-ghost btn-sm" onclick="insertFaqSet()">Набор вопросов</button>
           </div>
         </div>
       </div>
@@ -234,6 +239,34 @@
       <button class="btn btn-primary" onclick="openScenarioForm(null)">+ Новый сценарий</button>
     </div>
     <div class="list" id="scenarios-list"></div>
+  </div>
+</section>
+
+<!-- ══════════════ БЛОКИ ДЛЯ СТАТЕЙ ══════════════ -->
+<section class="view" id="view-blocks">
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>Блоки для статей</h1>
+        <div class="sub">Вставляются в текст статьи и живут одним экземпляром: поправите здесь — обновится во всех статьях сразу.</div>
+      </div>
+    </div>
+
+    <div class="blocks-section">
+      <div class="blocks-head">
+        <h2>Лид-магниты</h2>
+        <button class="btn btn-primary btn-sm" onclick="openMagnetForm(null)">+ Новый магнит</button>
+      </div>
+      <div class="list" id="magnets-list"></div>
+    </div>
+
+    <div class="blocks-section">
+      <div class="blocks-head">
+        <h2>Наборы вопросов</h2>
+        <button class="btn btn-primary btn-sm" onclick="openFaqSetForm(null)">+ Новый набор</button>
+      </div>
+      <div class="list" id="faqsets-list"></div>
+    </div>
   </div>
 </section>
 
