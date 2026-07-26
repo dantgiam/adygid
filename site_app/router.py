@@ -11,7 +11,7 @@ from fastapi.responses import PlainTextResponse, Response
 from fastapi.templating import Jinja2Templates
 from geoalchemy2.shape import to_shape
 from sqlalchemy import case, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import get_db
 from app.models import Article, Category, Checkpoint, Like, Trail
@@ -36,8 +36,36 @@ SITE_URL = os.getenv("SITE_URL", "http://localhost:8000").rstrip("/")
 # разработка не должна плодить визиты в статистике).
 YANDEX_METRIKA_ID = os.getenv("YANDEX_METRIKA_ID", "").strip()
 
+
+def _asset_version() -> str:
+    """Стили и скрипты отдаются с недельным кэшем, поэтому в ссылку добавляем
+    метку версии: после правки файла адрес меняется, и браузер забирает новую
+    версию сразу, а не через неделю."""
+    stamp = 0
+    for name in ("site.css", "site.js"):
+        try:
+            stamp = max(stamp, int(os.path.getmtime(os.path.join("site_app", "static", name))))
+        except OSError:
+            pass
+    return str(stamp or 1)
+
+
+ASSET_VERSION = _asset_version()
+
 _POPULARITY_ORDER = case((Checkpoint.popularity == "top", 0), (Checkpoint.popularity == "popular", 1), else_=2)
 _POPULARITY_ORDER_TRAIL = case((Trail.popularity == "top", 0), (Trail.popularity == "popular", 1), else_=2)
+
+
+# Карточка каждого места/маршрута читает фото и категорию. Без явной подгрузки
+# SQLAlchemy делает это отдельным запросом на каждую карточку — на списке из
+# десятка объектов набегали десятки обращений к удалённой базе, и страница
+# ждала их последовательно. Догружаем всё пачкой вместе с основной выборкой.
+def _with_place_relations(stmt):
+    return stmt.options(selectinload(Checkpoint.photos), joinedload(Checkpoint.category))
+
+
+def _with_route_relations(stmt):
+    return stmt.options(selectinload(Trail.photos), joinedload(Trail.category))
 
 
 # ─────────────────────────────────────────────
@@ -72,11 +100,11 @@ _MONTHS_RU = (
 
 
 def _updated_label(dt) -> Optional[str]:
-    """«Проверено 26 июля 2026» — для описаний с ценами и состоянием троп
+    """«Актуально на 26 июля 2026» — для описаний с ценами и состоянием троп
     свежесть важнее, чем дата первой публикации."""
     if not dt:
         return None
-    return f"Проверено {dt.day} {_MONTHS_RU[dt.month - 1]} {dt.year}"
+    return f"Актуально на {dt.day} {_MONTHS_RU[dt.month - 1]} {dt.year}"
 
 
 def _likes_label(count: int) -> str:
@@ -225,7 +253,7 @@ def _nearby_places(db: Session, lat: float, lon: float, exclude_id: Optional[int
     карточки с добавленным расстоянием."""
     point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
     dist = func.ST_DistanceSphere(Checkpoint.geom, point).label("distance_m")
-    q = select(Checkpoint, dist).where(Checkpoint.show_as_place == True)
+    q = _with_place_relations(select(Checkpoint, dist)).where(Checkpoint.show_as_place == True)
     if exclude_id is not None:
         q = q.where(Checkpoint.id != exclude_id)
     q = q.order_by(dist).limit(limit)
@@ -251,8 +279,11 @@ def _routes_for_place(db: Session, cp: Checkpoint, radius_km: float = 12.0, limi
 
     shp = to_shape(cp.geom)
     point = func.ST_SetSRID(func.ST_MakePoint(shp.x, shp.y), 4326)
+    # selectinload, а не joinedload: запрос уже с GROUP BY, и дополнительные
+    # колонки из JOIN-а его сломают.
     rows = db.execute(
         select(Trail, func.min(func.ST_DistanceSphere(Checkpoint.geom, point)).label("d"))
+        .options(selectinload(Trail.photos), selectinload(Trail.category))
         .join(Checkpoint, Checkpoint.trail_id == Trail.id)
         .where(Checkpoint.id != cp.id)
         .group_by(Trail.id)
@@ -513,12 +544,24 @@ def _route_detail_dict(t: Trail) -> dict:
 #  Общий контекст рендера
 # ─────────────────────────────────────────────
 
+_FOOTER_CACHE: dict = {"value": None, "at": 0.0}
+_FOOTER_TTL_S = 120
+
+
 def _footer_stats(db: Session) -> dict:
-    places = db.execute(
-        select(func.count()).select_from(Checkpoint).where(Checkpoint.show_as_place == True)
-    ).scalar() or 0
-    trails = db.execute(select(func.count()).select_from(Trail)).scalar() or 0
-    return {"places": places, "trails": trails}
+    """Счётчик в подвале рисуется на каждой странице, а меняется раз в
+    несколько дней — держим его в памяти и считаем одним запросом вместо двух."""
+    now = time.monotonic()
+    if _FOOTER_CACHE["value"] is not None and now - _FOOTER_CACHE["at"] < _FOOTER_TTL_S:
+        return _FOOTER_CACHE["value"]
+
+    places_q = select(func.count()).select_from(Checkpoint).where(Checkpoint.show_as_place == True).scalar_subquery()
+    trails_q = select(func.count()).select_from(Trail).scalar_subquery()
+    places, trails = db.execute(select(places_q, trails_q)).one()
+
+    _FOOTER_CACHE["value"] = {"places": places or 0, "trails": trails or 0}
+    _FOOTER_CACHE["at"] = now
+    return _FOOTER_CACHE["value"]
 
 
 def _ctx(request: Request, db: Session, **extra) -> dict:
@@ -531,6 +574,7 @@ def _ctx(request: Request, db: Session, **extra) -> dict:
         "yandex_metrika_id": YANDEX_METRIKA_ID,
         "club_url": CLUB_URL,
         "difficulty_levels": DIFFICULTY_INFO,
+        "asset_version": ASSET_VERSION,
     }
     base.update(extra)
     return base
@@ -541,9 +585,14 @@ def _ctx(request: Request, db: Session, **extra) -> dict:
 # ─────────────────────────────────────────────
 
 def _pick_highlight(db: Session) -> dict:
-    checkpoints = db.execute(select(Checkpoint).where(Checkpoint.show_as_place == True)).scalars().all()
-    trails = db.execute(select(Trail)).scalars().all()
-    pool = [("place", cp) for cp in checkpoints] + [("route", t) for t in trails]
+    """Для жеребьёвки достаточно id и популярности — тянуть все объекты
+    целиком (с описаниями и фото) ради одной карточки незачем. Полностью
+    читаем только выпавший."""
+    place_rows = db.execute(
+        select(Checkpoint.id, Checkpoint.popularity).where(Checkpoint.show_as_place == True)
+    ).all()
+    trail_rows = db.execute(select(Trail.id, Trail.popularity)).all()
+    pool = [("place", r) for r in place_rows] + [("route", r) for r in trail_rows]
 
     if not pool:
         return {
@@ -554,14 +603,20 @@ def _pick_highlight(db: Session) -> dict:
             "url": "/",
         }
 
-    weights = [POPULARITY_WEIGHT.get(obj.popularity, 6) for _, obj in pool]
-    kind, obj = random.choices(pool, weights=weights, k=1)[0]
+    weights = [POPULARITY_WEIGHT.get(row.popularity, 6) for _, row in pool]
+    kind, row = random.choices(pool, weights=weights, k=1)[0]
 
     if kind == "place":
-        d = _place_card_dict(obj)
+        cp = db.execute(
+            _with_place_relations(select(Checkpoint)).where(Checkpoint.id == row.id)
+        ).scalars().first()
+        d = _place_card_dict(cp)
         d["tag_label"] = "Случайное место"
     else:
-        d = _route_card_dict(obj)
+        t = db.execute(
+            _with_route_relations(select(Trail)).where(Trail.id == row.id)
+        ).scalars().first()
+        d = _route_card_dict(t)
         d["tag_label"] = "Случайный маршрут"
     return d
 
@@ -588,11 +643,11 @@ def api_favorites(items: str = "", db: Session = Depends(get_db)):
     places_by_id = {
         cp.id: cp
         for cp in db.execute(
-            select(Checkpoint).where(Checkpoint.id.in_(place_ids), Checkpoint.show_as_place == True)
+            _with_place_relations(select(Checkpoint)).where(Checkpoint.id.in_(place_ids), Checkpoint.show_as_place == True)
         ).scalars().all()
     } if place_ids else {}
     routes_by_id = {
-        t.id: t for t in db.execute(select(Trail).where(Trail.id.in_(route_ids))).scalars().all()
+        t.id: t for t in db.execute(_with_route_relations(select(Trail)).where(Trail.id.in_(route_ids))).scalars().all()
     } if route_ids else {}
 
     result = []
@@ -623,7 +678,7 @@ def home(request: Request, db: Session = Depends(get_db)):
         ).scalars().all()
     ]
     place_rows = db.execute(
-        select(Checkpoint).order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(6)
+        _with_place_relations(select(Checkpoint)).order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(6)
     ).scalars().all()
     places = [_place_card_dict(cp) for cp in place_rows]
     place_likes = _like_counts_map(db, "checkpoint", [cp.id for cp in place_rows])
@@ -632,7 +687,7 @@ def home(request: Request, db: Session = Depends(get_db)):
             p["likes_label"] = _likes_label(place_likes[p["id"]])
 
     route_rows = db.execute(
-        select(Trail).order_by(_POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(6)
+        _with_route_relations(select(Trail)).order_by(_POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(6)
     ).scalars().all()
     routes = [_route_card_dict(t) for t in route_rows]
     route_likes = _like_counts_map(db, "trail", [t.id for t in route_rows])
@@ -665,7 +720,7 @@ def places_list(
     kid: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    q = select(Checkpoint).where(Checkpoint.show_as_place == True)
+    q = _with_place_relations(select(Checkpoint)).where(Checkpoint.show_as_place == True)
     if type and type.isdigit():
         q = q.where(Checkpoint.category_id == int(type))
     if district:
@@ -692,7 +747,16 @@ def places_list(
 
 @router.get("/mesta/{place_id}")
 def place_detail(request: Request, place_id: int, db: Session = Depends(get_db)):
-    cp = db.get(Checkpoint, place_id)
+    # Забираем место сразу с фото, категорией и маршрутом (вместе с его фото и
+    # категорией) — иначе каждое из этих полей уходит отдельным запросом.
+    cp = db.execute(
+        _with_place_relations(select(Checkpoint))
+        .options(
+            joinedload(Checkpoint.trail).selectinload(Trail.photos),
+            joinedload(Checkpoint.trail).joinedload(Trail.category),
+        )
+        .where(Checkpoint.id == place_id)
+    ).scalars().first()
     # Промежуточная точка маршрута — не самостоятельное место, своей страницы
     # у неё нет (иначе в индекс попадут пустышки вроде «развилка у ручья»).
     if not cp or not cp.show_as_place:
@@ -706,7 +770,7 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
     similar = []
     if conditions:
         rows = db.execute(
-            select(Checkpoint).where(
+            _with_place_relations(select(Checkpoint)).where(
                 Checkpoint.id != cp.id, Checkpoint.show_as_place == True, or_(*conditions)
             ).limit(4)
         ).scalars().all()
@@ -739,7 +803,7 @@ def routes_list(
     kid: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    q = select(Trail)
+    q = _with_route_relations(select(Trail))
     if type and type.isdigit():
         q = q.where(Trail.category_id == int(type))
     if district:
@@ -764,7 +828,15 @@ def routes_list(
 
 @router.get("/marshruty/{route_id}")
 def route_detail(request: Request, route_id: int, db: Session = Depends(get_db)):
-    t = db.get(Trail, route_id)
+    # Точки по пути показываются с категориями — тянем их одной пачкой.
+    t = db.execute(
+        _with_route_relations(select(Trail))
+        .options(
+            selectinload(Trail.checkpoints).joinedload(Checkpoint.category),
+            selectinload(Trail.segments),
+        )
+        .where(Trail.id == route_id)
+    ).scalars().first()
     if not t:
         raise HTTPException(404, "Маршрут не найден")
 
@@ -776,7 +848,7 @@ def route_detail(request: Request, route_id: int, db: Session = Depends(get_db))
     similar = []
     if conditions:
         rows = db.execute(
-            select(Trail).where(Trail.id != t.id, or_(*conditions)).limit(4)
+            _with_route_relations(select(Trail)).where(Trail.id != t.id, or_(*conditions)).limit(4)
         ).scalars().all()
         similar = [_route_card_dict(r) for r in rows]
 
@@ -843,17 +915,22 @@ def route_gpx(route_id: int, db: Session = Depends(get_db)):
 
 @router.get("/okrugi")
 def districts_index(request: Request, db: Session = Depends(get_db)):
+    # Считаем всё двумя групповыми запросами, а не парой на каждый округ.
+    place_counts = dict(db.execute(
+        select(Checkpoint.district, func.count())
+        .where(Checkpoint.show_as_place == True)
+        .group_by(Checkpoint.district)
+    ).all())
+    route_counts = dict(db.execute(
+        select(Trail.district, func.count()).group_by(Trail.district)
+    ).all())
+
     items = []
     for slug, label in DISTRICTS.items():
         if slug not in DISTRICT_PAGES:
             continue
-        places = db.execute(
-            select(func.count()).select_from(Checkpoint)
-            .where(Checkpoint.district == slug, Checkpoint.show_as_place == True)
-        ).scalar() or 0
-        routes = db.execute(
-            select(func.count()).select_from(Trail).where(Trail.district == slug)
-        ).scalar() or 0
+        places = place_counts.get(slug, 0)
+        routes = route_counts.get(slug, 0)
         items.append({
             "slug": slug,
             "label": label,
@@ -876,7 +953,7 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     places = [
         _place_card_dict(cp)
         for cp in db.execute(
-            select(Checkpoint)
+            _with_place_relations(select(Checkpoint))
             .where(Checkpoint.district == slug, Checkpoint.show_as_place == True)
             .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc())
         ).scalars().all()
@@ -884,7 +961,7 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     routes = [
         _route_card_dict(t)
         for t in db.execute(
-            select(Trail).where(Trail.district == slug).order_by(_POPULARITY_ORDER_TRAIL)
+            _with_route_relations(select(Trail)).where(Trail.district == slug).order_by(_POPULARITY_ORDER_TRAIL)
         ).scalars().all()
     ]
     articles = [
@@ -929,17 +1006,30 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     if not a:
         raise HTTPException(404, "Статья не найдена")
 
+    # Забираем все привязанные места и маршруты пачкой, сохраняя порядок,
+    # выбранный в админке (раньше это был отдельный запрос на каждую карточку).
+    place_ids = a.featured_checkpoint_ids or []
     featured_places = []
-    for cid in a.featured_checkpoint_ids or []:
-        cp = db.get(Checkpoint, cid)
-        if cp and cp.show_as_place:
-            featured_places.append(_place_card_dict(cp))
+    if place_ids:
+        by_id = {
+            cp.id: cp
+            for cp in db.execute(
+                _with_place_relations(select(Checkpoint))
+                .where(Checkpoint.id.in_(place_ids), Checkpoint.show_as_place == True)
+            ).scalars().all()
+        }
+        featured_places = [_place_card_dict(by_id[i]) for i in place_ids if i in by_id]
 
+    trail_ids = a.featured_trail_ids or []
     featured_routes = []
-    for tid in a.featured_trail_ids or []:
-        t = db.get(Trail, tid)
-        if t:
-            featured_routes.append(_route_card_dict(t))
+    if trail_ids:
+        by_id = {
+            t.id: t
+            for t in db.execute(
+                _with_route_relations(select(Trail)).where(Trail.id.in_(trail_ids))
+            ).scalars().all()
+        }
+        featured_routes = [_route_card_dict(by_id[i]) for i in trail_ids if i in by_id]
 
     body_html = _render_article_gallery(_rich_text_html(a.body))
     body_html, toc = _add_toc_anchors(body_html)
@@ -979,7 +1069,7 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     if a.district:
         exclude_ids = set(a.featured_checkpoint_ids or [])
         rows = db.execute(
-            select(Checkpoint).where(
+            _with_place_relations(select(Checkpoint)).where(
                 Checkpoint.district == a.district,
                 Checkpoint.show_as_place == True,
                 Checkpoint.id.notin_(exclude_ids),

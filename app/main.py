@@ -9,6 +9,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, text
@@ -33,12 +34,25 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def _no_browser_cache(request, call_next):
-    """Проект активно меняется — без этого браузер может показывать старую
-    версию страницы/админки после правок, пока не сделаешь жёсткий рефреш."""
+async def _cache_policy(request, call_next):
+    """HTML не кэшируем — проект активно меняется, и правки должны быть видны
+    сразу. А вот статика (стикеры почти на мегабайт, стили, скрипты, фото)
+    раньше тоже отдавалась с no-store, и браузер перекачивал её при каждом
+    переходе между страницами — именно это делало навигацию медленной."""
     response = await call_next(request)
-    response.headers["Cache-Control"] = "no-store"
+    path = request.url.path
+    # Стили и скрипты сайта подключаются с ?v=<версия>, фото загружаются под
+    # уникальными именами — их можно смело кэшировать надолго. Файлы админки
+    # сюда не попадают: она правится часто, а открывает её один человек.
+    if path.startswith("/assets/") or path.startswith("/static/uploads/"):
+        response.headers["Cache-Control"] = "public, max-age=604800"
+    else:
+        response.headers["Cache-Control"] = "no-store"
     return response
+
+
+# Текст страниц сжимается — HTML со списками карточек ужимается в несколько раз
+app.add_middleware(GZipMiddleware, minimum_size=800)
 
 Base.metadata.create_all(bind=engine)
 

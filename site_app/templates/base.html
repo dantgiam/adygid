@@ -20,7 +20,7 @@
 <meta name="twitter:title" content="{{ self.og_title() }}">
 <meta name="twitter:description" content="{{ self.og_description() }}">
 
-<link rel="stylesheet" href="/assets/site.css">
+<link rel="stylesheet" href="/assets/site.css?v={{ asset_version }}">
 {% block extra_head %}{% endblock %}
 
 <script type="application/ld+json">
@@ -81,7 +81,7 @@
   </div>
 </footer>
 
-<script src="/assets/site.js"></script>
+<script src="/assets/site.js?v={{ asset_version }}"></script>
 {% block extra_scripts %}{% endblock %}
 </body>
 </html>
