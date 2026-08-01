@@ -332,9 +332,14 @@ a { color: var(--accent); }
 /* Описание маршрута/места — набирается сразу в типографике сайта
    (.detail-body там: текст гротеском 16px, заголовки — засечками). */
 .desc-editor-wrap {
-  border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px;
+  border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px 18px 54px;
   background: var(--card); max-height: 360px; overflow-y: auto;
 }
+/* Модалка уже, чем страница статьи — там «+» висит в поле слева от .paper,
+   здесь такого поля нет, поэтому вместо отрицательного выноса резервируем
+   place под кнопку внутри padding самого .desc-editor-wrap (иначе обрежет
+   overflow-y:auto — оverflow-x у него тоже становится auto). */
+.desc-editor-wrap .insert-plus, .desc-editor-wrap .insert-menu { left: -40px; }
 #desc-editor.ql-container { font-family: var(--font); font-size: 16px; border: none; }
 #desc-editor .ql-editor { padding: 0; min-height: 160px; line-height: 1.55; color: var(--text); }
 #desc-editor .ql-editor.ql-blank::before { left: 0; font-style: normal; color: #A8B5A9; }
@@ -374,31 +379,28 @@ a { color: var(--accent); }
 .blocks-head h2 { font-size: 17px; font-weight: 700; }
 .row-thumb.block-icon { display: flex; align-items: center; justify-content: center; font-size: 22px; background: var(--accent-soft); }
 
-/* Вставленный блок внутри редактора статьи — плашка, а не живой блок:
-   реальное содержимое подставит сайт, здесь достаточно понять, что стоит */
-#article-editor .magnet-embed, #article-editor .faq-embed {
+/* Вставленный блок внутри редактора — плашка, а не живой блок: реальное
+   содержимое подставит сайт, здесь достаточно понять, что стоит. Лид-магнит
+   и набор вопросов теперь вставляются не только в статьях, но и в описании
+   маршрута/места и во вступлении сценария — поэтому селектор общий, как и
+   у блока «Что учесть», а не привязан к #article-editor. */
+.ql-editor .magnet-embed, .ql-editor .faq-embed {
   display: flex; align-items: center; gap: 10px; margin: 22px 0; padding: 14px 16px;
   border-radius: 10px; border: 1px dashed #D8C48A; background: #FCF6E6;
   font-family: var(--font); font-size: 14px; user-select: none;
 }
-#article-editor .faq-embed { border-color: #C6E4C8; background: var(--accent-soft); }
-#article-editor .embed-tag {
+.ql-editor .faq-embed { border-color: #C6E4C8; background: var(--accent-soft); }
+.ql-editor .embed-tag {
   font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
   padding: 3px 8px; border-radius: 999px; background: rgba(0,0,0,.06); flex: none;
 }
-#article-editor .embed-meta { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+.ql-editor .embed-meta { color: var(--muted); font-size: 12.5px; margin-left: auto; }
 
-/* Блок «Что учесть» — единственный из вставок, доступный в любом Quill-
-   редакторе (статья, описание маршрута/места, сценарий), поэтому селектор
-   не привязан к #article-editor, как у магнита и набора вопросов. */
+/* Блок «Что учесть» — своя рамка поверх общих .embed-tag/.embed-meta выше */
 .ql-editor .consider-embed {
   margin: 22px 0; padding: 14px 16px; border-radius: 10px;
   border: 1px dashed #B7CDB9; background: var(--accent-soft);
   font-family: var(--font); font-size: 14px; user-select: none; cursor: pointer;
-}
-.ql-editor .consider-embed .embed-tag {
-  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
-  padding: 3px 8px; border-radius: 999px; background: rgba(0,0,0,.06);
 }
 .ql-editor .consider-embed ul { margin: 8px 0 0; padding-left: 20px; }
 .ql-editor .consider-embed li { margin-bottom: 4px; }

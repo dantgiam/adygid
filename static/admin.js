@@ -341,14 +341,40 @@ async function deleteCategory(id) {
   openCategories();
 }
 
-// ── Редактор описания внутри модалки (маршрут / место) ─────────
-// Тот же принцип, что и в статьях: пишем как видим, без ручного HTML.
+// ── Редактор описания внутри модалки (маршрут / место / сценарий) ──
+// Тот же самый набор возможностей, что и в редакторе статей: плавающая «+»
+// у курсора и панель вставки внизу — фото, коллаж, ссылка, лид-магнит,
+// набор вопросов, «Что учесть». Диалоги вставки открываются во второй,
+// стековой модалке (showModal2) — общая модалка тут уже занята формой
+// маршрута/места/сценария.
 function descEditorHtml(label) {
   return `<div class="field">
     <label>${label}</label>
     <div class="hint" style="margin:0 0 6px">Выделите текст, чтобы сделать заголовок, список или ссылку.</div>
-    <div class="desc-editor-wrap"><div id="desc-editor"></div></div>
-    <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="insertConsiderBlock(descQuill)">+ Что учесть</button>
+    <div class="desc-editor-wrap">
+      <div class="editor-wrap">
+        <button type="button" class="insert-plus" id="desc-insert-plus"
+                title="Вставить фото, коллаж или ссылку" onclick="toggleDescInsertMenu(event)">+</button>
+        <div class="insert-menu" id="desc-insert-menu" hidden>
+          <button type="button" onclick="runDescInsert('photo')"><span>🖼</span> Фото с подписью</button>
+          <button type="button" onclick="runDescInsert('collage')"><span>▥</span> Коллаж 2–4 фото</button>
+          <button type="button" onclick="runDescInsert('link')"><span>🔗</span> Ссылка на место или маршрут</button>
+          <button type="button" onclick="runDescInsert('magnet')"><span>🎁</span> Лид-магнит</button>
+          <button type="button" onclick="runDescInsert('faq')"><span>❓</span> Набор вопросов</button>
+          <button type="button" onclick="runDescInsert('consider')"><span>☑️</span> Что учесть</button>
+        </div>
+        <div id="desc-editor"></div>
+      </div>
+    </div>
+    <div class="insert-bar">
+      <span class="insert-bar-label">Вставить в текст:</span>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="insertPhoto(descQuill)">Фото</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="insertCollage(descQuill)">Коллаж 2–4 фото</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="insertInternalLink(descQuill)">Ссылка на место/маршрут</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="insertMagnet(descQuill)">Лид-магнит</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="insertFaqSet(descQuill)">Набор вопросов</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="insertConsiderBlock(descQuill)">Что учесть</button>
+    </div>
   </div>`;
 }
 
@@ -367,12 +393,54 @@ function initDescEditor(html) {
   });
   descQuill.setContents([], 'silent');
   if (html) descQuill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
+  descQuill.on('editor-change', positionDescInsertPlus);
 }
+
+// ── Плавающая кнопка вставки для desc-редактора — тот же принцип, что и
+// у статьи (positionInsertPlus/toggleInsertMenu), но свои id, потому что
+// оба редактора могут одновременно жить в DOM (страница статьи в фоне). ──
+function positionDescInsertPlus() {
+  const plus = document.getElementById('desc-insert-plus');
+  if (!plus || !descQuill) return;
+  const range = descQuill.getSelection();
+  if (!range) { plus.classList.remove('visible'); hideDescInsertMenu(); return; }
+  const bounds = descQuill.getBounds(range.index, 0);
+  plus.style.top = bounds.top + 'px';
+  plus.classList.add('visible');
+}
+
+function toggleDescInsertMenu(e) {
+  e.stopPropagation();
+  const menu = document.getElementById('desc-insert-menu');
+  const plus = document.getElementById('desc-insert-plus');
+  if (!menu.hidden) { hideDescInsertMenu(); return; }
+  menu.style.top = (parseFloat(plus.style.top || 0) + 36) + 'px';
+  menu.hidden = false;
+}
+
+function hideDescInsertMenu() {
+  const menu = document.getElementById('desc-insert-menu');
+  if (menu) menu.hidden = true;
+}
+
+function runDescInsert(kind) {
+  hideDescInsertMenu();
+  if (kind === 'photo') insertPhoto(descQuill);
+  else if (kind === 'collage') insertCollage(descQuill);
+  else if (kind === 'magnet') insertMagnet(descQuill);
+  else if (kind === 'faq') insertFaqSet(descQuill);
+  else if (kind === 'consider') insertConsiderBlock(descQuill);
+  else insertInternalLink(descQuill);
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#desc-insert-menu') && !e.target.closest('#desc-insert-plus')) hideDescInsertMenu();
+});
 
 function readDescEditor() {
   if (!descQuill) return null;
   const clone = descQuill.root.cloneNode(true);
-  clone.querySelectorAll('.consider-embed').forEach(el => { el.innerHTML = ''; });
+  clone.querySelectorAll('.magnet-embed, .faq-embed, .consider-embed').forEach(el => { el.innerHTML = ''; });
   const html = clone.innerHTML.trim();
   // Пустой Quill отдаёт <p><br></p> — на сайте это лишний пустой абзац.
   return (!html || html === '<p><br></p>') ? null : html;
@@ -806,21 +874,21 @@ function pickFiles(multiple) {
   });
 }
 
-async function insertPhoto() { await photoFlow(false); }
-async function insertCollage() { await photoFlow(true); }
+async function insertPhoto(quill) { await photoFlow(quill || articleQuill, false); }
+async function insertCollage(quill) { await photoFlow(quill || articleQuill, true); }
 
-function currentInsertIndex() {
+function currentInsertIndex(quill) {
   // Пока курсор ни разу не ставили, вставляем в конец текста, а не в начало —
   // иначе первая же картинка окажется перед заголовком статьи.
-  const range = articleQuill.getSelection();
-  return range ? range.index : articleQuill.getLength() - 1;
+  const range = quill.getSelection();
+  return range ? range.index : quill.getLength() - 1;
 }
 
-async function photoFlow(multiple) {
+async function photoFlow(quill, multiple) {
   // Позицию курсора запоминаем ДО открытия диалога: пока пользователь выбирает
   // файл и печатает подписи, фокус уходит из редактора, и спрашивать позицию
   // потом — значит рисковать вставкой не туда.
-  const at = currentInsertIndex();
+  const at = currentInsertIndex(quill);
 
   const files = await pickFiles(multiple);
   if (!files.length) return;
@@ -836,41 +904,44 @@ async function photoFlow(multiple) {
       </div>
     </div>`).join('');
 
-  showModal(multiple ? 'Коллаж' : 'Фото', `<div class="pickfile">${rows}</div>`, async () => {
+  // Вторая, стековая модалка — эта форма может открыться поверх уже открытой
+  // (маршрут/место/сценарий), общую модалку для этого переиспользовать нельзя.
+  showModal2(multiple ? 'Коллаж' : 'Фото', `<div class="pickfile">${rows}</div>`, async () => {
     const caps = Array.from(document.querySelectorAll('.cap-input')).map(el => el.value.trim());
-    document.getElementById('modal-save').disabled = true;
-    document.getElementById('modal-save').textContent = 'Загружаю...';
+    document.getElementById('modal2-save').disabled = true;
+    document.getElementById('modal2-save').textContent = 'Загружаю...';
 
     const uploaded = [];
     for (let i = 0; i < chosen.length; i++) {
       const up = await uploadFile(chosen[i]);
       if (up) uploaded.push({ url: up.url, caption: caps[i] || '' });
     }
-    document.getElementById('modal-save').disabled = false;
+    document.getElementById('modal2-save').disabled = false;
 
     if (uploaded.length) {
       let index = at;
       uploaded.forEach(item => {
-        articleQuill.insertEmbed(index, 'image', item.url, 'user');
+        quill.insertEmbed(index, 'image', item.url, 'user');
         // Quill не умеет alt из коробки — проставляем прямо в DOM редактора,
         // при сохранении он уедет вместе с картинкой (сайт делает из alt подпись).
-        const imgs = articleQuill.root.querySelectorAll(`img[src="${CSS.escape(item.url)}"]`);
+        const imgs = quill.root.querySelectorAll(`img[src="${CSS.escape(item.url)}"]`);
         const el = imgs[imgs.length - 1];
         if (el) { el.alt = item.caption; el.title = item.caption; }
         index += 1;
       });
-      articleQuill.insertText(index, '\n', 'user');
-      articleQuill.setSelection(index + 1);
+      quill.insertText(index, '\n', 'user');
+      quill.setSelection(index + 1);
       scheduleAutosave();
     }
-    closeModal();
+    closeModal2();
   }, { saveLabel: 'Вставить' });
 }
 
-function insertInternalLink() {
+function insertInternalLink(quill) {
+  quill = quill || articleQuill;
   // Выделение запоминаем до открытия модалки — по той же причине, что и в photoFlow
-  const savedRange = articleQuill.getSelection();
-  const at = savedRange ? savedRange.index : articleQuill.getLength() - 1;
+  const savedRange = quill.getSelection();
+  const at = savedRange ? savedRange.index : quill.getLength() - 1;
   const selLength = savedRange ? savedRange.length : 0;
 
   const places = checkpoints.filter(c => c.show_as_place);
@@ -880,7 +951,7 @@ function insertInternalLink() {
   ];
   if (!rows.length) { toast('Сначала добавьте места или маршруты', true); return; }
 
-  showModal('Ссылка на место или маршрут', `
+  showModal2('Ссылка на место или маршрут', `
     <div class="picker">
       <input type="text" class="picker-search" placeholder="Поиск..." oninput="filterPicker(this)">
       <div class="picker-list">
@@ -894,14 +965,14 @@ function insertInternalLink() {
     if (!picked) { toast('Выберите объект', true); return; }
     if (selLength > 0) {
       // Был выделен текст — превращаем его в ссылку, не подменяя формулировку
-      articleQuill.formatText(at, selLength, 'link', picked.value, 'user');
+      quill.formatText(at, selLength, 'link', picked.value, 'user');
     } else {
       const label = picked.dataset.label;
-      articleQuill.insertText(at, label, { link: picked.value }, 'user');
-      articleQuill.setSelection(at + label.length);
+      quill.insertText(at, label, { link: picked.value }, 'user');
+      quill.setSelection(at + label.length);
     }
     scheduleAutosave();
-    closeModal();
+    closeModal2();
   }, { saveLabel: 'Вставить ссылку' });
 }
 
@@ -1747,22 +1818,24 @@ document.addEventListener('click', (e) => {
   openConsiderEditor(quill, embed);
 });
 
-function insertMagnet() {
+function insertMagnet(quill) {
+  quill = quill || articleQuill;
   if (!magnets.length) { toast('Сначала создайте лид-магнит во вкладке «Блоки»', true); return; }
   pickEmbed('Вставить лид-магнит', magnets, m => m.name + ' — ' + m.title, (id) => {
-    const at = currentInsertIndex();
-    articleQuill.insertEmbed(at, 'magnet', { id: id }, 'user');
-    articleQuill.setSelection(at + 1);
+    const at = currentInsertIndex(quill);
+    quill.insertEmbed(at, 'magnet', { id: id }, 'user');
+    quill.setSelection(at + 1);
     scheduleAutosave();
   });
 }
 
-function insertFaqSet() {
+function insertFaqSet(quill) {
+  quill = quill || articleQuill;
   if (!faqSets.length) { toast('Сначала создайте набор вопросов во вкладке «Блоки»', true); return; }
   pickEmbed('Вставить набор вопросов', faqSets, f => f.name + ' (' + (f.items || []).length + ' вопр.)', (id) => {
-    const at = currentInsertIndex();
-    articleQuill.insertEmbed(at, 'faqset', { id: id }, 'user');
-    articleQuill.setSelection(at + 1);
+    const at = currentInsertIndex(quill);
+    quill.insertEmbed(at, 'faqset', { id: id }, 'user');
+    quill.setSelection(at + 1);
     scheduleAutosave();
   });
 }
@@ -1771,14 +1844,14 @@ function pickEmbed(title, items, labelFn, onPick) {
   const rows = items.map(it =>
     '<label class="picker-item"><input type="radio" name="embed-target" value="' + it.id + '">' +
     '<span>' + escHtml(labelFn(it)) + '</span></label>').join('');
-  showModal(title,
+  showModal2(title,
     '<div class="picker"><input type="text" class="picker-search" placeholder="Поиск..." oninput="filterPicker(this)">' +
     '<div class="picker-list">' + rows + '</div></div>',
     () => {
       const picked = document.querySelector('input[name=embed-target]:checked');
       if (!picked) { toast('Выберите блок', true); return; }
       onPick(parseInt(picked.value, 10));
-      closeModal();
+      closeModal2();
     }, { saveLabel: 'Вставить' });
 }
 
