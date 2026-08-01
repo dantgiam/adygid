@@ -224,6 +224,30 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   if (modalSaveHandler) await modalSaveHandler();
 });
 
+// ── Второе, стековое модальное окно ─────────────────────────────
+// Нужно для форм, которые открываются поверх уже открытой модалки
+// (например «Что учесть» поверх формы маршрута/места/сценария) —
+// общая модалка одна, и её нельзя переиспользовать для вложенного диалога.
+let modal2SaveHandler = null;
+
+function showModal2(title, bodyHtml, onSave, opts) {
+  opts = opts || {};
+  document.getElementById('modal2-title').textContent = title;
+  document.getElementById('modal2-body').innerHTML = bodyHtml;
+  document.getElementById('modal2-save').textContent = opts.saveLabel || 'Сохранить';
+  modal2SaveHandler = onSave;
+  document.getElementById('modal2-backdrop').hidden = false;
+}
+
+function closeModal2() {
+  document.getElementById('modal2-backdrop').hidden = true;
+  modal2SaveHandler = null;
+}
+
+document.getElementById('modal2-save').addEventListener('click', async () => {
+  if (modal2SaveHandler) await modal2SaveHandler();
+});
+
 // ── Вкладки / экраны ───────────────────────────────────────────
 // Подэкраны (редактор статьи, карта) — не отдельные вкладки: подсвечиваем
 // раздел, из которого пришли, чтобы не терялась ориентация.
@@ -324,10 +348,12 @@ function descEditorHtml(label) {
     <label>${label}</label>
     <div class="hint" style="margin:0 0 6px">Выделите текст, чтобы сделать заголовок, список или ссылку.</div>
     <div class="desc-editor-wrap"><div id="desc-editor"></div></div>
+    <button type="button" class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="insertConsiderBlock(descQuill)">+ Что учесть</button>
   </div>`;
 }
 
 function initDescEditor(html) {
+  registerEmbedBlots();
   descQuill = new Quill('#desc-editor', {
     theme: 'bubble',
     placeholder: 'Описание — что это за место, как добраться, что учесть...',
@@ -345,7 +371,9 @@ function initDescEditor(html) {
 
 function readDescEditor() {
   if (!descQuill) return null;
-  const html = descQuill.root.innerHTML.trim();
+  const clone = descQuill.root.cloneNode(true);
+  clone.querySelectorAll('.consider-embed').forEach(el => { el.innerHTML = ''; });
+  const html = clone.innerHTML.trim();
   // Пустой Quill отдаёт <p><br></p> — на сайте это лишний пустой абзац.
   return (!html || html === '<p><br></p>') ? null : html;
 }
@@ -538,6 +566,7 @@ function runInsert(kind) {
   else if (kind === 'collage') insertCollage();
   else if (kind === 'magnet') insertMagnet();
   else if (kind === 'faq') insertFaqSet();
+  else if (kind === 'consider') insertConsiderBlock(articleQuill);
   else insertInternalLink();
 }
 
@@ -593,7 +622,7 @@ function readArticleBody() {
   // В базу кладём пустые контейнеры блоков: содержимое подставляет сервер,
   // иначе в статье осела бы копия текста магнита и правки не подхватывались.
   const clone = articleQuill.root.cloneNode(true);
-  clone.querySelectorAll('.magnet-embed, .faq-embed').forEach(el => { el.innerHTML = ''; });
+  clone.querySelectorAll('.magnet-embed, .faq-embed, .consider-embed').forEach(el => { el.innerHTML = ''; });
   return clone.innerHTML;
 }
 
@@ -1476,14 +1505,6 @@ function tipRowHtml(text) {
   </div>`;
 }
 
-function addTipRow() {
-  document.getElementById('sc-tips').insertAdjacentHTML('beforeend', tipRowHtml(''));
-}
-
-function readTipRows() {
-  return Array.from(document.querySelectorAll('#sc-tips .tip-input')).map(el => el.value.trim()).filter(Boolean);
-}
-
 function multiChipsHtml(cssClass, opts, selected) {
   selected = selected || [];
   return `<div class="chips">${opts.map(o =>
@@ -1497,7 +1518,7 @@ function readMultiChips(cssClass) {
 
 function openScenarioForm(id) {
   const s = id ? scenarios.find(x => x.id === id) : null;
-  const v = s || { icon: '🧭', filter_kid_friendly: 'any', filter_seasonality: 'any', filter_popularity: [], filter_difficulty: [], filter_access: [], tips: [], is_published: true, order_index: scenarios.length };
+  const v = s || { icon: '🧭', filter_kid_friendly: 'any', filter_seasonality: 'any', filter_popularity: [], filter_difficulty: [], filter_access: [], is_published: true, order_index: scenarios.length };
 
   showModal(s ? 'Сценарий: ' + s.door : 'Новый сценарий', `
     <div class="field"><label>Иконка</label>${iconPickerHtml(v.icon)}</div>
@@ -1513,15 +1534,9 @@ function openScenarioForm(id) {
     <div class="field"><label>Ссылка страницы (slug)</label>
       <input id="sc-slug" value="${escAttr(v.slug || '')}" placeholder="сгенерируется из подписи">
     </div>
-    <div class="field"><label>Вступительный текст</label>
-      <textarea id="sc-lead" style="min-height:100px">${escHtml(v.lead || '')}</textarea>
-    </div>
+    ${descEditorHtml('Вступительный текст')}
     <div class="field"><label>Описание для поиска (SEO)</label>
       <textarea id="sc-seo">${escHtml(v.seo_description || '')}</textarea>
-    </div>
-    <div class="field"><label>Что учесть — короткие советы</label>
-      <div id="sc-tips">${(v.tips || []).map(tipRowHtml).join('')}</div>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="addTipRow()">+ Совет</button>
     </div>
     <div class="field"><label>Статьи по теме</label>
       <div id="sc-articles"></div>
@@ -1572,9 +1587,8 @@ function openScenarioForm(id) {
       hint: document.getElementById('sc-hint').value.trim() || null,
       title: document.getElementById('sc-title').value.trim(),
       slug: document.getElementById('sc-slug').value.trim() || null,
-      lead: document.getElementById('sc-lead').value.trim() || null,
+      lead: readDescEditor(),
       seo_description: document.getElementById('sc-seo').value.trim() || null,
-      tips: readTipRows(),
       featured_article_ids: readPicker('sc-articles'),
       filter_kid_friendly: document.getElementById('sc-kid').value,
       filter_seasonality: document.getElementById('sc-season').value,
@@ -1588,9 +1602,18 @@ function openScenarioForm(id) {
 
     const saved = s ? await api('PATCH', `/scenarios/${s.id}`, payload) : await api('POST', '/scenarios', payload);
     if (saved) { await loadAll(); closeModal(); toast('Сценарий сохранён'); }
-  }, { wide: true });
+  }, {
+    wide: true,
+    preview: () => openPreview(
+      'description',
+      readDescEditor() || '',
+      document.getElementById('sc-title').value.trim(),
+      'Сценарий',
+    ),
+  });
 
   document.getElementById('sc-articles').innerHTML = pickerHtml(articles, v.featured_article_ids || [], a => a.title);
+  initDescEditor(v.lead || '');
 }
 
 async function deleteScenario(id) {
@@ -1647,10 +1670,82 @@ function registerEmbedBlots() {
   FaqBlot.tagName = 'div';
   FaqBlot.className = 'faq-embed';
 
+  // «Что учесть» — в отличие от магнита и набора вопросов, не отдельная
+  // таблица: список советов лежит прямо в data-tips вставки, поэтому блок
+  // доступен в любом редакторе (статья, описание маршрута/места, сценарий),
+  // а не только там, где заведён специальный справочник.
+  class ConsiderBlot extends BlockEmbed {
+    static create(value) {
+      const node = super.create();
+      const tips = (value && value.tips) || [];
+      node.setAttribute('data-tips', JSON.stringify(tips));
+      node.setAttribute('contenteditable', 'false');
+      node.innerHTML = '<span class="embed-tag">Что учесть</span><ul>' +
+        tips.map(t => '<li>' + escHtml(t) + '</li>').join('') + '</ul>';
+      return node;
+    }
+    static value(node) {
+      try { return { tips: JSON.parse(node.getAttribute('data-tips') || '[]') }; }
+      catch (e) { return { tips: [] }; }
+    }
+  }
+  ConsiderBlot.blotName = 'consider';
+  ConsiderBlot.tagName = 'div';
+  ConsiderBlot.className = 'consider-embed';
+
   Quill.register(MagnetBlot);
   Quill.register(FaqBlot);
+  Quill.register(ConsiderBlot);
   window.__embedBlotsRegistered = true;
 }
+
+// ── «Что учесть» — локальный блок: вставка и правка через второе,
+// стековое модальное окно (обычное занято формой маршрута/места/сценария) ──
+function addTipRowIn(containerId) {
+  document.getElementById(containerId).insertAdjacentHTML('beforeend', tipRowHtml(''));
+}
+
+function readTipRowsIn(containerId) {
+  return Array.from(document.querySelectorAll('#' + containerId + ' .tip-input')).map(el => el.value.trim()).filter(Boolean);
+}
+
+function openConsiderEditor(quill, node) {
+  const existing = node ? (JSON.parse(node.getAttribute('data-tips') || '[]')) : [];
+  showModal2('Что учесть', `
+    <div class="field">
+      <div class="hint" style="margin:0 0 8px">Короткие советы — покажутся отдельным блоком прямо в этом месте текста.</div>
+      <div id="cb-tips">${(existing.length ? existing : ['']).map(tipRowHtml).join('')}</div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addTipRowIn('cb-tips')">+ Совет</button>
+    </div>
+  `, async () => {
+    const tips = readTipRowsIn('cb-tips');
+    if (!tips.length) { toast('Добавьте хотя бы один совет', true); return; }
+    if (node) {
+      const idx = quill.getIndex(Quill.find(node));
+      quill.deleteText(idx, 1, 'user');
+      quill.insertEmbed(idx, 'consider', { tips }, 'user');
+      quill.setSelection(idx + 1);
+    } else {
+      const range = quill.getSelection(true);
+      const at = range ? range.index : quill.getLength() - 1;
+      quill.insertEmbed(at, 'consider', { tips }, 'user');
+      quill.setSelection(at + 1);
+    }
+    closeModal2();
+  }, { saveLabel: node ? 'Сохранить' : 'Вставить' });
+}
+
+function insertConsiderBlock(quill) {
+  if (!quill) return;
+  openConsiderEditor(quill, null);
+}
+
+document.addEventListener('click', (e) => {
+  const embed = e.target.closest('.consider-embed');
+  if (!embed) return;
+  const quill = embed.closest('#article-editor') ? articleQuill : descQuill;
+  openConsiderEditor(quill, embed);
+});
 
 function insertMagnet() {
   if (!magnets.length) { toast('Сначала создайте лид-магнит во вкладке «Блоки»', true); return; }

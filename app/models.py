@@ -197,9 +197,8 @@ class Scenario(Base):
     door                  = Column(String(255), nullable=False)    # подпись плитки в развилке
     hint                  = Column(String(255), nullable=True)     # подзаголовок плитки
     title                 = Column(String(255), nullable=False)    # заголовок страницы сценария
-    lead                  = Column(Text, nullable=True)
+    lead                  = Column(Text, nullable=True)     # HTML из Quill-редактора в админке
     seo_description       = Column(String(500), nullable=True)
-    tips                  = Column(ARRAY(String(500)), nullable=False, default=list)
     featured_article_ids  = Column(ARRAY(Integer), nullable=False, default=list)
 
     # ── Правило отбора — см. docstring выше ──

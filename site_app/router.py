@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import re
@@ -201,6 +202,7 @@ def _render_article_gallery(html: str) -> str:
 
 _MAGNET_EMBED_RE = re.compile(r'<div[^>]*data-magnet-id="(\d+)"[^>]*>\s*</div>', re.IGNORECASE)
 _FAQ_EMBED_RE = re.compile(r'<div[^>]*data-faq-id="(\d+)"[^>]*>\s*</div>', re.IGNORECASE)
+_CONSIDER_EMBED_RE = re.compile(r'<div[^>]*data-tips="([^"]*)"[^>]*>\s*</div>', re.IGNORECASE)
 
 
 def _magnet_html(m) -> str:
@@ -254,12 +256,34 @@ def _faq_html(f) -> str:
     return f'<div class="faq-block">{title}{rows}</div>'
 
 
+def _consider_html(tips_json: str) -> str:
+    try:
+        tips = json.loads(unescape(tips_json))
+    except (ValueError, TypeError):
+        return ""
+    tips = [t for t in tips if isinstance(t, str) and t.strip()]
+    if not tips:
+        return ""
+    items = "".join(f"<li>{escape(t)}</li>" for t in tips)
+    return f'<div class="facts"><h4>Что учесть</h4><ul>{items}</ul></div>'
+
+
+def _render_consider_blocks(html: str) -> str:
+    """Разворачивает локальные вставки блока «Что учесть» — в отличие от
+    лид-магнитов и наборов вопросов, советы не хранятся отдельной таблицей,
+    их список лежит прямо в data-tips вставки (см. site_app/content.py)."""
+    if not html or "data-tips" not in html:
+        return html
+    return _CONSIDER_EMBED_RE.sub(lambda mt: _consider_html(mt.group(1)), html)
+
+
 def _render_embeds(db: Session, html: str) -> tuple[str, list]:
     """Подставляет в текст статьи содержимое вставленных блоков — лид-магнитов
     и наборов вопросов. В самой статье хранится только ссылка на id, поэтому
     правка блока в админке обновляет все статьи, где он вставлен.
     Возвращает готовый HTML и список вопросов для общей JSON-LD разметки."""
     collected_faq: list = []
+    html = _render_consider_blocks(html)
 
     magnet_ids = [int(i) for i in set(_MAGNET_EMBED_RE.findall(html))]
     if magnet_ids:
@@ -579,7 +603,7 @@ def _place_detail_dict(cp: Checkpoint) -> dict:
         "id": cp.id,
         "name": cp.name,
         "excerpt": _excerpt(cp.description, 200),
-        "description_html": _rich_text_html(cp.description),
+        "description_html": _render_consider_blocks(_rich_text_html(cp.description)),
         "cover": _cover_of(cp.photos),
         "photos": [p.url for p in cp.photos],
         "district_label": DISTRICTS.get(cp.district),
@@ -611,7 +635,7 @@ def _route_detail_dict(t: Trail) -> dict:
         "id": t.id,
         "name": t.name,
         "excerpt": _excerpt(t.description, 200),
-        "description_html": _rich_text_html(t.description),
+        "description_html": _render_consider_blocks(_rich_text_html(t.description)),
         "cover": _cover_of(t.photos),
         "district_label": DISTRICTS.get(t.district),
         "category": _category_lite(t.category),
@@ -1095,9 +1119,8 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "slug": sc.slug,
         "title": sc.title,
         "door": sc.door,
-        "lead": sc.lead or "",
-        "seo_description": sc.seo_description or sc.lead or sc.title,
-        "tips": sc.tips or [],
+        "lead": _render_consider_blocks(_rich_text_html(sc.lead)),
+        "seo_description": sc.seo_description or _excerpt(sc.lead, 200) or sc.title,
         "places": places,
         "routes": routes,
         "articles": articles,

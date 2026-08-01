@@ -80,6 +80,7 @@
               <button type="button" onclick="runInsert('link')"><span>🔗</span> Ссылка на место или маршрут</button>
               <button type="button" onclick="runInsert('magnet')"><span>🎁</span> Лид-магнит</button>
               <button type="button" onclick="runInsert('faq')"><span>❓</span> Набор вопросов</button>
+              <button type="button" onclick="runInsert('consider')"><span>☑️</span> Что учесть</button>
             </div>
             <div id="article-editor"></div>
           </div>
@@ -91,6 +92,7 @@
             <button class="btn btn-ghost btn-sm" onclick="insertInternalLink()">Ссылка на место/маршрут</button>
             <button class="btn btn-ghost btn-sm" onclick="insertMagnet()">Лид-магнит</button>
             <button class="btn btn-ghost btn-sm" onclick="insertFaqSet()">Набор вопросов</button>
+            <button class="btn btn-ghost btn-sm" onclick="insertConsiderBlock(articleQuill)">Что учесть</button>
           </div>
         </div>
       </div>
@@ -282,6 +284,22 @@
       <span class="spacer"></span>
       <button class="btn btn-ghost" onclick="closeModal()">Отмена</button>
       <button class="btn btn-primary" id="modal-save">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ МОДАЛКА №2 (поверх первой — напр. «Что учесть») ══════════════ -->
+<div class="modal-backdrop modal-backdrop-2" id="modal2-backdrop" hidden onclick="if(event.target===this) closeModal2()">
+  <div class="modal" id="modal2">
+    <div class="modal-head">
+      <h2 id="modal2-title"></h2>
+      <button class="modal-close" onclick="closeModal2()">×</button>
+    </div>
+    <div class="modal-body" id="modal2-body"></div>
+    <div class="modal-foot">
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="closeModal2()">Отмена</button>
+      <button class="btn btn-primary" id="modal2-save">Сохранить</button>
     </div>
   </div>
 </div>

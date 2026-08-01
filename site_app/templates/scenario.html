@@ -10,14 +10,7 @@
   <div class="wrap">
     <p class="eyebrow"><a href="/kuda" style="color:inherit">Куда поехать</a></p>
     <h1 class="page-title">{{ scenario.title }}</h1>
-    <p class="lede district-lead">{{ scenario.lead }}</p>
-
-    {% if scenario.tips %}
-    <div class="facts">
-      <h4>Что учесть</h4>
-      <ul>{% for tip in scenario.tips %}<li>{{ tip }}</li>{% endfor %}</ul>
-    </div>
-    {% endif %}
+    <div class="lede district-lead">{{ scenario.lead | safe }}</div>
   </div>
 </section>
 

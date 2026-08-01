@@ -3,6 +3,25 @@
 Список типов мест/маршрутов не здесь: он живёт в таблице categories
 (is_public=True) и наполняется через админку.
 """
+import json
+from html import escape
+
+# Формат вставки блока «Что учесть» — общий контракт между редактором Quill
+# в админке (registerEmbedBlots/ConsiderBlot, static/admin.js) и рендером на
+# сайте (site_app/router.py:_render_consider_blocks). Блок локальный: список
+# советов лежит прямо в data-tips вставки, а не в отдельной таблице —
+# в отличие от лид-магнитов и наборов вопросов, советы не переиспользуются
+# между страницами.
+CONSIDER_EMBED_CLASS = "consider-embed"
+
+
+def consider_embed_html(tips: list) -> str:
+    """Строит HTML вставки блока «Что учесть» из списка строк-советов."""
+    clean = [t.strip() for t in tips if t and t.strip()]
+    if not clean:
+        return ""
+    tips_json = json.dumps(clean, ensure_ascii=False)
+    return f'<div class="{CONSIDER_EMBED_CLASS}" data-tips="{escape(tips_json, quote=True)}"></div>'
 
 # Приглашение в клуб — одно место на весь сайт (страница /klub и подвал)
 CLUB_URL = "https://max.ru/join/lD0a7i8ZLdumBK9nL8Gg_pdRN3Ihp3AerdskCRb2TpY"
