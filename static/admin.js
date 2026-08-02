@@ -2103,7 +2103,7 @@ function openSitePageForm(slug) {
     };
     const saved = await api('PATCH', `/site-pages/${slug}`, payload);
     if (saved) { await loadAll(); closeModal(); toast('Сохранено'); }
-  });
+  }, { wide: true });
 }
 
 function renderBlocks() {
