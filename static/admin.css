@@ -418,24 +418,23 @@ a { color: var(--accent); }
 /* Живой предпросмотр блока в форме */
 .block-preview { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: var(--bg); }
 .preview-warn { font-size: 13px; color: #96591B; background: #FFF4E5; border: 1px solid #F5DDBB; border-radius: 8px; padding: 10px 12px; }
-.pv-magnet { border: 1px solid #EDE0C0; border-radius: 14px; overflow: hidden; }
-.pv-top { display: flex; gap: 14px; align-items: center; padding: 16px 18px; background: #FBEFD9; }
-.pv-gift { flex: none; width: 52px; height: auto; }
+.pv-magnet { display: flex; flex-direction: column; gap: 8px; }
+.pv-top { display: flex; gap: 14px; align-items: center; padding: 14px 16px; background: #FBF0D8; border-radius: 12px; }
+.pv-gift { flex: none; width: 68px; height: auto; }
 .pv-title { font-weight: 800; font-size: 15px; margin-bottom: 4px; color: #14170F; }
-.pv-text { font-weight: 700; font-size: 13px; color: #262B20; }
-.pv-cta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 12px 18px; background: #F1F97E; }
-.pv-cta-copy { display: flex; flex-direction: column; line-height: 1.2; }
+.pv-text { font-weight: 700; font-size: 13px; color: #262B20; text-align: center; }
+.pv-cta { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 10px 16px; background: #FBFF8F; border-radius: 12px; }
+.pv-cta-copy { display: flex; flex-direction: column; line-height: 1.15; }
 .pv-kicker { font-size: 12px; color: #262B20; }
-.pv-btn { font-weight: 800; font-size: 16px; color: #14170F; }
+.pv-btn { font-weight: 800; font-size: 18px; color: #14170F; }
 .pv-note { font-size: 11px; color: #4B5230; margin-top: 3px; }
 .pv-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pv-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 5px; border-radius: 999px; background: #fff; font-size: 12px; font-weight: 700; border: 1.5px solid rgba(28, 35, 28, .1); }
+.pv-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 5px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1.5px solid transparent; }
 .pv-pill img { width: 20px; height: 20px; object-fit: cover; }
-.pv-pill-tg { background: #E4F3FD; border-color: #B9E1FA; }
+.pv-pill-tg { background: #E7F4FC; border-color: #6EC3EE; }
 .pv-pill-tg img { border-radius: 50%; }
 .pv-pill-max {
-  border-color: transparent;
-  background-image: linear-gradient(#fff, #fff), linear-gradient(120deg, #6E7BF2, #B36EF2, #4FA9F5);
+  background-image: linear-gradient(#F6EFFE, #F6EFFE), linear-gradient(120deg, #6E7BF2, #B36EF2, #4FA9F5);
   background-origin: border-box; background-clip: padding-box, border-box;
 }
 .pv-faq h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-bottom: 10px; }

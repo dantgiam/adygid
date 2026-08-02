@@ -588,45 +588,51 @@ h1.article-title {
 .wizard-form .btn { width: 100%; }
 
 /* ── Лид-магнит внутри статьи ─────────────────────
-   Двухъярусная карточка вплотную к референсу: сверху приманка (иконка
-   подарка, заголовок, текст) на тёплом кремовом фоне, снизу — салатовая
-   CTA-полоса с кнопками мессенджеров, видимыми сразу, без скрытого выбора
-   за один лишний клик. Иконки — настоящие картинки (gift/tg/max), не эмодзи. ── */
-.magnet {
-  margin: 36px 0; border-radius: 18px; overflow: hidden;
-  border: 1px solid #EDE0C0; font-family: var(--font-body);
+   Пиксельно по референсу (lid.png — цвета и пропорции сняты напрямую из
+   картинки скриптом): ДВЕ отдельные скруглённые панели с зазором между
+   ними (не одна общая рамка), сверху — крупная иконка подарка почти во всю
+   высоту панели, снизу — салатовая CTA-полоса с кнопками мессенджеров,
+   видимыми сразу. Иконки — настоящие картинки (gift/tg/max), не эмодзи. ── */
+.magnet { margin: 36px 0; display: flex; flex-direction: column; gap: 14px; font-family: var(--font-body); }
+
+.magnet-top {
+  display: flex; gap: 24px; align-items: center; padding: 20px 28px;
+  background: #FBF0D8; border-radius: 16px;
 }
-.magnet-top { display: flex; gap: 22px; align-items: center; padding: 26px 30px; background: #FBEFD9; }
-.magnet-gift { flex: none; width: 88px; height: auto; }
+.magnet-gift { flex: none; width: 128px; height: auto; }
 .magnet-copy { min-width: 0; }
-.magnet-title { font-weight: 800; font-size: 23px; line-height: 1.25; margin: 0 0 8px; color: #14170F; }
-.magnet-text { font-weight: 700; font-size: 15.5px; line-height: 1.4; color: #262B20; margin: 0; max-width: 56ch; }
+.magnet-title { font-weight: 800; font-size: 26px; line-height: 1.25; margin: 0 0 8px; color: #14170F; }
+.magnet-text {
+  font-weight: 700; font-size: 16px; line-height: 1.4; color: #262B20;
+  margin: 0; max-width: 46ch; text-align: center;
+}
 
 .magnet-cta {
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
-  padding: 18px 30px; background: #F1F97E;
+  padding: 14px 28px; background: #FBFF8F; border-radius: 16px;
 }
-.magnet-cta-copy { display: flex; flex-direction: column; line-height: 1.2; }
-.magnet-cta-kicker { font-size: 15px; color: #262B20; }
-.magnet-cta-text { font-weight: 800; font-size: 26px; color: #14170F; }
+.magnet-cta-copy { display: flex; flex-direction: column; line-height: 1.15; }
+.magnet-cta-kicker { font-size: 17px; color: #262B20; }
+.magnet-cta-text { font-weight: 800; font-size: 32px; color: #14170F; }
 .magnet-note { font-size: 12px; color: #4B5230; margin: 4px 0 0; }
-.magnet-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.magnet-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 .magnet-pill {
   display: inline-flex; align-items: center; gap: 9px; padding: 8px 18px 8px 8px;
-  border-radius: 999px; font-weight: 700; font-size: 14.5px; color: #14170F; background: #fff;
-  border: 1.5px solid rgba(28, 35, 28, .1); transition: transform .12s ease, box-shadow .12s ease;
+  border-radius: 999px; font-weight: 700; font-size: 14.5px; color: #14170F;
+  border: 1.5px solid transparent; transition: transform .12s ease, box-shadow .12s ease;
 }
 .magnet-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28, 35, 28, .16); }
 .magnet-pill img { width: 26px; height: 26px; object-fit: cover; flex: none; }
-.magnet-pill-tg { background: #E4F3FD; border-color: #B9E1FA; }
+.magnet-pill-tg { background: #E7F4FC; border-color: #6EC3EE; }
 .magnet-pill-tg img { border-radius: 50%; } /* jpg-иконка — квадратная, кадрируем в круг */
 .magnet-pill-max {
-  border-color: transparent;
-  background-image: linear-gradient(#fff, #fff), linear-gradient(120deg, #6E7BF2, #B36EF2, #4FA9F5);
+  background-image: linear-gradient(#F6EFFE, #F6EFFE), linear-gradient(120deg, #6E7BF2, #B36EF2, #4FA9F5);
   background-origin: border-box; background-clip: padding-box, border-box;
 }
 @media (max-width: 560px) {
-  .magnet-top { flex-direction: column; align-items: flex-start; }
+  .magnet-top { flex-direction: column; align-items: flex-start; text-align: left; }
+  .magnet-gift { width: 92px; }
+  .magnet-text { text-align: left; }
   .magnet-cta { flex-direction: column; align-items: flex-start; }
 }
 
