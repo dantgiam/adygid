@@ -1888,8 +1888,12 @@ document.addEventListener('click', (e) => {
 function insertMagnet(quill) {
   quill = quill || articleQuill;
   if (!magnets.length) { toast('Сначала создайте лид-магнит во вкладке «Блоки»', true); return; }
+  // Позицию курсора запоминаем ДО открытия диалога выбора — так же, как в
+  // photoFlow/insertInternalLink. Иначе к моменту клика по варианту в модалке
+  // редактор уже потерял фокус, getSelection() отдаёт null, и вставка вместо
+  // места курсора уезжает в конец текста.
+  const at = currentInsertIndex(quill);
   pickEmbed('Вставить лид-магнит', magnets, m => m.name + ' — ' + m.title, (id) => {
-    const at = currentInsertIndex(quill);
     quill.insertEmbed(at, 'magnet', { id: id }, 'user');
     quill.setSelection(at + 1);
     scheduleAutosave();
@@ -1899,8 +1903,8 @@ function insertMagnet(quill) {
 function insertFaqSet(quill) {
   quill = quill || articleQuill;
   if (!faqSets.length) { toast('Сначала создайте набор вопросов во вкладке «Блоки»', true); return; }
+  const at = currentInsertIndex(quill);
   pickEmbed('Вставить набор вопросов', faqSets, f => f.name + ' (' + (f.items || []).length + ' вопр.)', (id) => {
-    const at = currentInsertIndex(quill);
     quill.insertEmbed(at, 'faqset', { id: id }, 'user');
     quill.setSelection(at + 1);
     scheduleAutosave();

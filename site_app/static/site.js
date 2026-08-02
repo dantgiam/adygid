@@ -255,6 +255,33 @@ document.querySelectorAll(".like-btn").forEach((btn) => {
   });
 });
 
+// ── Оглавление статьи — подсветка раздела, который читают прямо сейчас ────
+(() => {
+  const headings = Array.from(document.querySelectorAll(".article-toc nav a"))
+    .map((link) => ({ link, el: document.getElementById(link.getAttribute("href").slice(1)) }))
+    .filter((item) => item.el);
+  if (!headings.length) return;
+
+  let queued = false;
+  const update = () => {
+    queued = false;
+    // Порог чуть ниже верха экрана — заголовок считается «текущим», как
+    // только подойдёт к этой линии, а не когда упрётся в самый верх.
+    const threshold = 130;
+    let current = headings[0];
+    for (const item of headings) {
+      if (item.el.getBoundingClientRect().top - threshold <= 0) current = item;
+    }
+    headings.forEach((item) => item.link.classList.toggle("active", item === current));
+  };
+  document.addEventListener("scroll", () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(update);
+  }, { passive: true });
+  update();
+})();
+
 // ── Попап с расшифровкой уровней сложности ────────────────────────────────
 document.addEventListener("click", (e) => {
   const infoBtn = e.target.closest(".diff-info-btn");
