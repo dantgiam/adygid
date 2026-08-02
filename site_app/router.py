@@ -224,7 +224,7 @@ def _magnet_html(m) -> str:
     а не скрытый выбор за <details>, как было раньше. Иконки — настоящие
     картинки из site_app/static (magnet-gift/tg/max), не эмодзи и не SVG."""
     links = [(u, label, cls, src) for u, label, cls, src in (
-        (m.telegram_url, "Telegram", "magnet-pill-tg", "/assets/magnet-tg.jpg"),
+        (m.telegram_url, "Telegram", "magnet-pill-tg", "/assets/magnet-tg.png"),
         (m.max_url, "MAX", "magnet-pill-max", "/assets/magnet-max.png"),
     ) if u]
     if not links:
@@ -246,7 +246,7 @@ def _magnet_html(m) -> str:
         '</div>'
         '<div class="magnet-cta">'
         '<div class="magnet-cta-copy"><span class="magnet-cta-kicker">Забирайте</span>'
-        f'<span class="magnet-cta-text">{escape(m.button_text)}</span>{note_html}</div>'
+        f'<span class="magnet-cta-text">Бесплатно</span>{note_html}</div>'
         f'<div class="magnet-actions">{pills}</div>'
         '</div>'
         '</aside>'

@@ -2159,7 +2159,6 @@ function renderMagnetPreview() {
   if (!el) return;
   const title = document.getElementById('mg-title').value.trim();
   const text = document.getElementById('mg-text').value.trim();
-  const btn = document.getElementById('mg-btn').value.trim() || 'Забрать в клубе';
   const note = document.getElementById('mg-note').value.trim();
   const tg = document.getElementById('mg-tg').value.trim();
   const max = document.getElementById('mg-max').value.trim();
@@ -2169,7 +2168,7 @@ function renderMagnetPreview() {
     return;
   }
   const pills =
-    (tg ? '<span class="pv-pill pv-pill-tg"><img src="/assets/magnet-tg.jpg" alt=""><span>Telegram</span></span>' : '') +
+    (tg ? '<span class="pv-pill pv-pill-tg"><img src="/assets/magnet-tg.png" alt=""><span>Telegram</span></span>' : '') +
     (max ? '<span class="pv-pill pv-pill-max"><img src="/assets/magnet-max.png" alt=""><span>MAX</span></span>' : '');
 
   el.innerHTML =
@@ -2178,7 +2177,7 @@ function renderMagnetPreview() {
         '<p class="pv-title">' + escHtml(title || 'Заголовок-приманка') + '</p>' +
         (text ? '<p class="pv-text">' + escHtml(text) + '</p>' : '') +
       '</div></div>' +
-      '<div class="pv-cta"><div class="pv-cta-copy"><span class="pv-kicker">Забирайте</span><span class="pv-btn">' + escHtml(btn) + '</span>' +
+      '<div class="pv-cta"><div class="pv-cta-copy"><span class="pv-kicker">Забирайте</span><span class="pv-btn">Бесплатно</span>' +
         (note ? '<p class="pv-note">' + escHtml(note) + '</p>' : '') +
       '</div><div class="pv-actions">' + pills + '</div></div>' +
     '</div>';
