@@ -39,11 +39,12 @@ YANDEX_METRIKA_ID = os.getenv("YANDEX_METRIKA_ID", "").strip()
 
 
 def _asset_version() -> str:
-    """Стили и скрипты отдаются с недельным кэшем, поэтому в ссылку добавляем
-    метку версии: после правки файла адрес меняется, и браузер забирает новую
-    версию сразу, а не через неделю."""
+    """Стили, скрипты и картинки лид-магнита отдаются с недельным кэшем,
+    поэтому в ссылку добавляем метку версии: после правки файла адрес
+    меняется, и браузер забирает новую версию сразу, а не через неделю."""
     stamp = 0
-    for name in ("site.css", "site.js"):
+    names = ["site.css", "site.js", "magnet-gift.png", "magnet-tg.png", "magnet-max.png"]
+    for name in names:
         try:
             stamp = max(stamp, int(os.path.getmtime(os.path.join("site_app", "static", name))))
         except OSError:
@@ -224,8 +225,8 @@ def _magnet_html(m) -> str:
     а не скрытый выбор за <details>, как было раньше. Иконки — настоящие
     картинки из site_app/static (magnet-gift/tg/max), не эмодзи и не SVG."""
     links = [(u, label, cls, src) for u, label, cls, src in (
-        (m.telegram_url, "Telegram", "magnet-pill-tg", "/assets/magnet-tg.png"),
-        (m.max_url, "MAX", "magnet-pill-max", "/assets/magnet-max.png"),
+        (m.telegram_url, "Telegram", "magnet-pill-tg", f"/assets/magnet-tg.png?v={ASSET_VERSION}"),
+        (m.max_url, "MAX", "magnet-pill-max", f"/assets/magnet-max.png?v={ASSET_VERSION}"),
     ) if u]
     if not links:
         return ""   # кнопка в никуда — лучше не показывать блок вовсе
@@ -241,7 +242,7 @@ def _magnet_html(m) -> str:
     return (
         '<aside class="magnet">'
         '<div class="magnet-top">'
-        '<img class="magnet-gift" src="/assets/magnet-gift.png" alt="" loading="lazy">'
+        f'<img class="magnet-gift" src="/assets/magnet-gift.png?v={ASSET_VERSION}" alt="" loading="lazy">'
         f'<div class="magnet-copy"><p class="magnet-title">{escape(m.title)}</p>{text_html}</div>'
         '</div>'
         '<div class="magnet-cta">'

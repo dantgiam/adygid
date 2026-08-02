@@ -7,6 +7,12 @@
    а не висит фоном под всеми формами.
    ═══════════════════════════════════════════════════════════════ */
 
+// Картинки лид-магнита отдаются с недельным кэшем (см. main.py) — без метки
+// версии админ мог бы менять файл и не видеть разницы в предпросмотре,
+// пока не протухнет кэш браузера. Одна метка на загрузку страницы, а не на
+// каждую перерисовку — иначе каждая буква в поле заново качала бы картинку.
+const ADMIN_ASSET_BUST = Date.now();
+
 // ── Справочники ────────────────────────────────────────────────
 const DIFFICULTY_OPTS = [
   { code: 'easy',    label: 'Лёгкая' },
@@ -257,6 +263,7 @@ const TAB_OF_VIEW = {
   'route-editor': 'routes',
   'route-map': 'routes',
   'place-map': 'places',
+  'place-editor': 'places',
   'scenario-editor': 'scenarios',
 };
 
@@ -269,8 +276,8 @@ const TAB_OF_VIEW = {
 // нужно явно убрать его копию из всех остальных мест — иначе на странице
 // одновременно окажутся два элемента с одним id, и getElementById достанет
 // не тот. ──
-const DESC_EDITOR_SLOTS = ['sc-desc-slot', 'rt-desc-slot', 'modal-body'];
-const CRITERIA_SLOTS = ['rt-criteria-slot', 'modal-body'];
+const DESC_EDITOR_SLOTS = ['sc-desc-slot', 'rt-desc-slot', 'pl-desc-slot', 'modal-body'];
+const CRITERIA_SLOTS = ['rt-criteria-slot', 'pl-criteria-slot', 'modal-body'];
 
 function releaseSlots(slotIds, exceptId) {
   slotIds.forEach(id => {
@@ -371,7 +378,7 @@ async function deleteCategory(id) {
 // стековой модалке (showModal2) — общая модалка тут уже занята формой
 // маршрута/места/сценария.
 function descEditorHtml(label) {
-  return `<div class="field">
+  return `<div class="field desc-field">
     <label>${label}</label>
     <div class="hint" style="margin:0 0 6px">Выделите текст, чтобы сделать заголовок, список или ссылку.</div>
     <div class="desc-editor-wrap">
@@ -1420,15 +1427,30 @@ async function deletePoint(id) {
   await refreshActiveTrail();
 }
 
-// ── Форма точки / места ────────────────────────────────────────
+// ── Редактор точки / места ─────────────────────────────────────
+// Такая же полноэкранная вкладка, как у статьи, маршрута и сценария: описание
+// места — полноценный текст со вставками, и набирать его в модалке на треть
+// экрана неудобно.
+let editingPlaceId = null;
+let placeCreating = null;    // {lat, lon, atIndex, standalone} для новой точки
+let placeDraftScope = null;
+// Куда вернуться по «Назад» и после сохранения: точку заводят и из списка
+// мест, и с карты маршрута — возвращать надо туда, откуда пришли.
+let placeReturnView = 'places';
+
 function openPointForm(id, creating) {
-  releaseSlots(DESC_EDITOR_SLOTS, 'modal-body');
-  releaseSlots(CRITERIA_SLOTS, 'modal-body');
+  releaseSlots(DESC_EDITOR_SLOTS, 'pl-desc-slot');
+  releaseSlots(CRITERIA_SLOTS, 'pl-criteria-slot');
   const c = id ? checkpoints.find(x => x.id === id) : null;
   const v = c || {};
   const inTrail = creating ? !!activeTrail : !!(c && c.trail_id);
   const showAsPlace = c ? c.show_as_place : !inTrail;
-  const draftScope = 'place:' + (c ? c.id : 'new');
+
+  editingPlaceId = c ? c.id : null;
+  placeCreating = c ? null : creating;
+  placeDraftScope = 'place:' + (c ? c.id : 'new');
+  placeReturnView = document.getElementById('view-route-map').classList.contains('active')
+    ? 'route-map' : 'places';
 
   const publishExtra = inTrail ? `
     <label class="toggle" style="margin-top:4px">
@@ -1439,73 +1461,89 @@ function openPointForm(id, creating) {
       </span>
     </label>` : '';
 
-  showModal(c ? 'Точка маршрута' : 'Новая точка', `
-    <div class="field"><label>Название</label>
-      <input id="p-name" value="${escAttr(v.name || '')}" placeholder="Водопад Шум">
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Категория</label>
-        <select id="p-category">${categoryOptionsHtml('checkpoint', v.category_id)}</select>
-      </div>
-      <div class="field"><label>Время осмотра (минут)</label>
-        <input id="p-duration" type="number" min="0" value="${v.duration_minutes || ''}" placeholder="30">
-      </div>
-    </div>
-    ${descEditorHtml('Описание')}
-    ${criteriaHtml(v, { extraPublishHtml: publishExtra })}
-  `, async () => {
-    const payload = Object.assign({
-      name: document.getElementById('p-name').value.trim(),
-      category_id: parseInt(document.getElementById('p-category').value, 10) || null,
-      duration_minutes: parseInt(document.getElementById('p-duration').value, 10) || null,
-      description: readDescEditor(),
-    }, readCriteria());
+  showTab('place-editor');
+  document.getElementById('pl-name').value = v.name || '';
+  document.getElementById('pl-category').innerHTML = categoryOptionsHtml('checkpoint', v.category_id);
+  document.getElementById('pl-duration').value = v.duration_minutes || '';
+  document.getElementById('pl-desc-slot').innerHTML = descEditorHtml('Описание');
+  document.getElementById('pl-criteria-slot').innerHTML = criteriaHtml(v, { extraPublishHtml: publishExtra });
+  document.getElementById('pl-map-hint').style.display = inTrail ? '' : 'none';
 
-    const toggleEl = document.getElementById('m-show-place');
-    if (toggleEl) payload.show_as_place = toggleEl.checked;
+  initDescEditor(v.description || '', placeDraftScope);
+  autoGrow(document.getElementById('pl-name'));
+  setSaveState('', false, 'pl-save-state');
+}
 
-    if (!payload.name) { toast('Введите название', true); return; }
+function closePlaceEditor() {
+  showTab(placeReturnView);
+  editingPlaceId = null;
+  placeCreating = null;
+}
 
-    let saved;
-    if (c) {
-      saved = await api('PATCH', `/checkpoints/${c.id}`, payload);
-    } else {
-      payload.lat = creating.lat;
-      payload.lon = creating.lon;
-      payload.trail_id = creating.standalone ? null : (activeTrail ? activeTrail.id : null);
-      if (creating.standalone) payload.show_as_place = true;
-      payload.order_index = activeTrail ? activeTrail.checkpoints.length : 0;
-      saved = await api('POST', '/checkpoints', payload);
+function previewPlace() {
+  openPreview(
+    'description',
+    readDescEditor() || '',
+    document.getElementById('pl-name').value.trim(),
+    'Место',
+  );
+}
 
-      // Вставка в середину: создаём в конце, потом двигаем на нужное место.
-      if (saved && creating.atIndex !== null && creating.atIndex !== undefined && activeTrail) {
-        const ordered = [...activeTrail.checkpoints].sort((a, b) => a.order_index - b.order_index).map(x => x.id);
-        ordered.splice(creating.atIndex, 0, saved.id);
-        await api('PATCH', `/trails/${activeTrail.id}/checkpoints/order`, { ids: ordered });
-      }
+function schedulePlaceAutosave() {
+  if (!document.getElementById('view-place-editor').classList.contains('active')) return;
+  setSaveState('Изменения не сохранены', false, 'pl-save-state');
+}
+
+async function savePlace() {
+  const payload = Object.assign({
+    name: document.getElementById('pl-name').value.trim(),
+    category_id: parseInt(document.getElementById('pl-category').value, 10) || null,
+    duration_minutes: parseInt(document.getElementById('pl-duration').value, 10) || null,
+    description: readDescEditor(),
+  }, readCriteria());
+
+  const toggleEl = document.getElementById('m-show-place');
+  if (toggleEl) payload.show_as_place = toggleEl.checked;
+
+  if (!payload.name) { toast('Введите название', true); return; }
+
+  const creating = placeCreating;
+  let saved;
+  if (editingPlaceId) {
+    saved = await api('PATCH', `/checkpoints/${editingPlaceId}`, payload);
+  } else {
+    payload.lat = creating.lat;
+    payload.lon = creating.lon;
+    payload.trail_id = creating.standalone ? null : (activeTrail ? activeTrail.id : null);
+    if (creating.standalone) payload.show_as_place = true;
+    payload.order_index = activeTrail ? activeTrail.checkpoints.length : 0;
+    saved = await api('POST', '/checkpoints', payload);
+
+    // Вставка в середину: создаём в конце, потом двигаем на нужное место.
+    if (saved && creating.atIndex !== null && creating.atIndex !== undefined && activeTrail) {
+      const ordered = [...activeTrail.checkpoints].sort((a, b) => a.order_index - b.order_index).map(x => x.id);
+      ordered.splice(creating.atIndex, 0, saved.id);
+      await api('PATCH', `/trails/${activeTrail.id}/checkpoints/order`, { ids: ordered });
     }
+  }
+  if (!saved) return;
 
-    if (saved) {
-      clearDescDraft(draftScope);
-      closeModal();
-      toast('Сохранено');
-      if (activeTrail && document.getElementById('view-route-map').classList.contains('active')) {
-        await refreshActiveTrail();
-      } else {
-        await loadAll();
-        renderPlaces();
-      }
-    }
-  }, {
-    wide: true,
-    preview: () => openPreview(
-      'description',
-      readDescEditor() || '',
-      document.getElementById('p-name').value.trim(),
-      'Место',
-    ),
-  });
-  initDescEditor(v.description || '', draftScope);
+  clearDescDraft(placeDraftScope);
+  const wasNew = !editingPlaceId;
+  editingPlaceId = saved.id;
+  placeCreating = null;
+  placeDraftScope = 'place:' + saved.id;
+  toast('Сохранено');
+
+  if (activeTrail && placeReturnView === 'route-map') {
+    await refreshActiveTrail();
+    // Новую точку ставят с карты и обычно ставят следующую — возвращаем туда.
+    if (wasNew) { closePlaceEditor(); return; }
+  } else {
+    await loadAll();
+    renderPlaces();
+  }
+  setSaveState('Сохранено на сервере', true, 'pl-save-state');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2168,12 +2206,12 @@ function renderMagnetPreview() {
     return;
   }
   const pills =
-    (tg ? '<span class="pv-pill pv-pill-tg"><img src="/assets/magnet-tg.png" alt=""><span>Telegram</span></span>' : '') +
-    (max ? '<span class="pv-pill pv-pill-max"><img src="/assets/magnet-max.png" alt=""><span>MAX</span></span>' : '');
+    (tg ? '<span class="pv-pill pv-pill-tg"><img src="/assets/magnet-tg.png?v=' + ADMIN_ASSET_BUST + '" alt=""><span>Telegram</span></span>' : '') +
+    (max ? '<span class="pv-pill pv-pill-max"><img src="/assets/magnet-max.png?v=' + ADMIN_ASSET_BUST + '" alt=""><span>MAX</span></span>' : '');
 
   el.innerHTML =
     '<div class="pv-magnet">' +
-      '<div class="pv-top"><img class="pv-gift" src="/assets/magnet-gift.png" alt=""><div>' +
+      '<div class="pv-top"><img class="pv-gift" src="/assets/magnet-gift.png?v=' + ADMIN_ASSET_BUST + '" alt=""><div>' +
         '<p class="pv-title">' + escHtml(title || 'Заголовок-приманка') + '</p>' +
         (text ? '<p class="pv-text">' + escHtml(text) + '</p>' : '') +
       '</div></div>' +
