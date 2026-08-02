@@ -373,26 +373,24 @@ h1.article-title {
 .door-arrow { color: var(--accent); font-size: 18px; flex: none; transition: transform .15s ease; }
 .door:hover .door-arrow { transform: translateX(3px); }
 
-/* Плитка сценария с обложкой — тот же .door, но с фото вместо ряда с эмодзи.
-   Пока обложка не загружена в админке, сценарий продолжает показываться
+/* Плитка сценария с обложкой — тот же .door, но вертикальная фотокарточка
+   вместо ряда с эмодзи. Фото своё, отдельное от шапки страницы сценария
+   (та — горизонтальная, для плитки нужен свой вертикальный кадр). Пока
+   обложка плитки не загружена в админке, сценарий продолжает показываться
    обычным рядом (правило выше) — сетка не ждёт, пока все фото будут готовы. */
 .door-photo {
-  position: relative; overflow: hidden; min-height: 210px;
+  position: relative; overflow: hidden; aspect-ratio: 4 / 5;
   background-size: cover; background-position: center; border: none; padding: 0;
+  box-shadow: var(--shadow);
 }
 .door-photo:hover { border-color: transparent; }
 .door-photo-veil {
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(10, 14, 8, 0) 42%, rgba(8, 12, 6, .85) 100%);
+  background: linear-gradient(180deg, rgba(8, 12, 6, 0) 28%, rgba(6, 10, 5, .55) 60%, rgba(4, 7, 3, .92) 100%);
 }
-.door-photo-badge {
-  position: absolute; top: 14px; left: 14px; width: 34px; height: 34px;
-  display: flex; align-items: center; justify-content: center; font-size: 18px;
-  background: rgba(255, 255, 255, .2); backdrop-filter: blur(6px); border-radius: 8px;
-}
-.door-photo .door-main { position: absolute; left: 18px; right: 18px; bottom: 16px; flex: none; }
-.door-photo .door-title { color: #fff; }
-.door-photo .door-hint { color: rgba(255, 255, 255, .85); }
+.door-photo .door-main { position: absolute; left: 20px; right: 20px; bottom: 18px; flex: none; }
+.door-photo .door-title { color: #fff; font-size: 21px; text-shadow: 0 1px 10px rgba(0, 0, 0, .35); }
+.door-photo .door-hint { color: rgba(255, 255, 255, .9); text-shadow: 0 1px 8px rgba(0, 0, 0, .3); margin-top: 4px; }
 
 /* ── Переход в клуб ───────────────────────────────*/
 .club-cta-section { padding: 32px 0; }
@@ -563,33 +561,47 @@ h1.article-title {
 .wizard-form .btn { width: 100%; }
 
 /* ── Лид-магнит внутри статьи ─────────────────────
-   Двухъярусная карточка: сверху приманка (иконка, заголовок, текст) на
-   тёплом кремовом фоне, снизу — яркая CTA-полоса с кнопками мессенджеров,
-   видимыми сразу, без скрытого выбора за один лишний клик. ── */
+   Двухъярусная карточка вплотную к референсу: сверху приманка (иконка
+   подарка, заголовок, текст) на тёплом кремовом фоне, снизу — салатовая
+   CTA-полоса с кнопками мессенджеров, видимыми сразу, без скрытого выбора
+   за один лишний клик. Иконки — настоящие картинки (gift/tg/max), не эмодзи. ── */
 .magnet {
-  margin: 36px 0; border-radius: var(--radius); overflow: hidden;
-  border: 1px solid #EBD9A8; font-family: var(--font-body);
+  margin: 36px 0; border-radius: 18px; overflow: hidden;
+  border: 1px solid #EDE0C0; font-family: var(--font-body);
 }
-.magnet-top { display: flex; gap: 18px; align-items: flex-start; padding: 22px 24px; background: var(--gold-soft); }
-.magnet-gift { flex: none; font-size: 40px; line-height: 1; }
+.magnet-top { display: flex; gap: 22px; align-items: center; padding: 26px 30px; background: #FBEFD9; }
+.magnet-gift { flex: none; width: 88px; height: auto; }
 .magnet-copy { min-width: 0; }
-.magnet-title { font-weight: 700; font-size: 18px; margin: 0 0 6px; color: var(--text); }
-.magnet-text { font-size: 15px; color: var(--text); margin: 0; max-width: 56ch; }
+.magnet-title { font-weight: 800; font-size: 23px; line-height: 1.25; margin: 0 0 8px; color: #14170F; }
+.magnet-text { font-weight: 700; font-size: 15.5px; line-height: 1.4; color: #262B20; margin: 0; max-width: 56ch; }
 
 .magnet-cta {
-  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
-  padding: 16px 24px; background: #E3EE6B;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+  padding: 18px 30px; background: #F1F97E;
 }
-.magnet-cta-text { font-weight: 700; font-size: 17px; color: #1C231C; }
-.magnet-note { font-size: 12.5px; color: #4B5230; margin: 2px 0 0; }
+.magnet-cta-copy { display: flex; flex-direction: column; line-height: 1.2; }
+.magnet-cta-kicker { font-size: 15px; color: #262B20; }
+.magnet-cta-text { font-weight: 800; font-size: 26px; color: #14170F; }
+.magnet-note { font-size: 12px; color: #4B5230; margin: 4px 0 0; }
 .magnet-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .magnet-pill {
-  display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px 8px 8px;
-  border-radius: 999px; font-weight: 600; font-size: 14px; color: #1C231C; background: #fff;
-  border: 1px solid rgba(28, 35, 28, .12); transition: transform .12s ease, box-shadow .12s ease;
+  display: inline-flex; align-items: center; gap: 9px; padding: 8px 18px 8px 8px;
+  border-radius: 999px; font-weight: 700; font-size: 14.5px; color: #14170F; background: #fff;
+  border: 1.5px solid rgba(28, 35, 28, .1); transition: transform .12s ease, box-shadow .12s ease;
 }
-.magnet-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28, 35, 28, .14); }
-.magnet-pill svg { width: 24px; height: 24px; flex: none; }
+.magnet-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28, 35, 28, .16); }
+.magnet-pill img { width: 26px; height: 26px; object-fit: cover; flex: none; }
+.magnet-pill-tg { background: #E4F3FD; border-color: #B9E1FA; }
+.magnet-pill-tg img { border-radius: 50%; } /* jpg-иконка — квадратная, кадрируем в круг */
+.magnet-pill-max {
+  border-color: transparent;
+  background-image: linear-gradient(#fff, #fff), linear-gradient(120deg, #6E7BF2, #B36EF2, #4FA9F5);
+  background-origin: border-box; background-clip: padding-box, border-box;
+}
+@media (max-width: 560px) {
+  .magnet-top { flex-direction: column; align-items: flex-start; }
+  .magnet-cta { flex-direction: column; align-items: flex-start; }
+}
 
 /* ── FAQ-блок: аккордеон ──────────────────────────*/
 .faq-page-block { margin-bottom: 36px; max-width: 68ch; }

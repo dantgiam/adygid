@@ -205,29 +205,15 @@ _FAQ_EMBED_RE = re.compile(r'<div[^>]*data-faq-id="(\d+)"[^>]*>\s*</div>', re.IG
 _CONSIDER_EMBED_RE = re.compile(r'<div[^>]*data-tips="([^"]*)"[^>]*>\s*</div>', re.IGNORECASE)
 
 
-_MAGNET_GIFT_ICON = "🎁"
-
-_MAGNET_TG_ICON = (
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#29A9EA"/>'
-    '<path d="M17.6 7.2 15.9 16c-.13.6-.48.74-.97.46l-2.68-1.98-1.29 1.24c-.14.14-.26.26-.54.26l.19-2.73 '
-    '4.97-4.49c.22-.19-.05-.3-.33-.11l-6.14 3.87-2.64-.83c-.57-.18-.58-.57.12-.84l10.32-3.98c.48-.17.9.11.74.83Z" fill="#fff"/></svg>'
-)
-
-_MAGNET_MAX_ICON = (
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#5B6EF5"/>'
-    '<path d="M6.5 15.5V9l3 3.4L12 9v6.5M14 9h3.5v6.5" stroke="#fff" stroke-width="1.6" '
-    'stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>'
-)
-
-
 def _magnet_html(m) -> str:
-    """Блок лид-магнита — двухъярусная карточка: сверху приманка (иконка,
-    заголовок, текст), снизу яркая CTA-полоса с кнопками мессенджеров.
+    """Блок лид-магнита — двухъярусная карточка: сверху приманка (иконка
+    подарка, заголовок, текст), снизу яркая CTA-полоса с кнопками мессенджеров.
     Обе ссылки, если заданы обе, показаны сразу — это один клик до перехода,
-    а не скрытый выбор за <details>, как было раньше."""
-    links = [(u, label, icon) for u, label, icon in (
-        (m.telegram_url, "Telegram", _MAGNET_TG_ICON),
-        (m.max_url, "MAX", _MAGNET_MAX_ICON),
+    а не скрытый выбор за <details>, как было раньше. Иконки — настоящие
+    картинки из site_app/static (magnet-gift/tg/max), не эмодзи и не SVG."""
+    links = [(u, label, cls, src) for u, label, cls, src in (
+        (m.telegram_url, "Telegram", "magnet-pill-tg", "/assets/magnet-tg.jpg"),
+        (m.max_url, "MAX", "magnet-pill-max", "/assets/magnet-max.png"),
     ) if u]
     if not links:
         return ""   # кнопка в никуда — лучше не показывать блок вовсе
@@ -235,18 +221,20 @@ def _magnet_html(m) -> str:
     text_html = f'<p class="magnet-text">{escape(m.text)}</p>' if m.text else ""
     note_html = f'<p class="magnet-note">{escape(m.note)}</p>' if m.note else ""
     pills = "".join(
-        f'<a class="magnet-pill" href="{escape(u, quote=True)}" target="_blank" rel="noopener">{icon}<span>{label}</span></a>'
-        for u, label, icon in links
+        f'<a class="magnet-pill {cls}" href="{escape(u, quote=True)}" target="_blank" rel="noopener">'
+        f'<img src="{src}" alt="" loading="lazy"><span>{label}</span></a>'
+        for u, label, cls, src in links
     )
 
     return (
         '<aside class="magnet">'
         '<div class="magnet-top">'
-        f'<span class="magnet-gift" aria-hidden="true">{_MAGNET_GIFT_ICON}</span>'
+        '<img class="magnet-gift" src="/assets/magnet-gift.png" alt="" loading="lazy">'
         f'<div class="magnet-copy"><p class="magnet-title">{escape(m.title)}</p>{text_html}</div>'
         '</div>'
         '<div class="magnet-cta">'
-        f'<div class="magnet-cta-copy"><span class="magnet-cta-text">{escape(m.button_text)}</span>{note_html}</div>'
+        '<div class="magnet-cta-copy"><span class="magnet-cta-kicker">Забирайте</span>'
+        f'<span class="magnet-cta-text">{escape(m.button_text)}</span>{note_html}</div>'
         f'<div class="magnet-actions">{pills}</div>'
         '</div>'
         '</aside>'
@@ -1073,7 +1061,7 @@ def _scenario_conditions(model, sc: Scenario) -> list:
 def _door_dict(sc: Scenario) -> dict:
     return {
         "slug": sc.slug, "url": f"/kuda/{sc.slug}", "door": sc.door, "hint": sc.hint or "",
-        "icon": sc.icon or "", "cover": sc.cover_thumb_url or sc.cover_url or "",
+        "icon": sc.icon or "", "cover": sc.tile_cover_thumb_url or sc.tile_cover_url or "",
     }
 
 

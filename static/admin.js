@@ -1662,6 +1662,12 @@ function openScenarioForm(id) {
       <input type="file" id="sc-cover-file" accept="image/jpeg,image/png,image/webp">
       <input type="text" id="sc-cover-url" value="${escAttr(v.cover_url || '')}" placeholder="или ссылка https://..." style="margin-top:6px">
     </div>
+    <div class="field">
+      <label>Обложка плитки на развилке (вертикальное фото)</label>
+      <div class="hint" style="margin:0 0 6px">Отдельная от шапки — плитка вертикальная, а шапка страницы горизонтальная, один кадр не годится под оба места</div>
+      <input type="file" id="sc-tile-cover-file" accept="image/jpeg,image/png,image/webp">
+      <input type="text" id="sc-tile-cover-url" value="${escAttr(v.tile_cover_url || '')}" placeholder="или ссылка https://..." style="margin-top:6px">
+    </div>
     ${descEditorHtml('Вступительный текст')}
     <div class="field"><label>Описание для поиска (SEO)</label>
       <textarea id="sc-seo">${escHtml(v.seo_description || '')}</textarea>
@@ -1717,6 +1723,14 @@ function openScenarioForm(id) {
       if (up) { coverUrl = up.url; coverThumb = up.thumb_url; }
     }
 
+    let tileCoverUrl = document.getElementById('sc-tile-cover-url').value.trim();
+    let tileCoverThumb = v.tile_cover_thumb_url || null;
+    const tileCoverFileEl = document.getElementById('sc-tile-cover-file');
+    if (tileCoverFileEl.files.length) {
+      const up = await uploadFile(tileCoverFileEl.files[0]);
+      if (up) { tileCoverUrl = up.url; tileCoverThumb = up.thumb_url; }
+    }
+
     const payload = {
       icon: document.getElementById('sc-icon').value.trim() || null,
       door: document.getElementById('sc-door').value.trim(),
@@ -1726,6 +1740,8 @@ function openScenarioForm(id) {
       lead: readDescEditor(),
       cover_url: coverUrl || null,
       cover_thumb_url: coverUrl ? coverThumb : null,
+      tile_cover_url: tileCoverUrl || null,
+      tile_cover_thumb_url: tileCoverUrl ? tileCoverThumb : null,
       seo_description: document.getElementById('sc-seo').value.trim() || null,
       featured_article_ids: readPicker('sc-articles'),
       filter_kid_friendly: document.getElementById('sc-kid').value,
@@ -2027,15 +2043,17 @@ function renderMagnetPreview() {
     el.innerHTML = '<div class="preview-warn">Ни одной ссылки не задано — на сайте блок показан не будет.</div>';
     return;
   }
-  const pills = (tg ? '<span class="pv-pill">✈️ Telegram</span>' : '') + (max ? '<span class="pv-pill">💬 MAX</span>' : '');
+  const pills =
+    (tg ? '<span class="pv-pill pv-pill-tg"><img src="/assets/magnet-tg.jpg" alt=""><span>Telegram</span></span>' : '') +
+    (max ? '<span class="pv-pill pv-pill-max"><img src="/assets/magnet-max.png" alt=""><span>MAX</span></span>' : '');
 
   el.innerHTML =
     '<div class="pv-magnet">' +
-      '<div class="pv-top"><span class="pv-gift">🎁</span><div>' +
+      '<div class="pv-top"><img class="pv-gift" src="/assets/magnet-gift.png" alt=""><div>' +
         '<p class="pv-title">' + escHtml(title || 'Заголовок-приманка') + '</p>' +
         (text ? '<p class="pv-text">' + escHtml(text) + '</p>' : '') +
       '</div></div>' +
-      '<div class="pv-cta"><div><span class="pv-btn">' + escHtml(btn) + '</span>' +
+      '<div class="pv-cta"><div class="pv-cta-copy"><span class="pv-kicker">Забирайте</span><span class="pv-btn">' + escHtml(btn) + '</span>' +
         (note ? '<p class="pv-note">' + escHtml(note) + '</p>' : '') +
       '</div><div class="pv-actions">' + pills + '</div></div>' +
     '</div>';

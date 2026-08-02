@@ -200,6 +200,10 @@ class Scenario(Base):
     lead                  = Column(Text, nullable=True)     # HTML из Quill-редактора в админке
     cover_url             = Column(String(500), nullable=True)     # шапка страницы сценария
     cover_thumb_url       = Column(String(500), nullable=True)
+    # Отдельное вертикальное фото для плитки развилки — шапка страницы горизонтальная,
+    # для карточки нужен свой кадр, а не автоматический кроп той же картинки.
+    tile_cover_url        = Column(String(500), nullable=True)
+    tile_cover_thumb_url  = Column(String(500), nullable=True)
     seo_description       = Column(String(500), nullable=True)
     featured_article_ids  = Column(ARRAY(Integer), nullable=False, default=list)
 

@@ -8,7 +8,6 @@
       {% if d.cover %}
       <a class="door door-photo" href="{{ d.url }}" style="background-image:url('{{ d.cover }}')">
         <span class="door-photo-veil" aria-hidden="true"></span>
-        <span class="door-photo-badge" aria-hidden="true">{{ d.icon }}</span>
         <span class="door-main">
           <span class="door-title">{{ d.door }}</span>
           {% if d.hint %}<span class="door-hint">{{ d.hint }}</span>{% endif %}
