@@ -205,38 +205,50 @@ _FAQ_EMBED_RE = re.compile(r'<div[^>]*data-faq-id="(\d+)"[^>]*>\s*</div>', re.IG
 _CONSIDER_EMBED_RE = re.compile(r'<div[^>]*data-tips="([^"]*)"[^>]*>\s*</div>', re.IGNORECASE)
 
 
+_MAGNET_GIFT_ICON = "🎁"
+
+_MAGNET_TG_ICON = (
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#29A9EA"/>'
+    '<path d="M17.6 7.2 15.9 16c-.13.6-.48.74-.97.46l-2.68-1.98-1.29 1.24c-.14.14-.26.26-.54.26l.19-2.73 '
+    '4.97-4.49c.22-.19-.05-.3-.33-.11l-6.14 3.87-2.64-.83c-.57-.18-.58-.57.12-.84l10.32-3.98c.48-.17.9.11.74.83Z" fill="#fff"/></svg>'
+)
+
+_MAGNET_MAX_ICON = (
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="12" fill="#5B6EF5"/>'
+    '<path d="M6.5 15.5V9l3 3.4L12 9v6.5M14 9h3.5v6.5" stroke="#fff" stroke-width="1.6" '
+    'stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>'
+)
+
+
 def _magnet_html(m) -> str:
-    """Блок лид-магнита. Выбор мессенджера сделан на <details> — без единой
-    строчки JS: закрытый <summary> выглядит кнопкой, по клику раскрываются
-    два варианта. Если ссылка одна, промежуточный выбор не нужен и кнопка
-    сразу ведёт куда надо."""
-    links = [(u, label) for u, label in ((m.telegram_url, "Telegram"), (m.max_url, "MAX")) if u]
+    """Блок лид-магнита — двухъярусная карточка: сверху приманка (иконка,
+    заголовок, текст), снизу яркая CTA-полоса с кнопками мессенджеров.
+    Обе ссылки, если заданы обе, показаны сразу — это один клик до перехода,
+    а не скрытый выбор за <details>, как было раньше."""
+    links = [(u, label, icon) for u, label, icon in (
+        (m.telegram_url, "Telegram", _MAGNET_TG_ICON),
+        (m.max_url, "MAX", _MAGNET_MAX_ICON),
+    ) if u]
     if not links:
         return ""   # кнопка в никуда — лучше не показывать блок вовсе
 
     text_html = f'<p class="magnet-text">{escape(m.text)}</p>' if m.text else ""
     note_html = f'<p class="magnet-note">{escape(m.note)}</p>' if m.note else ""
-
-    if len(links) == 1:
-        url, _label = links[0]
-        action = (f'<a class="btn btn-primary magnet-btn" href="{escape(url, quote=True)}" '
-                  f'target="_blank" rel="noopener">{escape(m.button_text)}</a>')
-    else:
-        options = "".join(
-            f'<a class="magnet-option" href="{escape(u, quote=True)}" target="_blank" rel="noopener">{label}</a>'
-            for u, label in links
-        )
-        action = (
-            '<details class="magnet-choice">'
-            f'<summary class="btn btn-primary magnet-btn">{escape(m.button_text)}</summary>'
-            f'<div class="magnet-options"><span class="magnet-options-label">Куда вам удобнее?</span>{options}</div>'
-            '</details>'
-        )
+    pills = "".join(
+        f'<a class="magnet-pill" href="{escape(u, quote=True)}" target="_blank" rel="noopener">{icon}<span>{label}</span></a>'
+        for u, label, icon in links
+    )
 
     return (
         '<aside class="magnet">'
-        f'<p class="magnet-title">{escape(m.title)}</p>'
-        f'{text_html}{action}{note_html}'
+        '<div class="magnet-top">'
+        f'<span class="magnet-gift" aria-hidden="true">{_MAGNET_GIFT_ICON}</span>'
+        f'<div class="magnet-copy"><p class="magnet-title">{escape(m.title)}</p>{text_html}</div>'
+        '</div>'
+        '<div class="magnet-cta">'
+        f'<div class="magnet-cta-copy"><span class="magnet-cta-text">{escape(m.button_text)}</span>{note_html}</div>'
+        f'<div class="magnet-actions">{pills}</div>'
+        '</div>'
         '</aside>'
     )
 
@@ -1059,7 +1071,10 @@ def _scenario_conditions(model, sc: Scenario) -> list:
 
 
 def _door_dict(sc: Scenario) -> dict:
-    return {"slug": sc.slug, "url": f"/kuda/{sc.slug}", "door": sc.door, "hint": sc.hint or "", "icon": sc.icon or ""}
+    return {
+        "slug": sc.slug, "url": f"/kuda/{sc.slug}", "door": sc.door, "hint": sc.hint or "",
+        "icon": sc.icon or "", "cover": sc.cover_thumb_url or sc.cover_url or "",
+    }
 
 
 def _scenario_doors(db: Session, current: Optional[str] = None) -> list:

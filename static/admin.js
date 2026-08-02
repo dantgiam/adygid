@@ -2020,20 +2020,25 @@ function renderMagnetPreview() {
   const text = document.getElementById('mg-text').value.trim();
   const btn = document.getElementById('mg-btn').value.trim() || 'Забрать в клубе';
   const note = document.getElementById('mg-note').value.trim();
-  const links = [document.getElementById('mg-tg').value.trim(), document.getElementById('mg-max').value.trim()].filter(Boolean);
+  const tg = document.getElementById('mg-tg').value.trim();
+  const max = document.getElementById('mg-max').value.trim();
 
-  if (!links.length) {
+  if (!tg && !max) {
     el.innerHTML = '<div class="preview-warn">Ни одной ссылки не задано — на сайте блок показан не будет.</div>';
     return;
   }
-  const action = links.length === 1
-    ? '<span class="pv-btn">' + escHtml(btn) + '</span>'
-    : '<span class="pv-btn">' + escHtml(btn) + '</span>' +
-      '<div class="pv-options"><span>Куда вам удобнее?</span><span class="pv-opt">Telegram</span><span class="pv-opt">MAX</span></div>';
+  const pills = (tg ? '<span class="pv-pill">✈️ Telegram</span>' : '') + (max ? '<span class="pv-pill">💬 MAX</span>' : '');
 
-  el.innerHTML = '<div class="pv-magnet"><p class="pv-title">' + escHtml(title || 'Заголовок-приманка') + '</p>' +
-    (text ? '<p class="pv-text">' + escHtml(text) + '</p>' : '') + action +
-    (note ? '<p class="pv-note">' + escHtml(note) + '</p>' : '') + '</div>';
+  el.innerHTML =
+    '<div class="pv-magnet">' +
+      '<div class="pv-top"><span class="pv-gift">🎁</span><div>' +
+        '<p class="pv-title">' + escHtml(title || 'Заголовок-приманка') + '</p>' +
+        (text ? '<p class="pv-text">' + escHtml(text) + '</p>' : '') +
+      '</div></div>' +
+      '<div class="pv-cta"><div><span class="pv-btn">' + escHtml(btn) + '</span>' +
+        (note ? '<p class="pv-note">' + escHtml(note) + '</p>' : '') +
+      '</div><div class="pv-actions">' + pills + '</div></div>' +
+    '</div>';
 }
 
 async function deleteMagnet(id) {
