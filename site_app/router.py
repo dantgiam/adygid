@@ -433,7 +433,7 @@ def _routes_for_place(db: Session, cp: Checkpoint, radius_km: float = 12.0, limi
 # ─────────────────────────────────────────────
 
 VISITOR_COOKIE = "vid"
-_LIKE_SUBJECT_TYPES = {"checkpoint", "trail"}
+_LIKE_SUBJECT_TYPES = {"checkpoint", "trail", "scenario"}
 
 # Троттлинг по IP в памяти процесса — не рассчитан на несколько инстансов за
 # балансировщиком, но для личного гид-сайта с одним воркером этого достаточно
@@ -1115,11 +1115,18 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         }
         articles = [_article_card_dict(by_id[i]) for i in article_ids if i in by_id]
 
+    lead_html = _render_article_gallery(_rich_text_html(sc.lead))
+    lead_html, toc = _add_toc_anchors(lead_html)
+    lead_html, _embedded_faq = _render_embeds(db, lead_html)
+
     scenario = {
+        "id": sc.id,
         "slug": sc.slug,
         "title": sc.title,
         "door": sc.door,
-        "lead": _render_consider_blocks(_rich_text_html(sc.lead)),
+        "cover_url": sc.cover_url,
+        "lead": lead_html,
+        "toc": toc if len(toc) >= 3 else [],
         "seo_description": sc.seo_description or _excerpt(sc.lead, 200) or sc.title,
         "places": places,
         "routes": routes,
@@ -1127,7 +1134,10 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     }
     return templates.TemplateResponse(
         "scenario.html",
-        _ctx(request, db, active_nav="scenarios", scenario=scenario, doors=_scenario_doors(db, slug)),
+        _ctx(
+            request, db, active_nav="scenarios", scenario=scenario, doors=_scenario_doors(db, slug),
+            like=_like_info(db, request, "scenario", sc.id),
+        ),
     )
 
 

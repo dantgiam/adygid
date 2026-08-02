@@ -198,6 +198,8 @@ class Scenario(Base):
     hint                  = Column(String(255), nullable=True)     # подзаголовок плитки
     title                 = Column(String(255), nullable=False)    # заголовок страницы сценария
     lead                  = Column(Text, nullable=True)     # HTML из Quill-редактора в админке
+    cover_url             = Column(String(500), nullable=True)     # шапка страницы сценария
+    cover_thumb_url       = Column(String(500), nullable=True)
     seo_description       = Column(String(500), nullable=True)
     featured_article_ids  = Column(ARRAY(Integer), nullable=False, default=list)
 

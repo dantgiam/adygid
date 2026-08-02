@@ -84,6 +84,8 @@ with engine.begin() as _conn:
     _conn.execute(text("ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true"))
     _conn.execute(text("ALTER TABLE articles ADD COLUMN IF NOT EXISTS faq JSONB NOT NULL DEFAULT '[]'::jsonb"))
     _conn.execute(text("ALTER TABLE articles ADD COLUMN IF NOT EXISTS cover_thumb_url VARCHAR(500)"))
+    _conn.execute(text("ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS cover_url VARCHAR(500)"))
+    _conn.execute(text("ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS cover_thumb_url VARCHAR(500)"))
     # DEFAULT true — все точки, заведённые до появления флага, уже показывались
     # в «Местах», и сайт после миграции не должен измениться.
     _conn.execute(text("ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS show_as_place BOOLEAN NOT NULL DEFAULT true"))
@@ -567,6 +569,8 @@ class ScenarioIn(BaseModel):
     hint: Optional[str] = None
     title: str
     lead: Optional[str] = None
+    cover_url: Optional[str] = None
+    cover_thumb_url: Optional[str] = None
     seo_description: Optional[str] = None
     featured_article_ids: List[int] = []
     # Три состояния — "any"/"yes"/"no" и "any"/"year_round"/"summer_only" —
@@ -1031,6 +1035,8 @@ def _apply_scenario(sc: Scenario, body: ScenarioIn):
     sc.icon = body.icon
     sc.hint = body.hint
     sc.lead = body.lead
+    sc.cover_url = body.cover_url
+    sc.cover_thumb_url = body.cover_thumb_url
     sc.seo_description = body.seo_description
     sc.featured_article_ids = body.featured_article_ids or []
     sc.filter_kid_friendly = _tri_to_kid(body.filter_kid_friendly)
@@ -1083,6 +1089,8 @@ def _scenario_out(s: Scenario):
         "hint": s.hint,
         "title": s.title,
         "lead": s.lead,
+        "cover_url": s.cover_url,
+        "cover_thumb_url": s.cover_thumb_url,
         "seo_description": s.seo_description,
         "featured_article_ids": s.featured_article_ids or [],
         "filter_kid_friendly": {True: "yes", False: "no"}.get(s.filter_kid_friendly, "any"),

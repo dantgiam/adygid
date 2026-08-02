@@ -358,7 +358,7 @@ function descEditorHtml(label) {
         <div class="insert-menu" id="desc-insert-menu" hidden>
           <button type="button" onclick="runDescInsert('photo')"><span>🖼</span> Фото с подписью</button>
           <button type="button" onclick="runDescInsert('collage')"><span>▥</span> Коллаж 2–4 фото</button>
-          <button type="button" onclick="runDescInsert('link')"><span>🔗</span> Ссылка на место или маршрут</button>
+          <button type="button" onclick="runDescInsert('link')"><span>🔗</span> Ссылка на место, маршрут, статью или сценарий</button>
           <button type="button" onclick="runDescInsert('magnet')"><span>🎁</span> Лид-магнит</button>
           <button type="button" onclick="runDescInsert('faq')"><span>❓</span> Набор вопросов</button>
           <button type="button" onclick="runDescInsert('consider')"><span>☑️</span> Что учесть</button>
@@ -370,7 +370,7 @@ function descEditorHtml(label) {
       <span class="insert-bar-label">Вставить в текст:</span>
       <button type="button" class="btn btn-ghost btn-sm" onclick="insertPhoto(descQuill)">Фото</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="insertCollage(descQuill)">Коллаж 2–4 фото</button>
-      <button type="button" class="btn btn-ghost btn-sm" onclick="insertInternalLink(descQuill)">Ссылка на место/маршрут</button>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="insertInternalLink(descQuill)">Ссылка на объект</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="insertMagnet(descQuill)">Лид-магнит</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="insertFaqSet(descQuill)">Набор вопросов</button>
       <button type="button" class="btn btn-ghost btn-sm" onclick="insertConsiderBlock(descQuill)">Что учесть</button>
@@ -378,22 +378,67 @@ function descEditorHtml(label) {
   </div>`;
 }
 
-function initDescEditor(html) {
+// ── Автосохранение черновика desc-редактора в localStorage ──────
+// Тот же риск, что и со статьями: модалку можно закрыть по клику мимо или
+// случайно перезагрузить вкладку, потеряв неотправленный текст маршрута,
+// места или сценария. scope — «route:12», «place:new», «scenario:3» и т.п.,
+// отдельный для каждой открытой формы.
+let descDraftScope = null;
+let descAutosaveTimer = null;
+
+function descDraftKey(scope) { return 'adygid_draft_desc_' + scope; }
+
+function scheduleDescAutosave() {
+  if (!descDraftScope) return;
+  clearTimeout(descAutosaveTimer);
+  descAutosaveTimer = setTimeout(() => {
+    try {
+      const html = readDescEditor();
+      if (html) localStorage.setItem(descDraftKey(descDraftScope), JSON.stringify({ savedAt: Date.now(), html }));
+      else localStorage.removeItem(descDraftKey(descDraftScope));
+    } catch (e) {
+      // приватный режим — просто не сохраняем
+    }
+  }, 1200);
+}
+
+function clearDescDraft(scope) {
+  try { localStorage.removeItem(descDraftKey(scope)); } catch (e) { /* no-op */ }
+}
+
+function initDescEditor(html, scope) {
   registerEmbedBlots();
+  descDraftScope = scope || null;
   descQuill = new Quill('#desc-editor', {
     theme: 'bubble',
     placeholder: 'Описание — что это за место, как добраться, что учесть...',
     modules: {
       toolbar: [
         ['bold', 'italic', 'link'],
-        [{ header: 2 }, { header: 3 }],
+        [{ header: [2, 3, false] }],
         [{ list: 'ordered' }, { list: 'bullet' }],
       ],
     },
   });
   descQuill.setContents([], 'silent');
   if (html) descQuill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
+
+  if (descDraftScope) {
+    let draft = null;
+    try { const raw = localStorage.getItem(descDraftKey(descDraftScope)); draft = raw ? JSON.parse(raw) : null; } catch (e) { /* no-op */ }
+    if (draft && draft.html && draft.html !== (html || null)) {
+      const when = new Date(draft.savedAt).toLocaleString('ru-RU');
+      if (confirm(`Найден несохранённый черновик текста от ${when}. Восстановить его?`)) {
+        descQuill.setContents([], 'silent');
+        descQuill.clipboard.dangerouslyPasteHTML(0, draft.html, 'silent');
+      } else {
+        clearDescDraft(descDraftScope);
+      }
+    }
+  }
+
   descQuill.on('editor-change', positionDescInsertPlus);
+  descQuill.on('text-change', scheduleDescAutosave);
 }
 
 // ── Плавающая кнопка вставки для desc-редактора — тот же принцип, что и
@@ -590,7 +635,7 @@ function initArticleQuill() {
     modules: {
       toolbar: [
         ['bold', 'italic', 'underline', 'link'],
-        [{ header: 2 }, { header: 3 }],
+        [{ header: [2, 3, false] }],
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['blockquote'],
       ],
@@ -948,10 +993,12 @@ function insertInternalLink(quill) {
   const rows = [
     ...places.map(p => ({ url: `/mesta/${p.id}`, label: p.name, kind: 'Место' })),
     ...trails.map(t => ({ url: `/marshruty/${t.id}`, label: t.name, kind: 'Маршрут' })),
+    ...articles.map(a => ({ url: `/stati/${a.slug}`, label: a.title, kind: 'Статья' })),
+    ...scenarios.map(s => ({ url: `/kuda/${s.slug}`, label: s.door, kind: 'Сценарий' })),
   ];
-  if (!rows.length) { toast('Сначала добавьте места или маршруты', true); return; }
+  if (!rows.length) { toast('Сначала добавьте места, маршруты, статьи или сценарии', true); return; }
 
-  showModal2('Ссылка на место или маршрут', `
+  showModal2('Ссылка на место, маршрут, статью или сценарий', `
     <div class="picker">
       <input type="text" class="picker-search" placeholder="Поиск..." oninput="filterPicker(this)">
       <div class="picker-list">
@@ -1020,6 +1067,7 @@ function renderRoutes() {
 function openRouteForm(id) {
   const t = id ? trails.find(x => x.id === id) : null;
   const v = t || {};
+  const draftScope = 'route:' + (t ? t.id : 'new');
   showModal(t ? 'Маршрут: текст и параметры' : 'Новый маршрут', `
     <div class="field"><label>Название</label>
       <input id="t-name" value="${escAttr(v.name || '')}" placeholder="Водопады Руфабго">
@@ -1045,6 +1093,7 @@ function openRouteForm(id) {
     if (!payload.name) { toast('Введите название', true); return; }
     const saved = t ? await api('PATCH', `/trails/${t.id}`, payload) : await api('POST', '/trails', payload);
     if (saved) {
+      clearDescDraft(draftScope);
       await loadAll();
       closeModal();
       toast('Маршрут сохранён');
@@ -1059,7 +1108,7 @@ function openRouteForm(id) {
       'Маршрут',
     ),
   });
-  initDescEditor(v.description || '');
+  initDescEditor(v.description || '', draftScope);
 }
 
 async function deleteTrail(id) {
@@ -1295,6 +1344,7 @@ function openPointForm(id, creating) {
   const v = c || {};
   const inTrail = creating ? !!activeTrail : !!(c && c.trail_id);
   const showAsPlace = c ? c.show_as_place : !inTrail;
+  const draftScope = 'place:' + (c ? c.id : 'new');
 
   const publishExtra = inTrail ? `
     <label class="toggle" style="margin-top:4px">
@@ -1352,6 +1402,7 @@ function openPointForm(id, creating) {
     }
 
     if (saved) {
+      clearDescDraft(draftScope);
       closeModal();
       toast('Сохранено');
       if (activeTrail && document.getElementById('view-route-map').classList.contains('active')) {
@@ -1370,7 +1421,7 @@ function openPointForm(id, creating) {
       'Место',
     ),
   });
-  initDescEditor(v.description || '');
+  initDescEditor(v.description || '', draftScope);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1590,6 +1641,7 @@ function readMultiChips(cssClass) {
 function openScenarioForm(id) {
   const s = id ? scenarios.find(x => x.id === id) : null;
   const v = s || { icon: '🧭', filter_kid_friendly: 'any', filter_seasonality: 'any', filter_popularity: [], filter_difficulty: [], filter_access: [], is_published: true, order_index: scenarios.length };
+  const draftScope = 'scenario:' + (s ? s.id : 'new');
 
   showModal(s ? 'Сценарий: ' + s.door : 'Новый сценарий', `
     <div class="field"><label>Иконка</label>${iconPickerHtml(v.icon)}</div>
@@ -1604,6 +1656,11 @@ function openScenarioForm(id) {
     </div>
     <div class="field"><label>Ссылка страницы (slug)</label>
       <input id="sc-slug" value="${escAttr(v.slug || '')}" placeholder="сгенерируется из подписи">
+    </div>
+    <div class="field">
+      <label>Обложка (шапка страницы сценария)</label>
+      <input type="file" id="sc-cover-file" accept="image/jpeg,image/png,image/webp">
+      <input type="text" id="sc-cover-url" value="${escAttr(v.cover_url || '')}" placeholder="или ссылка https://..." style="margin-top:6px">
     </div>
     ${descEditorHtml('Вступительный текст')}
     <div class="field"><label>Описание для поиска (SEO)</label>
@@ -1652,6 +1709,14 @@ function openScenarioForm(id) {
       </div>
     </div>
   `, async () => {
+    let coverUrl = document.getElementById('sc-cover-url').value.trim();
+    let coverThumb = v.cover_thumb_url || null;
+    const coverFileEl = document.getElementById('sc-cover-file');
+    if (coverFileEl.files.length) {
+      const up = await uploadFile(coverFileEl.files[0]);
+      if (up) { coverUrl = up.url; coverThumb = up.thumb_url; }
+    }
+
     const payload = {
       icon: document.getElementById('sc-icon').value.trim() || null,
       door: document.getElementById('sc-door').value.trim(),
@@ -1659,6 +1724,8 @@ function openScenarioForm(id) {
       title: document.getElementById('sc-title').value.trim(),
       slug: document.getElementById('sc-slug').value.trim() || null,
       lead: readDescEditor(),
+      cover_url: coverUrl || null,
+      cover_thumb_url: coverUrl ? coverThumb : null,
       seo_description: document.getElementById('sc-seo').value.trim() || null,
       featured_article_ids: readPicker('sc-articles'),
       filter_kid_friendly: document.getElementById('sc-kid').value,
@@ -1672,7 +1739,7 @@ function openScenarioForm(id) {
     if (!payload.door || !payload.title) { toast('Заполните подпись и заголовок', true); return; }
 
     const saved = s ? await api('PATCH', `/scenarios/${s.id}`, payload) : await api('POST', '/scenarios', payload);
-    if (saved) { await loadAll(); closeModal(); toast('Сценарий сохранён'); }
+    if (saved) { clearDescDraft(draftScope); await loadAll(); closeModal(); toast('Сценарий сохранён'); }
   }, {
     wide: true,
     preview: () => openPreview(
@@ -1684,7 +1751,7 @@ function openScenarioForm(id) {
   });
 
   document.getElementById('sc-articles').innerHTML = pickerHtml(articles, v.featured_article_ids || [], a => a.title);
-  initDescEditor(v.lead || '');
+  initDescEditor(v.lead || '', draftScope);
 }
 
 async function deleteScenario(id) {

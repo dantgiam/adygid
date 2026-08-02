@@ -4,13 +4,36 @@
 
 {% block title %}{{ scenario.title }} — АдыГид{% endblock %}
 {% block meta_description %}{{ scenario.seo_description }}{% endblock %}
+{% block og_image %}{% if scenario.cover_url %}<meta property="og:image" content="{{ scenario.cover_url }}">{% endif %}{% endblock %}
 
 {% block content %}
-<section class="section" style="padding-top:40px">
+<section class="section" style="padding-top:32px">
   <div class="wrap">
+    {% if scenario.cover_url %}<div class="detail-hero" style="background-image:url('{{ scenario.cover_url }}')"></div>{% endif %}
     <p class="eyebrow"><a href="/kuda" style="color:inherit">Куда поехать</a></p>
     <h1 class="page-title">{{ scenario.title }}</h1>
-    <div class="lede district-lead">{{ scenario.lead | safe }}</div>
+
+    <div class="article-layout{{ ' has-toc' if scenario.toc else '' }}">
+      <div class="article-main">
+        <div class="article-body">
+          {{ scenario.lead | safe }}
+        </div>
+
+        <div class="like-row">
+          <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="scenario" data-id="{{ scenario.id }}">
+            {{ cards.heart_icon() }} <span class="like-text">Понравилось</span>
+            <span class="like-count">{{ like.count }}</span>
+          </button>
+        </div>
+      </div>
+
+      {% if scenario.toc %}
+      <aside class="article-toc">
+        <p class="toc-label">Содержание</p>
+        <nav>{% for item in scenario.toc %}<a href="#{{ item.id }}">{{ item.title }}</a>{% endfor %}</nav>
+      </aside>
+      {% endif %}
+    </div>
   </div>
 </section>
 
