@@ -186,7 +186,9 @@ a { color: var(--accent); }
   background: var(--card); border-radius: 14px; box-shadow: var(--shadow);
   width: 100%; max-width: 620px; max-height: 90vh; display: flex; flex-direction: column;
 }
-.modal-wide { max-width: 880px; }
+/* Формы, где набирают текст (лид-магнит, набор вопросов, тексты страниц),
+   а не пара полей — им нужна ширина, близкая к листу редактора. */
+.modal-wide { max-width: 1040px; }
 .modal-head {
   padding: 18px 22px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -350,6 +352,23 @@ a { color: var(--accent); }
    place под кнопку внутри padding самого .desc-editor-wrap (иначе обрежет
    overflow-y:auto — оverflow-x у него тоже становится auto). */
 .desc-editor-wrap .insert-plus, .desc-editor-wrap .insert-menu { left: -40px; }
+
+/* На листе полноэкранного редактора (маршрут, место, сценарий) описание ведёт
+   себя ровно как текст статьи: своей рамки нет, высота не ограничена, лист
+   растёт вместе с текстом. Иначе получается окно со скроллом внутри страницы,
+   которая и так скроллится, — и длинное описание приходится читать в щёлочку.
+   Отрицательный вынос «+» здесь снова возможен: поле слева у .paper есть. */
+.paper .desc-editor-wrap {
+  border: none; border-radius: 0; padding: 0; background: none;
+  max-height: none; overflow: visible;
+}
+.paper .desc-editor-wrap .insert-plus,
+.paper .desc-editor-wrap .insert-menu { left: -46px; }
+.paper #desc-editor .ql-editor { min-height: 340px; }
+/* Подпись «Описание» на листе не нужна — и так видно, что это текст страницы */
+.paper .desc-field > label { display: none; }
+.paper .desc-field > .hint { margin-bottom: 14px; }
+.paper .desc-field { margin-bottom: 0; }
 #desc-editor.ql-container { font-family: var(--font); font-size: 16px; border: none; }
 #desc-editor .ql-editor { padding: 0; min-height: 160px; line-height: 1.55; color: var(--text); }
 #desc-editor .ql-editor.ql-blank::before { left: 0; font-style: normal; color: #A8B5A9; }

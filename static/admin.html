@@ -255,6 +255,42 @@
   </div>
 </section>
 
+<!-- ══════════════ РЕДАКТОР МЕСТА / ТОЧКИ ══════════════ -->
+<section class="view" id="view-place-editor">
+  <div class="editor-shell">
+    <div class="editor-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closePlaceEditor()">← Назад</button>
+      <span class="save-state" id="pl-save-state"></span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="previewPlace()">Предпросмотр</button>
+      <button class="btn btn-primary" onclick="savePlace()">Сохранить</button>
+    </div>
+
+    <div class="editor-grid">
+      <div>
+        <div class="paper">
+          <textarea class="paper-title" id="pl-name" rows="1" placeholder="Название места"
+                    oninput="autoGrow(this); schedulePlaceAutosave()"></textarea>
+          <div id="pl-desc-slot"></div>
+        </div>
+      </div>
+
+      <aside class="editor-aside">
+        <div class="field-row">
+          <div class="field"><label>Категория</label>
+            <select id="pl-category" onchange="schedulePlaceAutosave()"></select>
+          </div>
+          <div class="field"><label>Время осмотра (минут)</label>
+            <input id="pl-duration" type="number" min="0" placeholder="30" oninput="schedulePlaceAutosave()">
+          </div>
+        </div>
+        <div id="pl-criteria-slot"></div>
+        <div class="hint" id="pl-map-hint" style="margin-top:4px">Координаты меняются на карте маршрута.</div>
+      </aside>
+    </div>
+  </div>
+</section>
+
 <!-- ══════════════ ВЫБОР ТОЧКИ НА КАРТЕ ══════════════ -->
 <section class="view" id="view-place-map">
   <div class="map-layout">
