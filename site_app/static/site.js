@@ -120,6 +120,136 @@
   prefetch();
 })();
 
+// ── Фоновые стикеры ──────────────────────────────────────────────────────
+// Раскладываем скриптом, а не руками в шаблоне: только здесь известны реальная
+// высота страницы и реальная ширина боковых полей, поэтому стикеры равномерно
+// устилают всё свободное место — от края экрана до колонки текста и на всю
+// длину ленты, а не сидят в паре заранее вбитых точек.
+(() => {
+  const layer = document.querySelector(".bg-stickers");
+  if (!layer) return;
+
+  const TOTAL = parseInt(layer.dataset.count, 10) || 0;
+  if (!TOTAL) return;
+
+  const COLUMN = 1160;   // ширина колонки контента (.wrap max-width)
+  const INSET = 12;      // поля не заполняем впритык — по краю и у текста воздух
+  const MIN_GUTTER = 110; // уже — стикеры вышли бы мелкими, лучше вообще без них
+  const TOP_SAFE = 90;   // под шапкой стикер выглядит обрезанным — начинаем ниже
+  // Ячейка раскладки одна и та же по горизонтали и вертикали, поэтому плотность
+  // не зависит от ширины экрана: на широком поле просто больше колонок, а не
+  // гуще ковёр. При ~330px в экран высотой 1300 попадает около 15 наклеек.
+  const CELL = 330;
+  const MAX_SIZE = 90;
+  const JITTER = 0.7;    // насколько стикер гуляет внутри своей ячейки (0 — центр)
+  const MAX_ITEMS = 90;  // предохранитель для очень длинных страниц
+
+  // Один сид на загрузку страницы: раскладка каждый раз новая, но при resize
+  // и пересчёте высоты стикеры остаются на своих местах, а не перепрыгивают.
+  const seed = (Math.random() * 4294967296) >>> 0;
+  function mulberry32(a) {
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // «Мешок» картинок: тянем по одной из перемешанной колоды и,
+  // когда она кончается, тасуем заново. Так одна и та же наклейка может
+  // встретиться несколько раз, но не два раза подряд в одном углу.
+  function makeBag(rand) {
+    let bag = [];
+    return () => {
+      if (!bag.length) {
+        bag = Array.from({ length: TOTAL }, (_, i) => i + 1);
+        for (let i = bag.length - 1; i > 0; i--) {
+          const j = Math.floor(rand() * (i + 1));
+          [bag[i], bag[j]] = [bag[j], bag[i]];
+        }
+      }
+      return bag.pop();
+    };
+  }
+
+  function layout() {
+    const vw = document.documentElement.clientWidth;
+    const gutter = (vw - COLUMN) / 2;
+    if (gutter < MIN_GUTTER) {
+      if (layer.childElementCount) layer.replaceChildren();
+      return;
+    }
+
+    // Высоту берём до вставки; ниже мы держим стикеры внутри неё, поэтому
+    // страница от них не удлиняется и пересчёт не зацикливается.
+    const docHeight = document.documentElement.scrollHeight;
+    const field = gutter - INSET * 2;
+    const cols = Math.max(1, Math.min(3, Math.round(field / CELL)));
+    const cellW = field / cols;
+    const maxSize = Math.min(MAX_SIZE, cellW - 14);
+    if (maxSize < 60) { layer.replaceChildren(); return; }
+
+    // Ячейки крупные, поэтому занимаем их все: ровное покрытие даёт сама сетка,
+    // а случайность — сдвиг внутри ячейки. Бросать монетку на каждую ячейку
+    // нельзя: именно так получаются то кучи, то пустые полосы.
+    const rows = Math.ceil((docHeight - TOP_SAFE) / CELL);
+    const rand = mulberry32(seed);
+    const nextSticker = makeBag(rand);
+
+    const parts = [];
+    for (let row = 0; row < rows && parts.length < MAX_ITEMS; row++) {
+      for (const side of ["left", "right"]) {
+        // Правая сторона идёт на полряда ниже — иначе стикеры слева и справа
+        // встают парами на одной высоте и читаются как рамка.
+        const rowTop = TOP_SAFE + row * CELL + (side === "right" ? CELL / 2 : 0);
+
+        for (let col = 0; col < cols; col++) {
+          const size = Math.round(maxSize * (0.75 + rand() * 0.25));
+          // Отсчитываем от центра ячейки и разрешаем гулять только на часть
+          // свободного места: соседние стикеры не слипаются на границе ячеек.
+          const cx = INSET + col * cellW + (cellW - size) / 2;
+          const cy = rowTop + (CELL - size) / 2;
+          const x = Math.round(cx + (rand() - 0.5) * (cellW - size) * JITTER);
+          const y = Math.round(cy + (rand() - 0.5) * (CELL - size) * JITTER);
+          if (y < TOP_SAFE || y + size + 24 > docHeight) continue;
+          const angle = (rand() * 2 - 1) * 18;
+          const opacity = (0.36 + rand() * 0.22).toFixed(2);
+          const src = `/assets/stickers/sticker-${String(nextSticker()).padStart(2, "0")}.png`;
+          parts.push(
+            `<img class="deco-item" src="${src}" alt="" loading="lazy" decoding="async"` +
+            ` style="top:${y}px;${side}:${x}px;width:${size}px;opacity:${opacity};` +
+            `transform:rotate(${angle.toFixed(1)}deg)">`
+          );
+        }
+      }
+    }
+    layer.innerHTML = parts.join("");
+  }
+
+  // Пересчитываем на resize и когда страница подрастает (догрузились картинки,
+  // раскрылись блоки) — но только на заметное изменение, чтобы не дёргаться.
+  let lastHeight = 0;
+  let timer = null;
+  function schedule() {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      lastHeight = document.documentElement.scrollHeight;
+      layout();
+    }, 120);
+  }
+
+  layout();
+  lastHeight = document.documentElement.scrollHeight;
+  window.addEventListener("resize", schedule);
+  window.addEventListener("load", schedule);
+  if (window.ResizeObserver) {
+    new ResizeObserver(() => {
+      if (Math.abs(document.documentElement.scrollHeight - lastHeight) > 120) schedule();
+    }).observe(document.body);
+  }
+})();
+
 // Автосабмит форм фильтров при смене любого поля
 document.querySelectorAll("form.filters").forEach((form) => {
   form.querySelectorAll("select, input[type=checkbox]").forEach((el) => {

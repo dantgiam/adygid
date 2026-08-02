@@ -52,6 +52,7 @@ let equipmentTags = [];
 let scenarios = [];
 let magnets = [];
 let faqSets = [];
+let sitePages = [];
 
 let activeTrail = null;      // маршрут, открытый в редакторе карты
 let map = null, placeMap = null;
@@ -253,9 +254,31 @@ document.getElementById('modal2-save').addEventListener('click', async () => {
 // раздел, из которого пришли, чтобы не терялась ориентация.
 const TAB_OF_VIEW = {
   'article-editor': 'articles',
+  'route-editor': 'routes',
   'route-map': 'routes',
   'place-map': 'places',
+  'scenario-editor': 'scenarios',
 };
+
+// ── Слоты общих виджетов (desc-редактор Quill, блок критериев) ──────────
+// #desc-editor и id-шники criteriaHtml() (m-difficulty и т.п.) не уникальны
+// по конструкции — раньше это было безопасно, потому что раньше их строил
+// только showModal(), а модалка всегда ровно одна. Теперь редактор сценария
+// и маршрута — постоянные вкладки, и их разметка не уничтожается при уходе
+// на другую вкладку, поэтому перед тем как разместить виджет в новом месте,
+// нужно явно убрать его копию из всех остальных мест — иначе на странице
+// одновременно окажутся два элемента с одним id, и getElementById достанет
+// не тот. ──
+const DESC_EDITOR_SLOTS = ['sc-desc-slot', 'rt-desc-slot', 'modal-body'];
+const CRITERIA_SLOTS = ['rt-criteria-slot', 'modal-body'];
+
+function releaseSlots(slotIds, exceptId) {
+  slotIds.forEach(id => {
+    if (id === exceptId) return;
+    const host = document.getElementById(id);
+    if (host && host.children.length) host.innerHTML = '';
+  });
+}
 
 function showTab(name) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -618,6 +641,36 @@ function renderArticles() {
 
 function draftKey(id) { return 'adygid_draft_article_' + (id || 'new'); }
 
+// ── Живой предпросмотр обложки — файл или ссылка, что заполнено последним.
+// Статью редактирует один и тот же постоянный DOM (не пересоздаётся при
+// каждом открытии, в отличие от модалок), поэтому вешаем слушатели один раз
+// (dataset-флаг) и на каждый вызов только обновляем картинку. ──
+function setupCoverPreview(fileId, urlId, previewId) {
+  const fileEl = document.getElementById(fileId);
+  const urlEl = document.getElementById(urlId);
+  const boxEl = document.getElementById(previewId);
+  if (!fileEl || !urlEl || !boxEl) return;
+  const imgEl = boxEl.querySelector('img');
+  const update = () => {
+    if (fileEl.files.length) {
+      imgEl.src = URL.createObjectURL(fileEl.files[0]);
+      boxEl.hidden = false;
+    } else if (urlEl.value.trim()) {
+      imgEl.src = urlEl.value.trim();
+      boxEl.hidden = false;
+    } else {
+      boxEl.hidden = true;
+      imgEl.removeAttribute('src');
+    }
+  };
+  if (!fileEl.dataset.previewBound) {
+    fileEl.addEventListener('change', update);
+    urlEl.addEventListener('input', update);
+    fileEl.dataset.previewBound = '1';
+  }
+  update();
+}
+
 function setArticleBody(html) {
   // Только через clipboard-парсер Quill: прямое присваивание root.innerHTML
   // редактор не разбирает в свою модель, и часть разметки (списки в первую
@@ -698,6 +751,7 @@ function openArticleEditor(id) {
   document.getElementById('a-slug').value = a ? a.slug : '';
   document.getElementById('a-cover-url').value = a ? (a.cover_url || '') : '';
   document.getElementById('a-cover-file').value = '';
+  setupCoverPreview('a-cover-file', 'a-cover-url', 'a-cover-preview');
   document.getElementById('a-published').checked = a ? a.is_published !== false : true;
   document.getElementById('a-district').innerHTML = districtOptionsHtml(a ? a.district : null);
   setArticleBody(a ? (a.body || '') : '');
@@ -724,8 +778,9 @@ function closeArticleEditor() {
   editingArticleId = null;
 }
 
-function setSaveState(text, saved) {
-  const el = document.getElementById('save-state');
+function setSaveState(text, saved, targetId) {
+  const el = document.getElementById(targetId || 'save-state');
+  if (!el) return;
   el.textContent = text;
   el.classList.toggle('saved', !!saved);
 }
@@ -783,6 +838,7 @@ function applyDraft(d) {
   document.getElementById('a-excerpt').value = d.excerpt || '';
   document.getElementById('a-slug').value = d.slug || '';
   document.getElementById('a-cover-url').value = d.cover_url || '';
+  setupCoverPreview('a-cover-file', 'a-cover-url', 'a-cover-preview');
   document.getElementById('a-published').checked = d.is_published !== false;
   document.getElementById('a-district').innerHTML = districtOptionsHtml(d.district || null);
   setArticleBody(d.body || '');
@@ -1064,51 +1120,77 @@ function renderRoutes() {
   }).join('');
 }
 
+let editingRouteId = null;
+
 function openRouteForm(id) {
+  releaseSlots(DESC_EDITOR_SLOTS, 'rt-desc-slot');
+  releaseSlots(CRITERIA_SLOTS, 'rt-criteria-slot');
+  editingRouteId = id;
+  showTab('route-editor');
+
   const t = id ? trails.find(x => x.id === id) : null;
   const v = t || {};
-  const draftScope = 'route:' + (t ? t.id : 'new');
-  showModal(t ? 'Маршрут: текст и параметры' : 'Новый маршрут', `
-    <div class="field"><label>Название</label>
-      <input id="t-name" value="${escAttr(v.name || '')}" placeholder="Водопады Руфабго">
-    </div>
-    <div class="field-row">
-      <div class="field"><label>Категория</label>
-        <select id="t-category">${categoryOptionsHtml('trail', v.category_id)}</select>
-      </div>
-      <div class="field"><label>Длительность (минут)</label>
-        <input id="t-duration" type="number" min="0" value="${v.duration_minutes || ''}" placeholder="150">
-      </div>
-    </div>
-    ${descEditorHtml('Описание')}
-    ${criteriaHtml(v)}
-    ${t ? '<div class="hint" style="margin-top:12px">Тропу и точки по пути редактируйте кнопкой «Карта и точки» в списке маршрутов.</div>' : ''}
-  `, async () => {
-    const payload = Object.assign({
-      name: document.getElementById('t-name').value.trim(),
-      category_id: parseInt(document.getElementById('t-category').value, 10) || null,
-      duration_minutes: parseInt(document.getElementById('t-duration').value, 10) || null,
-      description: readDescEditor(),
-    }, readCriteria());
-    if (!payload.name) { toast('Введите название', true); return; }
-    const saved = t ? await api('PATCH', `/trails/${t.id}`, payload) : await api('POST', '/trails', payload);
-    if (saved) {
-      clearDescDraft(draftScope);
-      await loadAll();
-      closeModal();
-      toast('Маршрут сохранён');
-      if (!t) openRouteMap(saved.id);
-    }
-  }, {
-    wide: true,
-    preview: () => openPreview(
-      'description',
-      readDescEditor() || '',
-      document.getElementById('t-name').value.trim(),
-      'Маршрут',
-    ),
-  });
-  initDescEditor(v.description || '', draftScope);
+
+  document.getElementById('rt-name').value = v.name || '';
+  document.getElementById('rt-category').innerHTML = categoryOptionsHtml('trail', v.category_id);
+  document.getElementById('rt-duration').value = v.duration_minutes || '';
+  document.getElementById('rt-desc-slot').innerHTML = descEditorHtml('Описание');
+  document.getElementById('rt-criteria-slot').innerHTML = criteriaHtml(v);
+  document.getElementById('rt-map-hint').style.display = t ? '' : 'none';
+
+  initDescEditor(v.description || '', 'route:' + (t ? t.id : 'new'));
+  autoGrow(document.getElementById('rt-name'));
+  setSaveState('', false, 'rt-save-state');
+}
+
+function closeRouteEditor() {
+  showTab('routes');
+  editingRouteId = null;
+}
+
+function previewRoute() {
+  openPreview(
+    'description',
+    readDescEditor() || '',
+    document.getElementById('rt-name').value.trim(),
+    'Маршрут',
+  );
+}
+
+async function saveRoute() {
+  const name = document.getElementById('rt-name').value.trim();
+  if (!name) { toast('Введите название', true); return; }
+
+  const payload = Object.assign({
+    name,
+    category_id: parseInt(document.getElementById('rt-category').value, 10) || null,
+    duration_minutes: parseInt(document.getElementById('rt-duration').value, 10) || null,
+    description: readDescEditor(),
+  }, readCriteria());
+
+  const wasNew = !editingRouteId;
+  const saved = editingRouteId
+    ? await api('PATCH', `/trails/${editingRouteId}`, payload)
+    : await api('POST', '/trails', payload);
+  if (!saved) return;
+
+  clearDescDraft('route:' + (editingRouteId || 'new'));
+  editingRouteId = saved.id;
+  await loadAll();
+  toast('Маршрут сохранён');
+  if (wasNew) {
+    // У новой тропы дальше есть только один следующий шаг — нарисовать её
+    // на карте, поэтому редактор текста в этом случае закрывается сам.
+    closeRouteEditor();
+    openRouteMap(saved.id);
+  } else {
+    setSaveState('Сохранено на сервере', true, 'rt-save-state');
+  }
+}
+
+function scheduleRouteAutosave() {
+  if (!document.getElementById('view-route-editor').classList.contains('active')) return;
+  setSaveState('Изменения не сохранены', false, 'rt-save-state');
 }
 
 async function deleteTrail(id) {
@@ -1340,6 +1422,8 @@ async function deletePoint(id) {
 
 // ── Форма точки / места ────────────────────────────────────────
 function openPointForm(id, creating) {
+  releaseSlots(DESC_EDITOR_SLOTS, 'modal-body');
+  releaseSlots(CRITERIA_SLOTS, 'modal-body');
   const c = id ? checkpoints.find(x => x.id === id) : null;
   const v = c || {};
   const inTrail = creating ? !!activeTrail : !!(c && c.trail_id);
@@ -1638,136 +1722,123 @@ function readMultiChips(cssClass) {
   return Array.from(document.querySelectorAll(`.${cssClass}:checked`)).map(el => el.value);
 }
 
+let editingScenarioId = null;
+
 function openScenarioForm(id) {
+  releaseSlots(DESC_EDITOR_SLOTS, 'sc-desc-slot');
+  editingScenarioId = id;
+  showTab('scenario-editor');
+
   const s = id ? scenarios.find(x => x.id === id) : null;
   const v = s || { icon: '🧭', filter_kid_friendly: 'any', filter_seasonality: 'any', filter_popularity: [], filter_difficulty: [], filter_access: [], is_published: true, order_index: scenarios.length };
-  const draftScope = 'scenario:' + (s ? s.id : 'new');
 
-  showModal(s ? 'Сценарий: ' + s.door : 'Новый сценарий', `
-    <div class="field"><label>Иконка</label>${iconPickerHtml(v.icon)}</div>
-    <div class="field"><label>Подпись на плитке развилки</label>
-      <input id="sc-door" value="${escAttr(v.door || '')}" placeholder="Еду с детьми">
-    </div>
-    <div class="field"><label>Подзаголовок на плитке (необязательно)</label>
-      <input id="sc-hint" value="${escAttr(v.hint || '')}" placeholder="Куда реально дойти с ребёнком">
-    </div>
-    <div class="field"><label>Заголовок страницы сценария</label>
-      <input id="sc-title" value="${escAttr(v.title || '')}" placeholder="Адыгея с детьми: куда идти, а что отложить">
-    </div>
-    <div class="field"><label>Ссылка страницы (slug)</label>
-      <input id="sc-slug" value="${escAttr(v.slug || '')}" placeholder="сгенерируется из подписи">
-    </div>
-    <div class="field">
-      <label>Обложка (шапка страницы сценария)</label>
-      <input type="file" id="sc-cover-file" accept="image/jpeg,image/png,image/webp">
-      <input type="text" id="sc-cover-url" value="${escAttr(v.cover_url || '')}" placeholder="или ссылка https://..." style="margin-top:6px">
-    </div>
-    <div class="field">
-      <label>Обложка плитки на развилке (вертикальное фото)</label>
-      <div class="hint" style="margin:0 0 6px">Отдельная от шапки — плитка вертикальная, а шапка страницы горизонтальная, один кадр не годится под оба места</div>
-      <input type="file" id="sc-tile-cover-file" accept="image/jpeg,image/png,image/webp">
-      <input type="text" id="sc-tile-cover-url" value="${escAttr(v.tile_cover_url || '')}" placeholder="или ссылка https://..." style="margin-top:6px">
-    </div>
-    ${descEditorHtml('Вступительный текст')}
-    <div class="field"><label>Описание для поиска (SEO)</label>
-      <textarea id="sc-seo">${escHtml(v.seo_description || '')}</textarea>
-    </div>
-    <div class="field"><label>Статьи по теме</label>
-      <div id="sc-articles"></div>
-    </div>
+  document.getElementById('sc-icon-picker').innerHTML = iconPickerHtml(v.icon);
+  document.getElementById('sc-door').value = v.door || '';
+  document.getElementById('sc-hint').value = v.hint || '';
+  document.getElementById('sc-title').value = v.title || '';
+  document.getElementById('sc-slug').value = v.slug || '';
+  document.getElementById('sc-cover-url').value = v.cover_url || '';
+  document.getElementById('sc-cover-file').value = '';
+  document.getElementById('sc-tile-cover-url').value = v.tile_cover_url || '';
+  document.getElementById('sc-tile-cover-file').value = '';
+  document.getElementById('sc-seo').value = v.seo_description || '';
+  document.getElementById('sc-order').value = v.order_index;
+  document.getElementById('sc-published').checked = v.is_published !== false;
 
-    <details class="group" open>
-      <summary>Кого отбирать на эту страницу</summary>
-      <div class="group-body">
-        <div class="hint" style="margin:0 0 12px">Пусто = без ограничения по этому признаку, берётся всё подряд.</div>
-        <div class="field-row">
-          <div class="field"><label>С детьми</label>
-            <select id="sc-kid">
-              <option value="any" ${v.filter_kid_friendly === 'any' ? 'selected' : ''}>Неважно</option>
-              <option value="yes" ${v.filter_kid_friendly === 'yes' ? 'selected' : ''}>Подходит с детьми</option>
-              <option value="no" ${v.filter_kid_friendly === 'no' ? 'selected' : ''}>Не для детей</option>
-            </select>
-          </div>
-          <div class="field"><label>Сезонность</label>
-            <select id="sc-season">
-              <option value="any" ${v.filter_seasonality === 'any' ? 'selected' : ''}>Неважно</option>
-              <option value="year_round" ${v.filter_seasonality === 'year_round' ? 'selected' : ''}>Круглый год</option>
-              <option value="summer_only" ${v.filter_seasonality === 'summer_only' ? 'selected' : ''}>Только летом</option>
-            </select>
-          </div>
-        </div>
-        <div class="field"><label>Популярность</label>${multiChipsHtml('sc-pop-check', POPULARITY_OPTS, v.filter_popularity)}</div>
-        <div class="field"><label>Сложность</label>${multiChipsHtml('sc-diff-check', DIFFICULTY_OPTS, v.filter_difficulty)}</div>
-        <div class="field" style="margin-bottom:0"><label>Доступ</label>${multiChipsHtml('sc-acc-check', ACCESS_OPTS, v.filter_access)}</div>
-      </div>
-    </details>
-
-    <div class="field-row" style="margin-top:14px">
-      <div class="field"><label>Порядок на развилке</label>
-        <input id="sc-order" type="number" value="${v.order_index}">
-      </div>
-      <div class="field">
-        <label class="toggle" style="margin-top:22px">
-          <input type="checkbox" id="sc-published" ${v.is_published !== false ? 'checked' : ''}>
-          <span class="toggle-track"></span>
-          <span class="toggle-label">Показывать на сайте</span>
-        </label>
-      </div>
-    </div>
-  `, async () => {
-    let coverUrl = document.getElementById('sc-cover-url').value.trim();
-    let coverThumb = v.cover_thumb_url || null;
-    const coverFileEl = document.getElementById('sc-cover-file');
-    if (coverFileEl.files.length) {
-      const up = await uploadFile(coverFileEl.files[0]);
-      if (up) { coverUrl = up.url; coverThumb = up.thumb_url; }
-    }
-
-    let tileCoverUrl = document.getElementById('sc-tile-cover-url').value.trim();
-    let tileCoverThumb = v.tile_cover_thumb_url || null;
-    const tileCoverFileEl = document.getElementById('sc-tile-cover-file');
-    if (tileCoverFileEl.files.length) {
-      const up = await uploadFile(tileCoverFileEl.files[0]);
-      if (up) { tileCoverUrl = up.url; tileCoverThumb = up.thumb_url; }
-    }
-
-    const payload = {
-      icon: document.getElementById('sc-icon').value.trim() || null,
-      door: document.getElementById('sc-door').value.trim(),
-      hint: document.getElementById('sc-hint').value.trim() || null,
-      title: document.getElementById('sc-title').value.trim(),
-      slug: document.getElementById('sc-slug').value.trim() || null,
-      lead: readDescEditor(),
-      cover_url: coverUrl || null,
-      cover_thumb_url: coverUrl ? coverThumb : null,
-      tile_cover_url: tileCoverUrl || null,
-      tile_cover_thumb_url: tileCoverUrl ? tileCoverThumb : null,
-      seo_description: document.getElementById('sc-seo').value.trim() || null,
-      featured_article_ids: readPicker('sc-articles'),
-      filter_kid_friendly: document.getElementById('sc-kid').value,
-      filter_seasonality: document.getElementById('sc-season').value,
-      filter_popularity: readMultiChips('sc-pop-check'),
-      filter_difficulty: readMultiChips('sc-diff-check'),
-      filter_access: readMultiChips('sc-acc-check'),
-      order_index: parseInt(document.getElementById('sc-order').value, 10) || 0,
-      is_published: document.getElementById('sc-published').checked,
-    };
-    if (!payload.door || !payload.title) { toast('Заполните подпись и заголовок', true); return; }
-
-    const saved = s ? await api('PATCH', `/scenarios/${s.id}`, payload) : await api('POST', '/scenarios', payload);
-    if (saved) { clearDescDraft(draftScope); await loadAll(); closeModal(); toast('Сценарий сохранён'); }
-  }, {
-    wide: true,
-    preview: () => openPreview(
-      'description',
-      readDescEditor() || '',
-      document.getElementById('sc-title').value.trim(),
-      'Сценарий',
-    ),
-  });
+  document.getElementById('sc-kid').innerHTML = `
+    <option value="any" ${v.filter_kid_friendly === 'any' ? 'selected' : ''}>Неважно</option>
+    <option value="yes" ${v.filter_kid_friendly === 'yes' ? 'selected' : ''}>Подходит с детьми</option>
+    <option value="no" ${v.filter_kid_friendly === 'no' ? 'selected' : ''}>Не для детей</option>`;
+  document.getElementById('sc-season').innerHTML = `
+    <option value="any" ${v.filter_seasonality === 'any' ? 'selected' : ''}>Неважно</option>
+    <option value="year_round" ${v.filter_seasonality === 'year_round' ? 'selected' : ''}>Круглый год</option>
+    <option value="summer_only" ${v.filter_seasonality === 'summer_only' ? 'selected' : ''}>Только летом</option>`;
+  document.getElementById('sc-pop-chips').innerHTML = multiChipsHtml('sc-pop-check', POPULARITY_OPTS, v.filter_popularity);
+  document.getElementById('sc-diff-chips').innerHTML = multiChipsHtml('sc-diff-check', DIFFICULTY_OPTS, v.filter_difficulty);
+  document.getElementById('sc-acc-chips').innerHTML = multiChipsHtml('sc-acc-check', ACCESS_OPTS, v.filter_access);
 
   document.getElementById('sc-articles').innerHTML = pickerHtml(articles, v.featured_article_ids || [], a => a.title);
-  initDescEditor(v.lead || '', draftScope);
+  document.getElementById('sc-desc-slot').innerHTML = descEditorHtml('Вступительный текст');
+
+  setupCoverPreview('sc-cover-file', 'sc-cover-url', 'sc-cover-preview');
+  setupCoverPreview('sc-tile-cover-file', 'sc-tile-cover-url', 'sc-tile-cover-preview');
+  initDescEditor(v.lead || '', 'scenario:' + (s ? s.id : 'new'));
+  autoGrow(document.getElementById('sc-title'));
+  setSaveState('', false, 'sc-save-state');
+}
+
+function closeScenarioEditor() {
+  showTab('scenarios');
+  editingScenarioId = null;
+}
+
+function previewScenario() {
+  openPreview(
+    'description',
+    readDescEditor() || '',
+    document.getElementById('sc-title').value.trim(),
+    'Сценарий',
+  );
+}
+
+async function saveScenario() {
+  const door = document.getElementById('sc-door').value.trim();
+  const title = document.getElementById('sc-title').value.trim();
+  if (!door || !title) { toast('Заполните подпись и заголовок', true); return; }
+
+  let coverUrl = document.getElementById('sc-cover-url').value.trim();
+  let coverThumb = null;
+  const coverFileEl = document.getElementById('sc-cover-file');
+  if (coverFileEl.files.length) {
+    const up = await uploadFile(coverFileEl.files[0]);
+    if (up) { coverUrl = up.url; coverThumb = up.thumb_url; }
+  }
+
+  let tileCoverUrl = document.getElementById('sc-tile-cover-url').value.trim();
+  let tileCoverThumb = null;
+  const tileCoverFileEl = document.getElementById('sc-tile-cover-file');
+  if (tileCoverFileEl.files.length) {
+    const up = await uploadFile(tileCoverFileEl.files[0]);
+    if (up) { tileCoverUrl = up.url; tileCoverThumb = up.thumb_url; }
+  }
+
+  const payload = {
+    icon: document.getElementById('sc-icon').value.trim() || null,
+    door,
+    hint: document.getElementById('sc-hint').value.trim() || null,
+    title,
+    slug: document.getElementById('sc-slug').value.trim() || null,
+    lead: readDescEditor(),
+    cover_url: coverUrl || null,
+    cover_thumb_url: coverUrl ? coverThumb : null,
+    tile_cover_url: tileCoverUrl || null,
+    tile_cover_thumb_url: tileCoverUrl ? tileCoverThumb : null,
+    seo_description: document.getElementById('sc-seo').value.trim() || null,
+    featured_article_ids: readPicker('sc-articles'),
+    filter_kid_friendly: document.getElementById('sc-kid').value,
+    filter_seasonality: document.getElementById('sc-season').value,
+    filter_popularity: readMultiChips('sc-pop-check'),
+    filter_difficulty: readMultiChips('sc-diff-check'),
+    filter_access: readMultiChips('sc-acc-check'),
+    order_index: parseInt(document.getElementById('sc-order').value, 10) || 0,
+    is_published: document.getElementById('sc-published').checked,
+  };
+
+  const saved = editingScenarioId
+    ? await api('PATCH', `/scenarios/${editingScenarioId}`, payload)
+    : await api('POST', '/scenarios', payload);
+  if (!saved) return;
+
+  clearDescDraft('scenario:' + (editingScenarioId || 'new'));
+  editingScenarioId = saved.id;
+  await loadAll();
+  setSaveState('Сохранено на сервере', true, 'sc-save-state');
+  toast('Сценарий сохранён');
+}
+
+function scheduleScenarioAutosave() {
+  if (!document.getElementById('view-scenario-editor').classList.contains('active')) return;
+  setSaveState('Изменения не сохранены', false, 'sc-save-state');
 }
 
 async function deleteScenario(id) {
@@ -1943,6 +2014,60 @@ function pickEmbed(title, items, labelFn, onPick) {
 }
 
 // ── Списки блоков ──────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+//  СТРАНИЦЫ САЙТА — шапка главной и страница клуба. Обе строки всегда
+//  существуют (засеяны на старте), поэтому здесь только редактирование.
+// ═══════════════════════════════════════════════════════════════
+
+const SITE_PAGE_LABELS = { home: 'Главная страница', club: 'Страница клуба' };
+
+function renderSitePages() {
+  const el = document.getElementById('site-pages-list');
+  if (!el) return;
+  el.innerHTML = sitePages.map(p => `
+    <div class="row">
+      <div class="row-main">
+        <div class="row-title">${escHtml(SITE_PAGE_LABELS[p.slug] || p.slug)}</div>
+        <div class="row-meta"><span>${escHtml(p.title || '')}</span></div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openSitePageForm('${p.slug}')">Редактировать</button>
+      </div>
+    </div>`).join('');
+}
+
+function openSitePageForm(slug) {
+  const p = sitePages.find(x => x.slug === slug) || {};
+  const hasButton = slug === 'club';
+  showModal(SITE_PAGE_LABELS[slug] || slug, `
+    <div class="field"><label>Надпись над заголовком</label>
+      <input id="sp-eyebrow" value="${escAttr(p.eyebrow || '')}" placeholder="Привет">
+    </div>
+    <div class="field"><label>Заголовок</label>
+      <input id="sp-title" value="${escAttr(p.title || '')}">
+    </div>
+    <div class="field"><label>Текст под заголовком</label>
+      <textarea id="sp-lead">${escHtml(p.lead || '')}</textarea>
+    </div>
+    <div class="field"><label>${slug === 'club' ? 'Второй абзац' : 'Подпись у карточки-подборки справа'}</label>
+      <textarea id="sp-lead-extra">${escHtml(p.lead_extra || '')}</textarea>
+    </div>
+    ${hasButton ? `<div class="field" style="margin-bottom:0"><label>Текст на кнопке</label>
+      <input id="sp-button" value="${escAttr(p.button_text || '')}">
+    </div>` : ''}
+  `, async () => {
+    const payload = {
+      eyebrow: document.getElementById('sp-eyebrow').value.trim() || null,
+      title: document.getElementById('sp-title').value.trim() || null,
+      lead: document.getElementById('sp-lead').value.trim() || null,
+      lead_extra: document.getElementById('sp-lead-extra').value.trim() || null,
+      button_text: hasButton ? (document.getElementById('sp-button').value.trim() || null) : (p.button_text || null),
+    };
+    const saved = await api('PATCH', `/site-pages/${slug}`, payload);
+    if (saved) { await loadAll(); closeModal(); toast('Сохранено'); }
+  });
+}
+
 function renderBlocks() {
   const mEl = document.getElementById('magnets-list');
   if (mEl) {
@@ -2177,7 +2302,7 @@ async function deleteFaqSet(id) {
 // ═══════════════════════════════════════════════════════════════
 
 async function loadAll() {
-  const [cats, tr, cps, arts, tags, scs, mgs, fqs] = await Promise.all([
+  const [cats, tr, cps, arts, tags, scs, mgs, fqs, pgs] = await Promise.all([
     api('GET', '/categories'),
     api('GET', '/trails'),
     api('GET', '/checkpoints'),
@@ -2186,6 +2311,7 @@ async function loadAll() {
     api('GET', '/scenarios'),
     api('GET', '/magnets'),
     api('GET', '/faq-sets'),
+    api('GET', '/site-pages'),
   ]);
   categories = cats || [];
   trails = tr || [];
@@ -2195,12 +2321,14 @@ async function loadAll() {
   scenarios = scs || [];
   magnets = mgs || [];
   faqSets = fqs || [];
+  sitePages = pgs || [];
 
   renderArticles();
   renderRoutes();
   renderPlaces();
   renderScenarios();
   renderBlocks();
+  renderSitePages();
 }
 
 loadAll();

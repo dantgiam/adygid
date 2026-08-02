@@ -9,14 +9,14 @@
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
-      <p class="eyebrow">Привет</p>
-      <h1 class="page-title">Адыгея? АдыГид!</h1>
-      <p class="about-text">Здесь вы найдёте ответы на главные вопросы поездки — что посетить, сколько времени закладывать, где заночевать и что успеть увидеть за день-два. Все места и маршруты я прошёл сам и описал их для вас максимально подробно.</p>
+      <p class="eyebrow">{{ page.eyebrow }}</p>
+      <h1 class="page-title">{{ page.title }}</h1>
+      {% if page.lead %}<p class="about-text">{{ page.lead }}</p>{% endif %}
 
     </div>
 
     <div>
-      <p class="hl-label">Ни один вариант не подошёл?</p>
+      <p class="hl-label">{{ page.lead_extra }}</p>
       <!-- Колода: две подложки создают ощущение стопки, верхняя карточка
            смахивается свайпом или кнопкой «Ещё». -->
       <div class="hl-deck" id="hl-deck">

@@ -21,6 +21,7 @@
     <button class="tab" data-tab="places">Места</button>
     <button class="tab" data-tab="scenarios">Сценарии</button>
     <button class="tab" data-tab="blocks">Блоки</button>
+    <button class="tab" data-tab="pages">Страницы</button>
   </nav>
   <div class="topbar-actions">
     <button class="btn btn-ghost btn-sm" onclick="openCategories()">Категории</button>
@@ -108,6 +109,7 @@
           <label>Обложка</label>
           <input type="file" id="a-cover-file" accept="image/jpeg,image/png,image/webp">
           <input type="text" id="a-cover-url" placeholder="или ссылка https://..." style="margin-top:6px" oninput="scheduleAutosave()">
+          <div class="cover-preview cover-preview-wide" id="a-cover-preview" hidden><img alt=""></div>
         </div>
         <div class="field">
           <label>Ссылка страницы (slug)</label>
@@ -153,6 +155,42 @@
       </div>
     </div>
     <div class="list" id="routes-list"></div>
+  </div>
+</section>
+
+<!-- ══════════════ РЕДАКТОР МАРШРУТА (текст и параметры) ══════════════ -->
+<section class="view" id="view-route-editor">
+  <div class="editor-shell">
+    <div class="editor-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeRouteEditor()">← К списку</button>
+      <span class="save-state" id="rt-save-state"></span>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost" onclick="previewRoute()">Предпросмотр</button>
+      <button class="btn btn-primary" onclick="saveRoute()">Сохранить</button>
+    </div>
+
+    <div class="editor-grid">
+      <div>
+        <div class="paper">
+          <textarea class="paper-title" id="rt-name" rows="1" placeholder="Название маршрута"
+                    oninput="autoGrow(this); scheduleRouteAutosave()"></textarea>
+          <div id="rt-desc-slot"></div>
+        </div>
+      </div>
+
+      <aside class="editor-aside">
+        <div class="field-row">
+          <div class="field"><label>Категория</label>
+            <select id="rt-category" onchange="scheduleRouteAutosave()"></select>
+          </div>
+          <div class="field"><label>Длительность (минут)</label>
+            <input id="rt-duration" type="number" min="0" placeholder="150" oninput="scheduleRouteAutosave()">
+          </div>
+        </div>
+        <div id="rt-criteria-slot"></div>
+        <div class="hint" id="rt-map-hint" style="margin-top:4px">Тропу и точки по пути редактируйте кнопкой «Карта и точки» в списке маршрутов.</div>
+      </aside>
+    </div>
   </div>
 </section>
 
@@ -246,6 +284,83 @@
   </div>
 </section>
 
+<!-- ══════════════ РЕДАКТОР СЦЕНАРИЯ ══════════════ -->
+<section class="view" id="view-scenario-editor">
+  <div class="editor-shell">
+    <div class="editor-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeScenarioEditor()">← К списку</button>
+      <span class="save-state" id="sc-save-state"></span>
+      <span class="spacer"></span>
+      <label class="toggle">
+        <input type="checkbox" id="sc-published" checked>
+        <span class="toggle-track"></span>
+        <span class="toggle-label">Показывать на сайте</span>
+      </label>
+      <button class="btn btn-ghost" onclick="previewScenario()">Предпросмотр</button>
+      <button class="btn btn-primary" onclick="saveScenario()">Сохранить</button>
+    </div>
+
+    <div class="editor-grid">
+      <div>
+        <div class="paper">
+          <textarea class="paper-title" id="sc-title" rows="1" placeholder="Заголовок страницы сценария"
+                    oninput="autoGrow(this); scheduleScenarioAutosave()"></textarea>
+          <div id="sc-desc-slot"></div>
+        </div>
+      </div>
+
+      <aside class="editor-aside">
+        <div class="field"><label>Иконка</label><div id="sc-icon-picker"></div></div>
+        <div class="field"><label>Подпись на плитке развилки</label>
+          <input id="sc-door" placeholder="Еду с детьми" oninput="scheduleScenarioAutosave()">
+        </div>
+        <div class="field"><label>Подзаголовок на плитке (необязательно)</label>
+          <input id="sc-hint" placeholder="Куда реально дойти с ребёнком" oninput="scheduleScenarioAutosave()">
+        </div>
+        <div class="field"><label>Ссылка страницы (slug)</label>
+          <input id="sc-slug" placeholder="сгенерируется из подписи" oninput="scheduleScenarioAutosave()">
+        </div>
+        <div class="field">
+          <label>Обложка (шапка страницы сценария)</label>
+          <input type="file" id="sc-cover-file" accept="image/jpeg,image/png,image/webp">
+          <input type="text" id="sc-cover-url" placeholder="или ссылка https://..." style="margin-top:6px" oninput="scheduleScenarioAutosave()">
+          <div class="cover-preview cover-preview-wide" id="sc-cover-preview" hidden><img alt=""></div>
+        </div>
+        <div class="field">
+          <label>Обложка плитки на развилке (вертикальное фото)</label>
+          <div class="hint" style="margin:0 0 6px">Отдельная от шапки — плитка вертикальная, а шапка страницы горизонтальная, один кадр не годится под оба места</div>
+          <input type="file" id="sc-tile-cover-file" accept="image/jpeg,image/png,image/webp">
+          <input type="text" id="sc-tile-cover-url" placeholder="или ссылка https://..." style="margin-top:6px" oninput="scheduleScenarioAutosave()">
+          <div class="cover-preview cover-preview-tile" id="sc-tile-cover-preview" hidden><img alt=""></div>
+        </div>
+        <div class="field"><label>Описание для поиска (SEO)</label>
+          <textarea id="sc-seo" oninput="scheduleScenarioAutosave()"></textarea>
+        </div>
+        <div class="field"><label>Статьи по теме</label><div id="sc-articles"></div></div>
+
+        <details class="group" open>
+          <summary>Кого отбирать на эту страницу</summary>
+          <div class="group-body">
+            <div class="hint" style="margin:0 0 12px">Пусто = без ограничения по этому признаку, берётся всё подряд.</div>
+            <div class="field-row">
+              <div class="field"><label>С детьми</label><select id="sc-kid" onchange="scheduleScenarioAutosave()"></select></div>
+              <div class="field"><label>Сезонность</label><select id="sc-season" onchange="scheduleScenarioAutosave()"></select></div>
+            </div>
+            <div class="field"><label>Популярность</label><div id="sc-pop-chips"></div></div>
+            <div class="field"><label>Сложность</label><div id="sc-diff-chips"></div></div>
+            <div class="field" style="margin-bottom:0"><label>Доступ</label><div id="sc-acc-chips"></div></div>
+          </div>
+        </details>
+
+        <div class="field" style="margin-top:14px;margin-bottom:0">
+          <label>Порядок на развилке</label>
+          <input id="sc-order" type="number">
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
 <!-- ══════════════ БЛОКИ ДЛЯ СТАТЕЙ ══════════════ -->
 <section class="view" id="view-blocks">
   <div class="page">
@@ -271,6 +386,19 @@
       </div>
       <div class="list" id="faqsets-list"></div>
     </div>
+  </div>
+</section>
+
+<!-- ══════════════ СТРАНИЦЫ САЙТА ══════════════ -->
+<section class="view" id="view-pages">
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>Страницы сайта</h1>
+        <div class="sub">Тексты шапки главной и страницы клуба — раньше были зашиты в шаблон.</div>
+      </div>
+    </div>
+    <div class="list" id="site-pages-list"></div>
   </div>
 </section>
 

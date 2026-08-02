@@ -15,7 +15,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import get_db
-from app.models import Article, Category, Checkpoint, FaqSet, Like, Magnet, Scenario, Trail
+from app.models import Article, Category, Checkpoint, FaqSet, Like, Magnet, Scenario, SitePage, Trail
 from site_app.content import (
     ACCESS_LABELS,
     CLUB_URL,
@@ -106,6 +106,18 @@ def _updated_label(dt) -> Optional[str]:
     if not dt:
         return None
     return f"Актуально на {dt.day} {_MONTHS_RU[dt.month - 1]} {dt.year}"
+
+
+def _site_page(db: Session, slug: str) -> dict:
+    """Текст шапки главной / страницы клуба — правится в админке (SitePage),
+    засеян дефолтом при первом старте, поэтому строка есть всегда."""
+    p = db.execute(select(SitePage).where(SitePage.slug == slug)).scalars().first()
+    if not p:
+        return {"eyebrow": "", "title": "", "lead": "", "lead_extra": "", "button_text": ""}
+    return {
+        "eyebrow": p.eyebrow or "", "title": p.title or "", "lead": p.lead or "",
+        "lead_extra": p.lead_extra or "", "button_text": p.button_text or "",
+    }
 
 
 def _likes_label(count: int) -> str:
@@ -828,7 +840,7 @@ def home(request: Request, db: Session = Depends(get_db)):
         "home.html",
         _ctx(
             request, db, active_nav="home", highlight=highlight, articles=articles, places=places, routes=routes,
-            wizard_categories=wizard_categories, doors=doors,
+            wizard_categories=wizard_categories, doors=doors, page=_site_page(db, "home"),
         ),
     )
 
@@ -1364,7 +1376,7 @@ def faq_page(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/klub")
 def club(request: Request, db: Session = Depends(get_db)):
-    return templates.TemplateResponse("club.html", _ctx(request, db, active_nav="club"))
+    return templates.TemplateResponse("club.html", _ctx(request, db, active_nav="club", page=_site_page(db, "club")))
 
 
 # ─────────────────────────────────────────────

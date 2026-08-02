@@ -273,3 +273,22 @@ class Like(Base):
     subject_id   = Column(Integer, nullable=False)
     voter_id     = Column(String(64), nullable=False)
     created_at   = Column(DateTime, server_default=func.now())
+
+
+class SitePage(Base):
+    """Тексты статических страниц сайта (шапка главной, страница клуба) —
+    раньше были зашиты прямо в HTML-шаблон, теперь правятся в админке без
+    деплоя. Строки на 'home' и 'club' засеваются один раз при первом старте
+    (см. app/main.py) и дальше всегда существуют, поэтому публичные роуты
+    читают их без доп. проверки на None."""
+    __tablename__ = "site_pages"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    slug        = Column(String(50), nullable=False, unique=True, index=True)   # 'home' | 'club'
+    eyebrow     = Column(String(100), nullable=True)
+    title       = Column(String(255), nullable=True)
+    lead        = Column(Text, nullable=True)
+    # Главная: подпись у колоды карточек справа. Клуб: второй абзац под lead.
+    lead_extra  = Column(Text, nullable=True)
+    button_text = Column(String(120), nullable=True)
+    updated_at  = Column(DateTime, server_default=func.now(), onupdate=func.now())

@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from PIL import Image
 
 from app.database import Base, engine, get_db
-from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like, Scenario, Magnet, FaqSet
+from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like, Scenario, Magnet, FaqSet, SitePage
 from app.slugs import slugify as _slugify, unique_slug as _unique_slug
 from site_app.content import consider_embed_html
 from site_app.router import router as site_router
@@ -266,6 +266,30 @@ with Session(engine) as _seed_db:
             ]
             _seed_db.add(Scenario(featured_article_ids=_article_ids, **_sc))
         _seed_db.commit()
+
+# Тексты шапки главной и страницы клуба — раньше жили прямо в HTML-шаблоне,
+# теперь читаются из БД и правятся в админке. Засеваются один раз тем же
+# текстом, что раньше был зашит в шаблон, — на сайте ничего не меняется,
+# пока автор сам не отредактирует.
+_DEFAULT_SITE_PAGES = [
+    dict(
+        slug="home", eyebrow="Привет", title="Адыгея? АдыГид!",
+        lead="Здесь вы найдёте ответы на главные вопросы поездки — что посетить, сколько времени закладывать, где заночевать и что успеть увидеть за день-два. Все места и маршруты я прошёл сам и описал их для вас максимально подробно.",
+        lead_extra="Ни один вариант не подошёл?",
+    ),
+    dict(
+        slug="club", eyebrow="Сообщество", title="Клуб АдыГид в MAX",
+        lead="Отзывы, живые впечатления и общение с теми, кто уже был в Адыгее или только планирует поездку. Здесь можно спросить про погоду на плато на конкретной неделе, состояние дороги, актуальные цены на входы — то, что быстро устаревает в любых описаниях.",
+        lead_extra="Вступление свободное, ничего платить не нужно.",
+        button_text="Вступить в клуб в MAX →",
+    ),
+]
+with Session(engine) as _seed_db:
+    _existing_page_slugs = {row[0] for row in _seed_db.execute(select(SitePage.slug)).all()}
+    for _sp in _DEFAULT_SITE_PAGES:
+        if _sp["slug"] not in _existing_page_slugs:
+            _seed_db.add(SitePage(**_sp))
+    _seed_db.commit()
 
 # Четыре лид-магнита под самые частые запросы. Ссылки намеренно пустые —
 # их проставляет автор в админке, а до тех пор блок на сайте не выводится,
@@ -1109,6 +1133,52 @@ def _scenario_out(s: Scenario):
         "order_index": s.order_index,
         "is_published": s.is_published,
     }
+
+
+# ─────────────────────────────────────────────
+#  СТРАНИЦЫ САЙТА — тексты шапки главной и страницы клуба. Обе строки
+#  засеяны при первом старте (см. выше) и всегда существуют, поэтому здесь
+#  только чтение и правка — ни создания, ни удаления не требуется.
+# ─────────────────────────────────────────────
+
+class SitePageUpdate(BaseModel):
+    eyebrow: Optional[str] = None
+    title: Optional[str] = None
+    lead: Optional[str] = None
+    lead_extra: Optional[str] = None
+    button_text: Optional[str] = None
+
+
+def _site_page_out(p: SitePage) -> dict:
+    return {
+        "slug": p.slug,
+        "eyebrow": p.eyebrow,
+        "title": p.title,
+        "lead": p.lead,
+        "lead_extra": p.lead_extra,
+        "button_text": p.button_text,
+    }
+
+
+@app.get("/api/site-pages")
+def list_site_pages(db: Session = Depends(get_db)):
+    rows = db.execute(select(SitePage).order_by(SitePage.id)).scalars().all()
+    return [_site_page_out(p) for p in rows]
+
+
+@app.patch("/api/site-pages/{slug}")
+def update_site_page(slug: str, body: SitePageUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    p = db.execute(select(SitePage).where(SitePage.slug == slug)).scalars().first()
+    if not p:
+        raise HTTPException(404, "Страница не найдена")
+    p.eyebrow = body.eyebrow
+    p.title = body.title
+    p.lead = body.lead
+    p.lead_extra = body.lead_extra
+    p.button_text = body.button_text
+    db.commit()
+    db.refresh(p)
+    return _site_page_out(p)
 
 
 # ─────────────────────────────────────────────
