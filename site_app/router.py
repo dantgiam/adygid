@@ -63,11 +63,16 @@ _POPULARITY_ORDER_TRAIL = case((Trail.popularity == "top", 0), (Trail.popularity
 # десятка объектов набегали десятки обращений к удалённой базе, и страница
 # ждала их последовательно. Догружаем всё пачкой вместе с основной выборкой.
 def _with_place_relations(stmt):
-    return stmt.options(selectinload(Checkpoint.photos), joinedload(Checkpoint.category))
+    # is_published фильтруется прямо здесь: этим select() пользуются и списки,
+    # и страница самого места — скрытая точка не должна открываться и по
+    # прямой ссылке, иначе переключатель в админке ничего не скрывает.
+    return stmt.options(selectinload(Checkpoint.photos), joinedload(Checkpoint.category)) \
+        .where(Checkpoint.is_published == True)
 
 
 def _with_route_relations(stmt):
-    return stmt.options(selectinload(Trail.photos), joinedload(Trail.category))
+    return stmt.options(selectinload(Trail.photos), joinedload(Trail.category)) \
+        .where(Trail.is_published == True)
 
 
 # ─────────────────────────────────────────────
@@ -341,6 +346,12 @@ def _thumb_of(photos) -> Optional[str]:
     return photos[0].thumb_url or photos[0].url
 
 
+def _gallery_of(photos) -> list:
+    """Данные для карусели на странице места/маршрута: полный размер (не
+    миниатюра — карусель на весь экран, мылить незачем) плюс подпись."""
+    return [{"url": p.url, "caption": p.caption or ""} for p in photos]
+
+
 def _category_lite(cat) -> Optional[dict]:
     if not cat:
         return None
@@ -409,7 +420,7 @@ def _routes_for_place(db: Session, cp: Checkpoint, radius_km: float = 12.0, limi
     отдельно стоящих мест тоже была связь с маршрутами, а не только наоборот."""
     cards, seen = [], set()
 
-    if cp.trail:
+    if cp.trail and cp.trail.is_published:
         card = _route_card_dict(cp.trail)
         card["relation"] = "Место на этом маршруте"
         cards.append(card)
@@ -423,7 +434,7 @@ def _routes_for_place(db: Session, cp: Checkpoint, radius_km: float = 12.0, limi
         select(Trail, func.min(func.ST_DistanceSphere(Checkpoint.geom, point)).label("d"))
         .options(selectinload(Trail.photos), selectinload(Trail.category))
         .join(Checkpoint, Checkpoint.trail_id == Trail.id)
-        .where(Checkpoint.id != cp.id)
+        .where(Checkpoint.id != cp.id, Trail.is_published == True)
         .group_by(Trail.id)
         .having(func.min(func.ST_DistanceSphere(Checkpoint.geom, point)) < radius_km * 1000)
         .order_by("d")
@@ -619,6 +630,7 @@ def _place_detail_dict(cp: Checkpoint) -> dict:
         "description_html": _render_consider_blocks(_rich_text_html(cp.description)),
         "cover": _cover_of(cp.photos),
         "photos": [p.url for p in cp.photos],
+        "gallery": _gallery_of(cp.photos),
         "district_label": DISTRICTS.get(cp.district),
         "category": _category_lite(cp.category),
         "difficulty_label": DIFFICULTY_LABELS.get(cp.difficulty, cp.difficulty),
@@ -632,7 +644,7 @@ def _place_detail_dict(cp: Checkpoint) -> dict:
         "weather_url": _weather_url(to_shape(cp.geom).y, to_shape(cp.geom).x),
         "trail": {"name": cp.trail.name, "url": f"/marshruty/{cp.trail.id}"} if cp.trail else None,
         "district_url": f"/okrugi/{cp.district}" if cp.district in DISTRICT_PAGES else None,
-        "updated_label": _updated_label(cp.updated_at),
+        "updated_label": _updated_label(cp.checked_at),
     }
 
 
@@ -650,6 +662,7 @@ def _route_detail_dict(t: Trail) -> dict:
         "excerpt": _excerpt(t.description, 200),
         "description_html": _render_consider_blocks(_rich_text_html(t.description)),
         "cover": _cover_of(t.photos),
+        "gallery": _gallery_of(t.photos),
         "district_label": DISTRICTS.get(t.district),
         "category": _category_lite(t.category),
         "difficulty_label": DIFFICULTY_LABELS.get(t.difficulty, t.difficulty),
@@ -664,7 +677,7 @@ def _route_detail_dict(t: Trail) -> dict:
         "weather_url": weather_url,
         "gpx_url": f"/marshruty/{t.id}/track.gpx" if t.segments else None,
         "district_url": f"/okrugi/{t.district}" if t.district in DISTRICT_PAGES else None,
-        "updated_label": _updated_label(t.updated_at),
+        "updated_label": _updated_label(t.checked_at),
         "checkpoints": [
             {
                 "name": cp.name,
@@ -693,8 +706,9 @@ def _footer_stats(db: Session) -> dict:
     if _FOOTER_CACHE["value"] is not None and now - _FOOTER_CACHE["at"] < _FOOTER_TTL_S:
         return _FOOTER_CACHE["value"]
 
-    places_q = select(func.count()).select_from(Checkpoint).where(Checkpoint.show_as_place == True).scalar_subquery()
-    trails_q = select(func.count()).select_from(Trail).scalar_subquery()
+    places_q = select(func.count()).select_from(Checkpoint) \
+        .where(Checkpoint.show_as_place == True, Checkpoint.is_published == True).scalar_subquery()
+    trails_q = select(func.count()).select_from(Trail).where(Trail.is_published == True).scalar_subquery()
     places, trails = db.execute(select(places_q, trails_q)).one()
 
     _FOOTER_CACHE["value"] = {"places": places or 0, "trails": trails or 0}
@@ -727,9 +741,10 @@ def _pick_highlight(db: Session) -> dict:
     целиком (с описаниями и фото) ради одной карточки незачем. Полностью
     читаем только выпавший."""
     place_rows = db.execute(
-        select(Checkpoint.id, Checkpoint.popularity).where(Checkpoint.show_as_place == True)
+        select(Checkpoint.id, Checkpoint.popularity)
+        .where(Checkpoint.show_as_place == True, Checkpoint.is_published == True)
     ).all()
-    trail_rows = db.execute(select(Trail.id, Trail.popularity)).all()
+    trail_rows = db.execute(select(Trail.id, Trail.popularity).where(Trail.is_published == True)).all()
     pool = [("place", r) for r in place_rows] + [("route", r) for r in trail_rows]
 
     if not pool:
@@ -1417,10 +1432,11 @@ def sitemap_xml(db: Session = Depends(get_db)):
         urls.append((f"/okrugi/{slug}", None, "monthly"))
 
     for cp in db.execute(
-        select(Checkpoint.id, Checkpoint.created_at).where(Checkpoint.show_as_place == True)
+        select(Checkpoint.id, Checkpoint.created_at)
+        .where(Checkpoint.show_as_place == True, Checkpoint.is_published == True)
     ).all():
         urls.append((f"/mesta/{cp.id}", cp.created_at.date().isoformat() if cp.created_at else None, "monthly"))
-    for t in db.execute(select(Trail.id, Trail.created_at)).all():
+    for t in db.execute(select(Trail.id, Trail.created_at).where(Trail.is_published == True)).all():
         urls.append((f"/marshruty/{t.id}", t.created_at.date().isoformat() if t.created_at else None, "monthly"))
     for a in db.execute(
         select(Article.slug, Article.created_at).where(Article.is_published == True)

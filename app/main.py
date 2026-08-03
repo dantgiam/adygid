@@ -2,6 +2,7 @@ import io
 import os
 import secrets
 import uuid
+from datetime import datetime
 from html import escape as _esc_html
 from typing import Optional, List
 
@@ -17,7 +18,7 @@ from sqlalchemy import select, func, text
 from geoalchemy2.shape import to_shape
 from shapely.geometry import shape, mapping
 from pydantic import BaseModel
-from PIL import Image
+from PIL import Image, ImageOps
 
 from app.database import Base, engine, get_db
 from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like, Scenario, Magnet, FaqSet, SitePage
@@ -96,6 +97,9 @@ with engine.begin() as _conn:
         # У записей, заведённых до появления колонки, берём дату создания —
         # иначе на сайте они все окажутся «обновлёнными» в день миграции.
         _conn.execute(text(f"UPDATE {_t} SET updated_at = created_at WHERE updated_at IS NULL"))
+        _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP"))
+        _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS is_published BOOLEAN NOT NULL DEFAULT true"))
+    _conn.execute(text("ALTER TABLE photos ADD COLUMN IF NOT EXISTS caption VARCHAR(255)"))
 
 # scenarios.tips (отдельный список коротких советов) заменён на локальный
 # блок «Что учесть», вставляемый прямо в текст lead — см. site_app.content.
@@ -454,12 +458,24 @@ async def upload_photo(file: UploadFile = File(...), _: bool = Depends(require_a
     thumb_data = data
     try:
         img = Image.open(io.BytesIO(data))
-        img.thumbnail(THUMB_SIZE)
+        # Телефон часто пишет кадр «как держали» и кладёт нужный поворот в EXIF
+        # Orientation, а не в сами пиксели. exif_transpose впечатывает поворот
+        # в пиксели один раз здесь — иначе он теряется при пересжатии миниатюры
+        # (Pillow не переносит EXIF в .save()) и превью показывает сырой кадр
+        # боком: широкое фото на обложке карточки вдруг становится вертикальным.
+        img = ImageOps.exif_transpose(img)
         if ext in ("jpg", "jpeg") and img.mode != "RGB":
             img = img.convert("RGB")
-        buf = io.BytesIO()
-        img.save(buf, ALLOWED_EXT[ext])
-        thumb_data = buf.getvalue()
+
+        orig_buf = io.BytesIO()
+        img.save(orig_buf, ALLOWED_EXT[ext])
+        data = orig_buf.getvalue()
+
+        thumb_img = img.copy()
+        thumb_img.thumbnail(THUMB_SIZE)
+        thumb_buf = io.BytesIO()
+        thumb_img.save(thumb_buf, ALLOWED_EXT[ext])
+        thumb_data = thumb_buf.getvalue()
     except Exception:
         pass
 
@@ -497,12 +513,16 @@ class TrailIn(ExtraCriteriaIn):
     description: Optional[str] = None
     category_id: Optional[int] = None
     duration_minutes: Optional[int] = None
+    checked_at: Optional[datetime] = None
+    is_published: bool = True
 
 class TrailUpdate(ExtraCriteriaIn):
     name: Optional[str] = None
     description: Optional[str] = None
     category_id: Optional[int] = None
     duration_minutes: Optional[int] = None
+    checked_at: Optional[datetime] = None
+    is_published: Optional[bool] = None
 
 class SegmentIn(BaseModel):
     difficulty: str = "easy"      # easy | medium | hard
@@ -522,16 +542,23 @@ class CheckpointIn(ExtraCriteriaIn):
     order_index: int = 0
     duration_minutes: Optional[int] = None
     show_as_place: Optional[bool] = None
+    checked_at: Optional[datetime] = None
+    is_published: bool = True
     lon: float
     lat: float
 
 class CheckpointUpdate(ExtraCriteriaIn):
+    # trail_id разбирается через model_fields_set: null здесь — осмысленное
+    # значение («отвязать от маршрута»), а не «поле не прислали».
+    trail_id: Optional[int] = None
     name: Optional[str] = None
     category_id: Optional[int] = None
     description: Optional[str] = None
     order_index: Optional[int] = None
     duration_minutes: Optional[int] = None
     show_as_place: Optional[bool] = None
+    checked_at: Optional[datetime] = None
+    is_published: Optional[bool] = None
     lon: Optional[float] = None
     lat: Optional[float] = None
 
@@ -542,6 +569,9 @@ class CheckpointOrderIn(BaseModel):
 class PhotoIn(BaseModel):
     url: str
     thumb_url: Optional[str] = None
+    caption: Optional[str] = None
+
+class PhotoUpdate(BaseModel):
     caption: Optional[str] = None
 
 class CategoryIn(BaseModel):
@@ -689,6 +719,13 @@ def list_trails(db: Session = Depends(get_db)):
     return [_trail_out(t) for t in trails]
 
 
+@app.get("/api/trails/{trail_id}")
+def get_trail(trail_id: int, db: Session = Depends(get_db)):
+    """Один маршрут целиком. Редактору карты после каждой правки нужна только
+    свежая геометрия — тянуть ради этого весь список маршрутов незачем."""
+    return _trail_out(_get_or_404(db, Trail, trail_id))
+
+
 @app.post("/api/trails", status_code=201)
 def create_trail(body: TrailIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     t = Trail(
@@ -696,6 +733,8 @@ def create_trail(body: TrailIn, db: Session = Depends(get_db), _: bool = Depends
         description=body.description,
         category_id=body.category_id,
         duration_minutes=body.duration_minutes,
+        checked_at=body.checked_at,
+        is_published=body.is_published,
         **_extra_criteria_kwargs(body),
     )
     db.add(t); db.commit(); db.refresh(t)
@@ -709,6 +748,8 @@ def update_trail(trail_id: int, body: TrailUpdate, db: Session = Depends(get_db)
     if body.description is not None:       t.description = body.description
     if body.category_id is not None:       t.category_id = body.category_id
     if body.duration_minutes is not None:  t.duration_minutes = body.duration_minutes
+    if body.checked_at is not None:        t.checked_at = body.checked_at
+    if body.is_published is not None:      t.is_published = body.is_published
     _apply_extra_criteria(t, body)
     db.commit(); db.refresh(t)
     return _trail_out(t)
@@ -757,6 +798,8 @@ def _trail_out(t: Trail):
         "category": _category_out(t.category) if t.category else None,
         "duration_minutes": t.duration_minutes,
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+        "checked_at": t.checked_at.isoformat() if t.checked_at else None,
+        "is_published": t.is_published,
         "segments": [_seg_out(s) for s in t.segments],
         "checkpoints": [_cp_out(c) for c in t.checkpoints],
         "photos": [_photo_out(p) for p in t.photos],
@@ -862,6 +905,8 @@ def create_checkpoint(body: CheckpointIn, db: Session = Depends(get_db), _: bool
         order_index=body.order_index,
         duration_minutes=body.duration_minutes,
         show_as_place=show_as_place,
+        checked_at=body.checked_at,
+        is_published=body.is_published,
         geom=f"SRID=4326;POINT({body.lon} {body.lat})",
         **_extra_criteria_kwargs(body),
     )
@@ -872,12 +917,28 @@ def create_checkpoint(body: CheckpointIn, db: Session = Depends(get_db), _: bool
 @app.patch("/api/checkpoints/{cp_id}")
 def update_checkpoint(cp_id: int, body: CheckpointUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     cp = _get_or_404(db, Checkpoint, cp_id)
+    if "trail_id" in body.model_fields_set and body.trail_id != cp.trail_id:
+        if body.trail_id is None:
+            # Отвязали от маршрута — точка остаётся, но живёт сама по себе,
+            # а значит должна быть видна на сайте как место.
+            cp.trail_id = None
+            cp.order_index = 0
+            cp.show_as_place = True
+        else:
+            _get_or_404(db, Trail, body.trail_id)
+            cp.trail_id = body.trail_id
+            last = db.execute(
+                select(func.max(Checkpoint.order_index)).where(Checkpoint.trail_id == body.trail_id)
+            ).scalar()
+            cp.order_index = 0 if last is None else last + 1
     if body.name is not None:        cp.name = body.name
     if body.category_id is not None: cp.category_id = body.category_id
     if body.description is not None: cp.description = body.description
     if body.order_index is not None: cp.order_index = body.order_index
     if body.duration_minutes is not None: cp.duration_minutes = body.duration_minutes
     if body.show_as_place is not None: cp.show_as_place = body.show_as_place
+    if body.checked_at is not None:  cp.checked_at = body.checked_at
+    if body.is_published is not None: cp.is_published = body.is_published
     if body.lon is not None and body.lat is not None:
         cp.geom = f"SRID=4326;POINT({body.lon} {body.lat})"
     _apply_extra_criteria(cp, body)
@@ -919,6 +980,14 @@ def add_photo(cp_id: int, body: PhotoIn, db: Session = Depends(get_db), _: bool 
     return _photo_out(photo)
 
 
+@app.patch("/api/photos/{photo_id}")
+def update_photo(photo_id: int, body: PhotoUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    photo = _get_or_404(db, Photo, photo_id)
+    if body.caption is not None: photo.caption = body.caption
+    db.commit(); db.refresh(photo)
+    return _photo_out(photo)
+
+
 @app.delete("/api/photos/{photo_id}")
 def delete_photo(photo_id: int, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     photo = _get_or_404(db, Photo, photo_id)
@@ -944,6 +1013,8 @@ def _cp_out(c: Checkpoint):
         "duration_minutes": c.duration_minutes,
         "show_as_place": c.show_as_place,
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+        "checked_at": c.checked_at.isoformat() if c.checked_at else None,
+        "is_published": c.is_published,
         "lon": shp.x,
         "lat": shp.y,
         "photos": [_photo_out(p) for p in c.photos],

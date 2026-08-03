@@ -36,11 +36,7 @@
         {% if place.updated_label %}<p class="updated-note">{{ place.updated_label }}</p>{% endif %}
         {% if place.description_html %}{{ place.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
-        {% if place.photos and place.photos|length > 1 %}
-        <div class="photo-strip">
-          {% for url in place.photos %}<img src="{{ url }}" alt="{{ place.name }}">{% endfor %}
-        </div>
-        {% endif %}
+        {{ cards.photo_carousel(place.gallery) }}
 
         <div class="like-row">
           <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="checkpoint" data-id="{{ place.id }}">

@@ -423,3 +423,66 @@ document.addEventListener("click", (e) => {
     infoBtn.nextElementSibling.classList.toggle("open");
   }
 });
+
+// ── Карусель фото места/маршрута ───────────────────────────────────────────
+// Прокрутка нативная (overflow-x + scroll-snap), JS только синхронизирует
+// стрелки/точки/подпись со текущим слайдом и переключает по клику/клавишам —
+// без этого пришлось бы тащить отдельную библиотеку ради простой галереи.
+(function () {
+  document.querySelectorAll("[data-pcar]").forEach((root) => {
+    const track = root.querySelector("[data-pcar-track]");
+    const slides = Array.from(root.querySelectorAll("[data-pcar-slide]"));
+    if (!track || slides.length < 2) return;   // одно фото — листать нечего
+
+    const prevBtn = root.querySelector("[data-pcar-prev]");
+    const nextBtn = root.querySelector("[data-pcar-next]");
+    const dots = Array.from(root.querySelectorAll("[data-pcar-dot]"));
+    const counterEl = root.querySelector("[data-pcar-counter]");
+    const captionEl = root.querySelector("[data-pcar-caption]");
+    const captions = slides.map((s) => s.querySelector("img").alt || "");
+
+    let active = 0;
+    let queued = false;
+
+    function paint(i) {
+      active = i;
+      dots.forEach((d, di) => d.classList.toggle("active", di === i));
+      if (counterEl) counterEl.textContent = `${i + 1} / ${slides.length}`;
+      if (captionEl) captionEl.textContent = captions[i] || "";
+      if (prevBtn) prevBtn.disabled = i === 0 && track.scrollLeft < 4;
+    }
+
+    function goTo(i) {
+      i = Math.max(0, Math.min(slides.length - 1, i));
+      track.scrollTo({ left: slides[i].offsetLeft, behavior: "smooth" });
+    }
+
+    // Скролл — это источник истины (нативный свайп двигает его напрямую),
+    // а не наоборот: после свайпа пальцем стрелки/точки просто подхватывают.
+    function syncFromScroll() {
+      queued = false;
+      const i = slides.reduce((closest, slide, idx) => {
+        const d = Math.abs(slide.offsetLeft - track.scrollLeft);
+        return d < Math.abs(slides[closest].offsetLeft - track.scrollLeft) ? idx : closest;
+      }, 0);
+      if (i !== active) paint(i);
+    }
+
+    track.addEventListener("scroll", () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(syncFromScroll);
+    }, { passive: true });
+
+    if (prevBtn) prevBtn.addEventListener("click", () => goTo(active - 1));
+    if (nextBtn) nextBtn.addEventListener("click", () => goTo(active + 1));
+    dots.forEach((d, i) => d.addEventListener("click", () => goTo(i)));
+
+    root.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowLeft") { e.preventDefault(); goTo(active - 1); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); goTo(active + 1); }
+    });
+
+    paint(0);
+  });
+})();

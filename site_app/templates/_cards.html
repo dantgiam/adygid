@@ -44,6 +44,33 @@
 </a>
 {% endmacro %}
 
+{% macro arrow_icon() %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>{% endmacro %}
+
+{% macro photo_carousel(gallery) %}
+{% if gallery %}
+<div class="pcar" data-pcar tabindex="0" aria-roledescription="карусель" aria-label="Фотографии">
+  <div class="pcar-track" data-pcar-track>
+    {% for ph in gallery %}
+    <div class="pcar-slide" data-pcar-slide>
+      <img src="{{ ph.url }}" alt="{{ ph.caption or '' }}" loading="{{ 'eager' if loop.first else 'lazy' }}">
+    </div>
+    {% endfor %}
+  </div>
+  {% if gallery|length > 1 %}
+  <button type="button" class="pcar-nav pcar-prev" data-pcar-prev aria-label="Предыдущее фото">{{ arrow_icon() }}</button>
+  <button type="button" class="pcar-nav pcar-next" data-pcar-next aria-label="Следующее фото">{{ arrow_icon() }}</button>
+  <div class="pcar-dots" data-pcar-dots>
+    {% for ph in gallery %}<button type="button" class="pcar-dot{{ ' active' if loop.first else '' }}" data-pcar-dot aria-label="Фото {{ loop.index }}"></button>{% endfor %}
+  </div>
+  {% endif %}
+  <div class="pcar-info">
+    <span class="pcar-counter" data-pcar-counter>{{ '1 / %d'|format(gallery|length) if gallery|length > 1 else '' }}</span>
+    <span class="pcar-caption" data-pcar-caption>{{ gallery[0].caption or '' }}</span>
+  </div>
+</div>
+{% endif %}
+{% endmacro %}
+
 {% macro article_card(item) %}
 <a class="card article-card" href="{{ item.url }}">
   <div class="cover" style="{% if item.cover %}background-image:url('{{ item.cover }}'){% endif %}"></div>

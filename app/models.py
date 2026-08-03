@@ -35,9 +35,14 @@ class Trail(Base):
     category_id      = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     duration_minutes = Column(Integer, nullable=True)
     created_at       = Column(DateTime, server_default=func.now())
-    # Дата последней правки — показывается на сайте как «Проверено …»:
-    # для описаний с ценами и состоянием троп это сигнал свежести.
+    # Дата последней правки — техническая, не показывается гостю.
     updated_at       = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    # А вот дата на сайте («Актуально на …») выставляется гидом вручную:
+    # автообновление на каждую правку текста вводило в заблуждение — дата
+    # «плыла» даже когда поправили опечатку, а не перепроверили маршрут.
+    checked_at       = Column(DateTime, nullable=True)
+    # Скрыть из публичных списков и с прямых ссылок, не удаляя черновик.
+    is_published     = Column(Boolean, nullable=False, default=True)
 
     # ── Критерии фильтрации (см. adygid_filters_spec.md) ──
     # difficulty — интегральная сложность всего маршрута, выставляется автором
@@ -95,6 +100,8 @@ class Checkpoint(Base):
     geom             = Column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
     created_at       = Column(DateTime, server_default=func.now())
     updated_at       = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    checked_at       = Column(DateTime, nullable=True)
+    is_published     = Column(Boolean, nullable=False, default=True)
     duration_minutes = Column(Integer, nullable=True)
 
     # ── Критерии фильтрации (см. adygid_filters_spec.md) — тот же набор, что у Trail,

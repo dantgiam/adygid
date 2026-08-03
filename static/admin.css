@@ -53,6 +53,15 @@ a { color: var(--accent); }
 .view { display: none; }
 .view.active { display: block; }
 
+/* Подвкладки внутри раздела (напр. «Места на сайте» / «Точки маршрутов») */
+.subtabs { display: flex; gap: 4px; margin: -6px 0 18px; border-bottom: 1px solid var(--border); }
+.subtab {
+  padding: 9px 4px; margin-right: 18px; border: none; background: none; border-bottom: 2px solid transparent;
+  color: var(--muted); font-weight: 600; font-size: 13.5px;
+}
+.subtab:hover { color: var(--text); }
+.subtab.active { color: var(--accent-dark); border-bottom-color: var(--accent); }
+
 /* ── Кнопки ───────────────────────────────────────────────────── */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
@@ -206,8 +215,72 @@ a { color: var(--accent); }
 .map-layout { display: grid; grid-template-columns: 380px 1fr; gap: 0; height: calc(100vh - 58px); }
 @media (max-width: 900px) { .map-layout { grid-template-columns: 1fr; height: auto; } }
 .map-side { background: var(--card); border-right: 1px solid var(--border); overflow-y: auto; padding: 18px; }
-.map-canvas { height: 100%; min-height: 420px; }
+.map-canvas { height: 100%; min-height: 420px; position: relative; }
 #map { width: 100%; height: 100%; min-height: 420px; }
+
+/* Панель инструментов поверх карты — рука не бегает в боковую колонку */
+.map-toolbar {
+  position: absolute; top: 12px; left: 12px; z-index: 500;
+  display: flex; align-items: center; gap: 2px; padding: 4px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: var(--shadow);
+}
+.mt-btn {
+  display: flex; align-items: center; gap: 6px; padding: 7px 10px;
+  border: none; background: none; border-radius: 7px;
+  font-size: 14px; font-weight: 600; color: var(--muted); line-height: 1;
+}
+.mt-btn span { font-size: 12.5px; font-weight: 600; }
+.mt-btn:hover { background: var(--bg); color: var(--text); }
+.mt-btn.active { background: var(--accent-soft); color: var(--accent-dark); }
+.mt-sep { width: 1px; align-self: stretch; background: var(--border); margin: 2px 4px; }
+
+/* Счётчик узлов и длины во время рисования */
+.map-status {
+  position: absolute; bottom: 42px; left: 12px; z-index: 500;
+  background: rgba(28, 35, 28, .85); color: #fff;
+  padding: 6px 11px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+  pointer-events: none;
+}
+
+/* Якоря линии: белый квадрат как в векторных редакторах */
+.vec-handle {
+  display: block; width: 11px; height: 11px; margin: 2.5px;
+  background: #fff; border: 1.5px solid var(--accent); border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
+}
+.vec-handle.mid { width: 9px; height: 9px; margin: 3.5px; border-radius: 50%; opacity: .55; }
+.vec-handle-wrap:hover .vec-handle { border-color: var(--gold); opacity: 1; transform: scale(1.15); }
+.leaflet-container.vec-drawing { cursor: crosshair; }
+.leaflet-container.vec-drawing .leaflet-marker-icon { cursor: crosshair; }
+
+/* Метки точек на карте */
+.map-pin {
+  width: 24px; height: 24px; border-radius: 50%; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .3);
+}
+.map-pin.ghost { width: 12px; height: 12px; background: #fff; border: 2px solid #8FA391; opacity: .85; }
+.map-label {
+  background: rgba(255, 255, 255, .92); border: 1px solid var(--border);
+  border-radius: 6px; padding: 2px 6px; font-size: 11.5px; font-weight: 600;
+  color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); white-space: nowrap;
+}
+.map-label::before { display: none; }          /* убираем «хвостик» тултипа */
+.map-label.ghost { color: var(--muted); font-weight: 500; background: rgba(255, 255, 255, .8); }
+
+/* Карта внутри формы места */
+.map-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; margin-top: 18px;
+}
+.map-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.map-card-title { font-weight: 700; font-size: 15px; }
+.map-card-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+.map-card-sub.warn { color: var(--danger); }
+.mini-map { height: 380px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+.toggle.locked { opacity: .55; }
 
 .side-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .side-head h2 { font-size: 16px; font-weight: 700; flex: 1; }
@@ -250,7 +323,10 @@ a { color: var(--accent); }
 .pt-insert:hover { border-color: var(--accent); color: var(--accent); }
 
 /* Сегменты тропы */
-.seg { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; }
+.seg { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
+.seg:hover { border-color: #C6D6C8; }
+.seg.selected { border-color: var(--accent); background: var(--accent-soft); }
+.seg-name small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
 .seg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .seg-dot.easy { background: #02BA27; }
 .seg-dot.medium { background: #ED9F03; }
@@ -448,10 +524,9 @@ a { color: var(--accent); }
 .pv-btn { font-weight: 800; font-size: 18px; color: #14170F; }
 .pv-note { font-size: 11px; color: #4B5230; margin-top: 3px; }
 .pv-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.pv-pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 5px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1.5px solid transparent; }
-.pv-pill img { width: 20px; height: 20px; object-fit: cover; }
+.pv-pill { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px 8px 9px; min-width: 120px; border-radius: 999px; font-size: 13px; font-weight: 700; border: 2px solid transparent; }
+.pv-pill img { width: 24px; height: 24px; object-fit: cover; margin: 0; border-radius: 50%; }
 .pv-pill-tg { background: #E7F4FC; border-color: #6EC3EE; }
-.pv-pill-tg img { border-radius: 50%; }
 .pv-pill-max {
   background-image: linear-gradient(#F6EFFE, #F6EFFE), linear-gradient(120deg, #6E7BF2, #B36EF2, #4FA9F5);
   background-origin: border-box; background-clip: padding-box, border-box;
@@ -488,12 +563,16 @@ a { color: var(--accent); }
 .picker-empty { padding: 16px; text-align: center; color: var(--muted); font-size: 13px; }
 
 /* Фотогалерея объекта */
-.photos { display: flex; flex-wrap: wrap; gap: 10px; }
-.photo { position: relative; width: 104px; }
-.photo img { width: 100%; height: 78px; object-fit: cover; border-radius: 8px; display: block; }
+.photos { display: flex; flex-wrap: wrap; gap: 12px; }
+.photo { position: relative; width: 132px; }
+.photo img { width: 100%; height: 96px; object-fit: cover; border-radius: 8px; display: block; }
 .photo button {
   position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%;
   border: none; background: rgba(20,28,20,.65); color: #fff; font-size: 13px; line-height: 1;
+}
+.photo-caption {
+  width: 100%; margin-top: 6px; padding: 5px 7px; font-size: 11.5px;
+  border: 1px solid var(--border); border-radius: 6px;
 }
 
 /* Тост */
@@ -504,3 +583,68 @@ a { color: var(--accent); }
 }
 .toast[hidden] { display: none; }
 .toast.err { background: var(--danger); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Мобильная адаптация — админкой открывают и с телефона, а до сих пор
+   всё было рассчитано только на десктоп: шапка с 6 вкладками в один ряд,
+   карточки списка в один непрокручиваемый ряд, панель инструментов карты
+   шире экрана. Правим сверху вниз, по разделам.
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 720px) {
+  /* Шапка: вкладки уезжают в горизонтальный скролл вместо переполнения */
+  .topbar { flex-wrap: wrap; height: auto; padding: 10px 14px; gap: 8px 14px; }
+  .brand { font-size: 14px; }
+  .brand span { display: none; }
+  .tabs {
+    order: 3; flex-basis: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    gap: 2px; padding-bottom: 2px; scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; padding: 7px 12px; font-size: 13px; }
+  .topbar-actions { margin-left: auto; }
+
+  /* Общий контейнер и списки */
+  .page { padding: 14px; }
+  .page-head { margin-bottom: 14px; }
+  .page-head h1 { font-size: 19px; }
+  .search { flex: 1; min-width: 0; }
+  .page-head > div[style*="flex"] { width: 100%; }
+
+  .row { flex-wrap: wrap; padding: 12px; gap: 10px 12px; }
+  .row-thumb { width: 44px; height: 44px; }
+  .row-actions { width: 100%; justify-content: flex-start; }
+  .row-actions .btn { flex: 1 1 auto; }
+
+  .subtabs { overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+
+  /* Модалки — меньше отступов, больше места под контент */
+  .modal-backdrop { padding: 0; align-items: flex-end; }
+  .modal { max-width: 100%; max-height: 92vh; border-radius: 14px 14px 0 0; }
+  .modal-body { padding: 16px; }
+  .modal-head, .modal-foot { padding: 14px 16px; }
+
+  /* Редактор текста (статья/маршрут/место/сценарий) */
+  .editor-shell { padding: 14px; }
+  /* На узком экране шапка сама переносится на 2 строки переменной высоты —
+     позиционировать вторую sticky-панель от неё нечем, поэтому просто
+     кладём панель сохранения в поток вместо прилипания к верху. */
+  .editor-bar { position: static; flex-wrap: wrap; gap: 8px; padding: 10px 0; }
+  .paper { padding: 20px 16px 26px; }
+  .paper-title { font-size: 26px; }
+  .editor-aside { position: static; }
+
+  /* Карта маршрута и карта в форме места */
+  .map-side { padding: 14px; }
+  .map-toolbar { left: 8px; right: 8px; top: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .mt-btn span { display: none; }
+  .mt-btn { padding: 8px; }
+  .mt-sep { display: none; }
+  .map-status { left: 8px; bottom: 8px; }
+  .mini-map { height: 280px; }
+  .map-card-head { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+  .row-actions .btn { flex-basis: 100%; }
+  .field-row { grid-template-columns: 1fr; }
+}

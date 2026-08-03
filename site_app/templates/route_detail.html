@@ -38,6 +38,8 @@
         {% if route.updated_label %}<p class="updated-note">{{ route.updated_label }}</p>{% endif %}
         {% if route.description_html %}{{ route.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
+        {{ cards.photo_carousel(route.gallery) }}
+
         {% if route.checkpoints %}
         <div class="featured-row">
           <h4>Точки по пути</h4>

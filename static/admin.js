@@ -62,11 +62,15 @@ let sitePages = [];
 
 let activeTrail = null;      // маршрут, открытый в редакторе карты
 let map = null, placeMap = null;
-let drawnItems = null;
-let segLayers = {}, cpLayers = {};
-let drawMode = null;         // 'segment' | 'point' | 'place'
+let vec = null;              // VectorEditor — перо и правка геометрии тропы
+let cpLayers = {};           // id точки → маркер на карте маршрута
+let foreignLayer = null;     // чужие места (не из этого маршрута)
+let selectedSegmentId = null;
+let mapClickMode = null;     // 'point' — следующий клик по карте ставит точку
 let pendingPointIndex = null;   // куда вставить новую точку маршрута
-let placePickCallback = null;
+let mapFittedTrailId = null;    // к какому маршруту уже подгоняли вид
+let showPointLabels = true;
+let showForeignPlaces = true;
 
 let articleQuill = null;
 let descQuill = null;        // редактор описания в модалке маршрута/места
@@ -262,7 +266,6 @@ const TAB_OF_VIEW = {
   'article-editor': 'articles',
   'route-editor': 'routes',
   'route-map': 'routes',
-  'place-map': 'places',
   'place-editor': 'places',
   'scenario-editor': 'scenarios',
 };
@@ -592,6 +595,23 @@ function criteriaHtml(v, opts) {
           <select id="m-popularity">${optionsHtml(POPULARITY_OPTS, v.popularity || 'normal')}</select>
         </div>
       </div>
+      <div class="field"><label>Проверено (актуально на)</label>
+        <div style="display:flex;gap:8px">
+          <input type="date" id="m-checked-at" value="${v.checked_at ? v.checked_at.slice(0, 10) : ''}" style="flex:1">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('m-checked-at').value = new Date().toISOString().slice(0,10)">Сегодня</button>
+        </div>
+        <div class="hint" style="font-size:11.5px;color:var(--muted);margin-top:4px">
+          Дата, которую видит гость на странице как «Актуально на …». Не выставляется сама —
+          проверили маршрут или цены, тогда и обновите.
+        </div>
+      </div>
+      <label class="toggle" style="margin-top:4px">
+        <input type="checkbox" id="m-published" ${v.is_published !== false ? 'checked' : ''}>
+        <span class="toggle-track"></span>
+        <span class="toggle-label">Показывать на сайте
+          <small>Выключите, чтобы убрать из списков и с прямой ссылки, не удаляя черновик</small>
+        </span>
+      </label>
       ${opts.extraPublishHtml || ''}
     </div>
   </details>`;
@@ -610,6 +630,8 @@ function readCriteria() {
     weather_warning: document.getElementById('m-weather').checked,
     district: document.getElementById('m-district').value || null,
     popularity: document.getElementById('m-popularity').value,
+    checked_at: document.getElementById('m-checked-at').value || null,
+    is_published: document.getElementById('m-published').checked,
   };
 }
 
@@ -1107,6 +1129,7 @@ function renderRoutes() {
       <div class="row-thumb" style="${cover ? `background-image:url('${escAttr(cover)}')` : ''}"></div>
       <div class="row-main">
         <div class="row-title">${escHtml(t.name)}
+          ${t.is_published === false ? '<span class="badge badge-draft">скрыт</span>' : ''}
           ${t.popularity === 'top' ? '<span class="badge badge-gold">Топ</span>' : ''}
           <span class="badge badge-green">${escHtml((DIFFICULTY_OPTS.find(d => d.code === t.difficulty) || {}).label || t.difficulty)}</span>
         </div>
@@ -1206,13 +1229,60 @@ async function deleteTrail(id) {
   await loadAll();
 }
 
+// ── Карта: общие настройки ─────────────────────────────────────
+// OSM отдаёт тайлы до 19-го зума; дальше Leaflet растягивает последний
+// доступный (maxNativeZoom) — картинка мылится, зато точку можно поставить
+// с точностью до пары метров, чего на 18-м зуме не хватало.
+const MAP_MAX_ZOOM = 22;
+const MAP_NATIVE_ZOOM = 19;
+const MAP_CENTER = [44.15, 40.17];
+
+function makeBaseLayers() {
+  return {
+    'Схема': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxNativeZoom: MAP_NATIVE_ZOOM, maxZoom: MAP_MAX_ZOOM,
+    }),
+    'Спутник': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Esri', maxNativeZoom: MAP_NATIVE_ZOOM, maxZoom: MAP_MAX_ZOOM,
+    }),
+  };
+}
+
+function createMap(elId) {
+  const m = L.map(elId, {
+    maxZoom: MAP_MAX_ZOOM,
+    zoomSnap: 0.5,       // дробные зумы — можно подобраться к нужному масштабу
+    zoomDelta: 0.5,
+    wheelPxPerZoomLevel: 90,
+    zoomControl: false,  // ставим сами, иначе он лезет под панель инструментов
+  }).setView(MAP_CENTER, 11);
+  const layers = makeBaseLayers();
+  layers['Схема'].addTo(m);
+  L.control.zoom({ position: 'bottomright' }).addTo(m);
+  L.control.layers(layers, null, { position: 'topright' }).addTo(m);
+  L.control.scale({ imperial: false }).addTo(m);
+  return m;
+}
+
+function latlngsToGeojson(latlngs) {
+  return { type: 'LineString', coordinates: latlngs.map(ll => [ll.lng, ll.lat]) };
+}
+
+function geojsonToLatlngs(g) {
+  return ((g && g.coordinates) || []).map(([lon, lat]) => L.latLng(lat, lon));
+}
+
+function fmtLength(meters) {
+  return meters >= 1000 ? (meters / 1000).toFixed(2) + ' км' : Math.round(meters) + ' м';
+}
+
 // ── Карта маршрута ─────────────────────────────────────────────
 function openRouteMap(id) {
   activeTrail = trails.find(t => t.id === id);
   if (!activeTrail) return;
   showTab('route-map');
   document.getElementById('rm-title').textContent = activeTrail.name;
-  document.getElementById('rm-sub').textContent = 'Рисуйте тропу участками и расставляйте точки по пути.';
+  document.getElementById('rm-sub').textContent = 'Перо рисует тропу, точки ставятся отдельно. Всё сохраняется сразу.';
   ensureMap();
   drawTrailOnMap();
   renderSegments();
@@ -1222,116 +1292,315 @@ function openRouteMap(id) {
 
 function setHint(text) {
   const el = document.getElementById('rm-hint');
-  el.textContent = text || 'Выберите действие ниже — рисование начнётся по клику на карте.';
+  el.innerHTML = text || 'Перо (P) — рисовать тропу, «Точка» (T) — поставить точку. ' +
+    'Клик по нарисованному участку показывает его якоря.';
   el.classList.toggle('idle', !text);
+}
+
+function setMapStatus(text) {
+  const el = document.getElementById('map-status');
+  if (!el) return;
+  el.textContent = text || '';
+  el.hidden = !text;
+}
+
+function syncToolButtons() {
+  const pen = document.getElementById('mt-pen');
+  const point = document.getElementById('mt-point');
+  if (pen) pen.classList.toggle('active', !!(vec && vec.drawing));
+  if (point) point.classList.toggle('active', mapClickMode === 'point');
+  const labels = document.getElementById('mt-labels');
+  if (labels) labels.classList.toggle('active', showPointLabels);
+  const foreign = document.getElementById('mt-foreign');
+  if (foreign) foreign.classList.toggle('active', showForeignPlaces);
 }
 
 function ensureMap() {
   if (!map) {
-    map = L.map('map').setView([44.15, 40.17], 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap', maxZoom: 18,
-    }).addTo(map);
-    drawnItems = new L.FeatureGroup().addTo(map);
+    map = createMap('map');
 
-    map.on(L.Draw.Event.CREATED, async (e) => {
-      const layer = e.layer;
-      if (drawMode === 'segment') {
-        await api('POST', `/trails/${activeTrail.id}/segments`, {
-          difficulty: document.getElementById('rm-seg-difficulty').value,
-          order_index: activeTrail.segments.length,
-          geojson: layer.toGeoJSON().geometry,
-        });
-        await refreshActiveTrail();
-      } else if (drawMode === 'point') {
-        const ll = layer.getLatLng();
-        openPointForm(null, { lat: ll.lat, lon: ll.lng, atIndex: pendingPointIndex });
-      }
-      drawMode = null;
-      pendingPointIndex = null;
-      setHint(null);
+    vec = new VectorEditor(map, {
+      onCreate: createSegmentFromDraw,
+      onUpdate: saveSegmentGeometry,
+      onSelect: (id) => { selectedSegmentId = id; restyleSegments(); renderSegments(); syncToolButtons(); },
+      onDraft: onSegmentDraft,
+      onMessage: (m) => toast(m, true),
+    });
+
+    // Режим «поставить точку»: один клик — и открывается форма точки.
+    map.on('click', (e) => {
+      if (mapClickMode !== 'point') return;
+      const atIndex = pendingPointIndex;
+      stopPointMode();
+      openPointForm(null, { lat: e.latlng.lat, lon: e.latlng.lng, atIndex });
+    });
+
+    // Горячие клавиши как в графических редакторах — рука не уходит с карты.
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('view-route-map').classList.contains('active')) return;
+      const tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+      const k = e.key.toLowerCase();
+      if (k === 'p' || k === 'з') { e.preventDefault(); startDrawSegment(); }
+      else if (k === 't' || k === 'е') { e.preventDefault(); startAddPoint(null); }
+      else if (e.key === 'Escape') { stopPointMode(); if (vec) vec.cancelDraw(); }
     });
   }
   setTimeout(() => map.invalidateSize(), 60);
 }
 
 function drawTrailOnMap() {
-  Object.values(segLayers).forEach(l => drawnItems.removeLayer(l));
-  Object.values(cpLayers).forEach(l => map.removeLayer(l));
-  segLayers = {}; cpLayers = {};
+  vec.setLines(activeTrail.segments.map(s => ({
+    id: s.id,
+    latlngs: geojsonToLatlngs(s.geojson),
+    color: DIFF_COLOR[s.difficulty] || '#888',
+    weight: s.id === selectedSegmentId ? 7 : 5,
+  })));
 
-  activeTrail.segments.forEach(s => {
-    const layer = L.geoJSON(s.geojson, { style: { color: DIFF_COLOR[s.difficulty] || '#888', weight: 5 } }).addTo(drawnItems);
-    segLayers[s.id] = layer;
-  });
+  drawCheckpointMarkers();
+  drawForeignPlaces();
+
+  // Перо липнет к точкам маршрута — тропа приходит ровно в точку, а не рядом.
+  vec.setSnapTargets(activeTrail.checkpoints.map(c => L.latLng(c.lat, c.lon)));
+
+  // Подгоняем вид один раз при открытии маршрута: иначе карта прыгала бы
+  // после каждой правки и выдёргивала из масштаба, в котором рисуешь.
+  if (mapFittedTrailId !== activeTrail.id) {
+    mapFittedTrailId = activeTrail.id;
+    fitTrail();
+  }
+}
+
+function fitTrail() {
+  const b = trailBoundsOf(activeTrail);
+  if (b && b.isValid()) map.fitBounds(b, { padding: [50, 50], maxZoom: 17 });
+}
+
+function drawCheckpointMarkers() {
+  Object.values(cpLayers).forEach(l => map.removeLayer(l));
+  cpLayers = {};
 
   const ordered = [...activeTrail.checkpoints].sort((a, b) => a.order_index - b.order_index);
   ordered.forEach((c, i) => {
-    const color = c.show_as_place ? '#278C3E' : '#8FA391';
-    const icon = L.divIcon({
-      html: `<div style="background:${color};color:#fff;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3)">${i + 1}</div>`,
-      className: '', iconSize: [24, 24], iconAnchor: [12, 12],
-    });
-    const m = L.marker([c.lat, c.lon], { icon, draggable: true }).addTo(map);
-    m.bindPopup(`<b>${escHtml(c.name)}</b><br><small>${c.show_as_place ? 'показывается как место' : 'только внутри маршрута'}</small>`);
-    // Перетащили маркер — сразу сохраняем новые координаты.
+    const m = L.marker([c.lat, c.lon], {
+      icon: pointIcon(i + 1, c.show_as_place ? '#278C3E' : '#8FA391'),
+      draggable: true,
+      zIndexOffset: 400,
+    }).addTo(map);
+
+    // Название прямо на карте: без него на карте видны только номера и
+    // непонятно, что уже расставлено.
+    if (showPointLabels) {
+      m.bindTooltip(c.name, {
+        permanent: true, direction: 'right', offset: [12, 0], className: 'map-label',
+      });
+    }
+    m.bindPopup(`
+      <b>${escHtml(c.name)}</b><br>
+      <small>${c.show_as_place ? 'показывается как место' : 'только внутри маршрута'}</small><br>
+      <a href="#" onclick="openPointForm(${c.id});return false">Изменить</a> ·
+      <a href="#" onclick="detachPlace(${c.id});return false">Убрать из маршрута</a>`);
+
     m.on('dragend', async () => {
       const ll = m.getLatLng();
+      c.lat = ll.lat; c.lon = ll.lng;      // локально сразу, чтобы не мигало
+      vec.setSnapTargets(activeTrail.checkpoints.map(x => L.latLng(x.lat, x.lon)));
       await api('PATCH', `/checkpoints/${c.id}`, { lat: ll.lat, lon: ll.lng });
-      await refreshActiveTrail();
+      syncCheckpointGlobals(c);
       toast('Координаты обновлены');
     });
     cpLayers[c.id] = m;
   });
-
-  const bounds = drawnItems.getBounds();
-  if (bounds.isValid()) map.fitBounds(bounds, { padding: [40, 40] });
-  else if (ordered.length) map.setView([ordered[0].lat, ordered[0].lon], 14);
 }
 
-async function refreshActiveTrail() {
-  await loadAll();
-  activeTrail = trails.find(t => t.id === activeTrail.id);
-  if (!activeTrail) { showTab('routes'); return; }
+function pointIcon(num, color) {
+  return L.divIcon({
+    className: '',
+    html: `<div class="map-pin" style="background:${color}">${num}</div>`,
+    iconSize: [24, 24], iconAnchor: [12, 12],
+  });
+}
+
+/** Чужие места на карте — чтобы видеть окружение и цеплять их к маршруту. */
+function drawForeignPlaces() {
+  if (foreignLayer) { map.removeLayer(foreignLayer); foreignLayer = null; }
+  if (!showForeignPlaces) return;
+
+  const others = checkpoints.filter(c => c.trail_id !== activeTrail.id);
+  if (!others.length) return;
+
+  foreignLayer = L.layerGroup().addTo(map);
+  others.forEach(c => {
+    const m = L.marker([c.lat, c.lon], {
+      icon: L.divIcon({ className: '', html: `<div class="map-pin ghost"></div>`, iconSize: [16, 16], iconAnchor: [8, 8] }),
+      zIndexOffset: 200,
+    }).addTo(foreignLayer);
+    m.bindTooltip(c.name, { permanent: showPointLabels, direction: 'right', offset: [9, 0], className: 'map-label ghost' });
+    const where = c.trail_id
+      ? `в маршруте «${escHtml((trails.find(t => t.id === c.trail_id) || {}).name || '—')}»`
+      : 'отдельное место';
+    m.bindPopup(`
+      <b>${escHtml(c.name)}</b><br><small>${where}</small><br>
+      <a href="#" onclick="attachPlaceToTrail(${c.id});return false">Добавить в этот маршрут</a> ·
+      <a href="#" onclick="openPointForm(${c.id});return false">Изменить</a>`);
+  });
+}
+
+function toggleLabels() {
+  showPointLabels = !showPointLabels;
+  drawCheckpointMarkers();
+  drawForeignPlaces();
+  syncToolButtons();
+}
+
+function toggleForeign() {
+  showForeignPlaces = !showForeignPlaces;
+  drawForeignPlaces();
+  syncToolButtons();
+}
+
+/** Забирает место в текущий маршрут — привязка, которой раньше не было. */
+async function attachPlaceToTrail(cpId) {
+  if (!activeTrail) return;
+  map.closePopup();
+  const saved = await api('PATCH', `/checkpoints/${cpId}`, { trail_id: activeTrail.id });
+  if (!saved) return;
+  await reloadActiveTrail();
+  toast('Место добавлено в маршрут');
+}
+
+async function detachPlace(cpId) {
+  map.closePopup();
+  if (!confirm('Убрать точку из маршрута? Она останется как отдельное место.')) return;
+  const saved = await api('PATCH', `/checkpoints/${cpId}`, { trail_id: null });
+  if (!saved) return;
+  await reloadActiveTrail();
+  toast('Точка теперь отдельное место');
+}
+
+/**
+ * Лёгкое обновление: тянем один маршрут вместо всей базы.
+ * Раньше здесь был loadAll() — девять запросов и перерисовка всех списков
+ * после каждого клика, отсюда и бралась задержка на карте.
+ */
+async function reloadActiveTrail() {
+  if (!activeTrail) return;
+  const fresh = await api('GET', `/trails/${activeTrail.id}`);
+  if (!fresh) return;
+  const i = trails.findIndex(t => t.id === fresh.id);
+  if (i >= 0) trails[i] = fresh; else trails.push(fresh);
+  checkpoints = checkpoints.filter(c => c.trail_id !== fresh.id).concat(fresh.checkpoints);
+  activeTrail = fresh;
+
   drawTrailOnMap();
   renderSegments();
   renderPoints();
+  renderRoutes();
+  renderPlaces();
 }
 
+function syncCheckpointGlobals(cp) {
+  const i = checkpoints.findIndex(x => x.id === cp.id);
+  if (i >= 0) checkpoints[i] = Object.assign({}, checkpoints[i], cp);
+  else checkpoints.push(cp);
+}
+
+// ── Перо: рисование и правка участков ──────────────────────────
 function startDrawSegment() {
-  drawMode = 'segment';
-  setHint('Кликайте по карте, чтобы вести тропу. Двойной клик — завершить участок.');
-  new L.Draw.Polyline(map, {
-    shapeOptions: { color: DIFF_COLOR[document.getElementById('rm-seg-difficulty').value], weight: 5 },
-  }).enable();
+  stopPointMode();
+  const diff = document.getElementById('rm-seg-difficulty').value;
+  vec.startDraw({ color: DIFF_COLOR[diff] });
+  setHint('<b>Перо.</b> Клик — узел, тянется резинка. Shift — угол кратен 15°, ' +
+          'Backspace — убрать последний узел, двойной клик или Enter — закончить, Esc — отменить. ' +
+          'Начните с конца готового участка, чтобы продолжить его.');
+  syncToolButtons();
+}
+
+function onSegmentDraft(d) {
+  if (!d) { setMapStatus(null); setHint(null); syncToolButtons(); return; }
+  const parts = [`Узлов: ${d.count}`];
+  if (d.length) parts.push(fmtLength(d.length));
+  if (d.extending) parts.push('продолжаем участок');
+  setMapStatus(parts.join(' · '));
+  syncToolButtons();
+}
+
+async function createSegmentFromDraw(latlngs) {
+  setMapStatus(null);
+  const saved = await api('POST', `/trails/${activeTrail.id}/segments`, {
+    difficulty: document.getElementById('rm-seg-difficulty').value,
+    order_index: activeTrail.segments.length,
+    geojson: latlngsToGeojson(latlngs),
+  });
+  if (!saved) return;
+  // Дописываем в локальное состояние — перерисовывать всю карту незачем.
+  activeTrail.segments.push(saved);
+  selectedSegmentId = saved.id;
+  drawTrailOnMap();
+  renderSegments();
+  vec.select(saved.id);
+}
+
+/** Выделенный участок делаем толще — видно, чьи якоря сейчас на карте. */
+function restyleSegments() {
+  vec.lines.forEach((line, id) => line.poly.setStyle({ weight: id === selectedSegmentId ? 7 : 5 }));
+}
+
+async function saveSegmentGeometry(id, latlngs) {
+  const seg = activeTrail.segments.find(s => s.id === id);
+  const geojson = latlngsToGeojson(latlngs);
+  if (seg) seg.geojson = geojson;              // на экране уже так, сохраняем следом
+  const len = fmtLength(vecPathLength(latlngs));
+  setMapStatus(len + ' · сохраняю…');
+  const saved = await api('PATCH', `/segments/${id}`, { geojson });
+  setMapStatus(saved ? len + ' · сохранено' : null);
+  if (saved) renderSegments();
 }
 
 function renderSegments() {
   const el = document.getElementById('rm-segments');
   if (!activeTrail.segments.length) {
-    el.innerHTML = `<div class="hint" style="color:var(--muted);font-size:12.5px">Тропа ещё не нарисована.</div>`;
+    el.innerHTML = `<div class="hint" style="color:var(--muted);font-size:12.5px">Тропа ещё не нарисована. Нажмите «Перо» и ведите линию по карте.</div>`;
     return;
   }
-  el.innerHTML = activeTrail.segments.map((s, i) => `
-    <div class="seg">
+  el.innerHTML = activeTrail.segments.map((s, i) => {
+    const len = fmtLength(vecPathLength(geojsonToLatlngs(s.geojson)));
+    return `
+    <div class="seg ${s.id === selectedSegmentId ? 'selected' : ''}" onclick="selectSegment(${s.id})">
       <span class="seg-dot ${s.difficulty}"></span>
-      <span class="seg-name">Участок ${i + 1}</span>
-      <select onchange="changeSegmentDifficulty(${s.id}, this.value)">
+      <span class="seg-name">Участок ${i + 1}<small>${len}</small></span>
+      <select onclick="event.stopPropagation()" onchange="changeSegmentDifficulty(${s.id}, this.value)">
         ${optionsHtml(DIFFICULTY_OPTS, s.difficulty)}
       </select>
-      <button class="btn btn-danger btn-sm" onclick="deleteSegment(${s.id})">×</button>
-    </div>`).join('');
+      <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteSegment(${s.id})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function selectSegment(id) {
+  vec.select(id);
+  const line = vec.lines.get(id);
+  if (line) {
+    const b = line.poly.getBounds();
+    if (b.isValid() && !map.getBounds().contains(b)) map.fitBounds(b, { padding: [60, 60] });
+  }
 }
 
 async function changeSegmentDifficulty(id, difficulty) {
+  const seg = activeTrail.segments.find(s => s.id === id);
+  if (seg) seg.difficulty = difficulty;
+  drawTrailOnMap();
+  renderSegments();
   await api('PATCH', `/segments/${id}`, { difficulty });
-  await refreshActiveTrail();
 }
 
 async function deleteSegment(id) {
   if (!confirm('Удалить участок тропы?')) return;
   await api('DELETE', `/segments/${id}`);
-  await refreshActiveTrail();
+  activeTrail.segments = activeTrail.segments.filter(s => s.id !== id);
+  if (selectedSegmentId === id) selectedSegmentId = null;
+  drawTrailOnMap();
+  renderSegments();
 }
 
 // ── Точки маршрута: список, перестановка, вставка ──────────────
@@ -1396,35 +1665,56 @@ function bindPointDrag() {
       const to = ordered.indexOf(targetId);
       ordered.splice(to, 0, ordered.splice(from, 1)[0]);
       await api('PATCH', `/trails/${activeTrail.id}/checkpoints/order`, { ids: ordered });
-      await refreshActiveTrail();
+      await reloadActiveTrail();
     });
   });
 }
 
 function startAddPoint(atIndex) {
-  drawMode = 'point';
+  if (vec) vec.cancelDraw();
+  mapClickMode = 'point';
   pendingPointIndex = atIndex;
-  setHint(atIndex === null
-    ? 'Кликните на карте, чтобы поставить точку в конец маршрута.'
-    : `Кликните на карте — точка встанет на позицию ${atIndex + 1}.`);
-  new L.Draw.Marker(map).enable();
+  L.DomUtil.addClass(map.getContainer(), 'vec-drawing');
+  setHint(atIndex === null || atIndex === undefined
+    ? 'Кликните на карте, чтобы поставить точку в конец маршрута. Esc — отмена.'
+    : `Кликните на карте — точка встанет на позицию ${atIndex + 1}. Esc — отмена.`);
+  syncToolButtons();
+}
+
+function stopPointMode() {
+  if (mapClickMode !== 'point') return;
+  mapClickMode = null;
+  pendingPointIndex = null;
+  L.DomUtil.removeClass(map.getContainer(), 'vec-drawing');
+  setHint(null);
+  syncToolButtons();
 }
 
 function focusPoint(id) {
   const m = cpLayers[id];
-  if (m) { map.setView(m.getLatLng(), 16); m.openPopup(); }
+  if (m) { map.setView(m.getLatLng(), 17); m.openPopup(); }
 }
 
 async function togglePointPublic(id, checked) {
-  await api('PATCH', `/checkpoints/${id}`, { show_as_place: checked });
-  await refreshActiveTrail();
+  const saved = await api('PATCH', `/checkpoints/${id}`, { show_as_place: checked });
+  if (!saved) return;
+  const cp = activeTrail.checkpoints.find(c => c.id === id);
+  if (cp) cp.show_as_place = checked;
+  syncCheckpointGlobals({ id, show_as_place: checked });
+  drawCheckpointMarkers();
+  renderPoints();
+  renderPlaces();
   toast(checked ? 'Точка показывается в «Местах»' : 'Точка убрана из «Мест»');
 }
 
 async function deletePoint(id) {
   if (!confirm('Удалить точку?')) return;
   await api('DELETE', `/checkpoints/${id}`);
-  await refreshActiveTrail();
+  activeTrail.checkpoints = activeTrail.checkpoints.filter(c => c.id !== id);
+  checkpoints = checkpoints.filter(c => c.id !== id);
+  drawCheckpointMarkers();
+  renderPoints();
+  renderPlaces();
 }
 
 // ── Редактор точки / места ─────────────────────────────────────
@@ -1432,8 +1722,10 @@ async function deletePoint(id) {
 // места — полноценный текст со вставками, и набирать его в модалке на треть
 // экрана неудобно.
 let editingPlaceId = null;
-let placeCreating = null;    // {lat, lon, atIndex, standalone} для новой точки
+let placeCreating = null;    // {atIndex, standalone} для новой точки
 let placeDraftScope = null;
+let placeCoords = null;      // {lat, lon} — редактируется на карте прямо в форме
+let placeMarker = null;
 // Куда вернуться по «Назад» и после сохранения: точку заводят и из списка
 // мест, и с карты маршрута — возвращать надо туда, откуда пришли.
 let placeReturnView = 'places';
@@ -1443,35 +1735,137 @@ function openPointForm(id, creating) {
   releaseSlots(CRITERIA_SLOTS, 'pl-criteria-slot');
   const c = id ? checkpoints.find(x => x.id === id) : null;
   const v = c || {};
-  const inTrail = creating ? !!activeTrail : !!(c && c.trail_id);
-  const showAsPlace = c ? c.show_as_place : !inTrail;
 
   editingPlaceId = c ? c.id : null;
-  placeCreating = c ? null : creating;
+  placeCreating = c ? null : (creating || {});
   placeDraftScope = 'place:' + (c ? c.id : 'new');
   placeReturnView = document.getElementById('view-route-map').classList.contains('active')
     ? 'route-map' : 'places';
 
-  const publishExtra = inTrail ? `
-    <label class="toggle" style="margin-top:4px">
+  // Маршрут точки: у новой берём тот, с карты которого её ставят.
+  const trailId = c ? c.trail_id
+    : (placeCreating.standalone ? null : (activeTrail ? activeTrail.id : null));
+  const showAsPlace = c ? c.show_as_place : !trailId;
+
+  // Тумблер «отдельной точкой» показываем всегда: маршрут теперь меняется
+  // прямо здесь, и переключатель должен уметь появиться без перерисовки формы.
+  const publishExtra = `
+    <label class="toggle" style="margin-top:4px" id="m-show-place-row">
       <input type="checkbox" id="m-show-place" ${showAsPlace ? 'checked' : ''}>
       <span class="toggle-track"></span>
       <span class="toggle-label">Выделить отдельной точкой
         <small>Точка получит свою страницу и попадёт в раздел «Места». Без этого она видна только внутри маршрута.</small>
       </span>
-    </label>` : '';
+    </label>`;
 
   showTab('place-editor');
   document.getElementById('pl-name').value = v.name || '';
   document.getElementById('pl-category').innerHTML = categoryOptionsHtml('checkpoint', v.category_id);
   document.getElementById('pl-duration').value = v.duration_minutes || '';
+  document.getElementById('pl-trail').innerHTML =
+    `<option value="">— отдельное место —</option>` +
+    trails.map(t => `<option value="${t.id}" ${t.id === trailId ? 'selected' : ''}>${escHtml(t.name)}</option>`).join('');
   document.getElementById('pl-desc-slot').innerHTML = descEditorHtml('Описание');
   document.getElementById('pl-criteria-slot').innerHTML = criteriaHtml(v, { extraPublishHtml: publishExtra });
-  document.getElementById('pl-map-hint').style.display = inTrail ? '' : 'none';
 
   initDescEditor(v.description || '', placeDraftScope);
   autoGrow(document.getElementById('pl-name'));
   setSaveState('', false, 'pl-save-state');
+
+  placeCoords = (c && c.lat != null) ? { lat: c.lat, lon: c.lon }
+    : (creating && creating.lat != null) ? { lat: creating.lat, lon: creating.lon }
+    : null;
+  syncPlaceTrailUi();
+  setupPlaceEditorMap();
+}
+
+/** Без маршрута точка обязана быть местом — иначе она нигде не видна. */
+function syncPlaceTrailUi() {
+  const trailId = document.getElementById('pl-trail').value;
+  const toggle = document.getElementById('m-show-place');
+  if (!toggle) return;
+  if (!trailId) {
+    toggle.checked = true;
+    toggle.disabled = true;
+    toggle.closest('.toggle').classList.add('locked');
+  } else {
+    toggle.disabled = false;
+    toggle.closest('.toggle').classList.remove('locked');
+  }
+}
+
+function onPlaceTrailChange() {
+  syncPlaceTrailUi();
+  schedulePlaceAutosave();
+}
+
+// ── Карта прямо в форме места ──────────────────────────────────
+function setupPlaceEditorMap() {
+  if (!placeMap) {
+    placeMap = createMap('pl-map');
+    placeMap.on('click', (e) => setPlaceCoords(e.latlng.lat, e.latlng.lng));
+  }
+  if (placeMarker) { placeMap.removeLayer(placeMarker); placeMarker = null; }
+
+  if (placeCoords) {
+    addPlaceMarker();
+    placeMap.setView([placeCoords.lat, placeCoords.lon], Math.max(placeMap.getZoom(), 16));
+  } else if (activeTrail && trailBoundsOf(activeTrail)) {
+    placeMap.fitBounds(trailBoundsOf(activeTrail), { padding: [40, 40], maxZoom: 15 });
+  } else {
+    placeMap.setView(MAP_CENTER, 10);
+  }
+  updatePlaceCoordsLabel();
+  // Вкладка была скрыта, пока строилась — Leaflet должен пересчитать размер.
+  setTimeout(() => placeMap.invalidateSize(), 80);
+}
+
+function trailBoundsOf(trail) {
+  const pts = [];
+  (trail.segments || []).forEach(s => geojsonToLatlngs(s.geojson).forEach(ll => pts.push(ll)));
+  (trail.checkpoints || []).forEach(c => pts.push(L.latLng(c.lat, c.lon)));
+  return pts.length ? L.latLngBounds(pts) : null;
+}
+
+function addPlaceMarker() {
+  placeMarker = L.marker([placeCoords.lat, placeCoords.lon], {
+    icon: pointIcon('', '#278C3E'),
+    draggable: true,
+  }).addTo(placeMap);
+  placeMarker.on('drag', () => {
+    const ll = placeMarker.getLatLng();
+    placeCoords = { lat: ll.lat, lon: ll.lng };
+    updatePlaceCoordsLabel();
+  });
+  placeMarker.on('dragend', () => schedulePlaceAutosave());
+}
+
+function setPlaceCoords(lat, lon) {
+  placeCoords = { lat, lon };
+  if (placeMarker) placeMarker.setLatLng([lat, lon]);
+  else addPlaceMarker();
+  updatePlaceCoordsLabel();
+  schedulePlaceAutosave();
+}
+
+function updatePlaceCoordsLabel() {
+  const el = document.getElementById('pl-coords');
+  if (!el) return;
+  el.textContent = placeCoords
+    ? `${placeCoords.lat.toFixed(6)}, ${placeCoords.lon.toFixed(6)}`
+    : 'Место на карте не отмечено — кликните по карте';
+  el.classList.toggle('warn', !placeCoords);
+}
+
+/** Ручной ввод координат — их часто копируют из чужой карты или из GPS. */
+function pastePlaceCoords() {
+  const raw = prompt('Координаты через запятую (широта, долгота)',
+    placeCoords ? `${placeCoords.lat.toFixed(6)}, ${placeCoords.lon.toFixed(6)}` : '');
+  if (!raw) return;
+  const m = raw.replace(',', ' ').split(/[\s;]+/).filter(Boolean).map(Number);
+  if (m.length < 2 || !isFinite(m[0]) || !isFinite(m[1])) { toast('Не разобрал координаты', true); return; }
+  setPlaceCoords(m[0], m[1]);
+  placeMap.setView([m[0], m[1]], Math.max(placeMap.getZoom(), 16));
 }
 
 function closePlaceEditor() {
@@ -1505,30 +1899,33 @@ async function savePlace() {
   const toggleEl = document.getElementById('m-show-place');
   if (toggleEl) payload.show_as_place = toggleEl.checked;
 
+  const trailId = parseInt(document.getElementById('pl-trail').value, 10) || null;
+  payload.trail_id = trailId;
+  if (placeCoords) { payload.lat = placeCoords.lat; payload.lon = placeCoords.lon; }
+
   if (!payload.name) { toast('Введите название', true); return; }
+  if (!placeCoords) { toast('Отметьте место на карте', true); return; }
 
   const creating = placeCreating;
   let saved;
   if (editingPlaceId) {
     saved = await api('PATCH', `/checkpoints/${editingPlaceId}`, payload);
   } else {
-    payload.lat = creating.lat;
-    payload.lon = creating.lon;
-    payload.trail_id = creating.standalone ? null : (activeTrail ? activeTrail.id : null);
-    if (creating.standalone) payload.show_as_place = true;
-    payload.order_index = activeTrail ? activeTrail.checkpoints.length : 0;
+    payload.order_index = trailId ? (trails.find(t => t.id === trailId) || { checkpoints: [] }).checkpoints.length : 0;
     saved = await api('POST', '/checkpoints', payload);
 
     // Вставка в середину: создаём в конце, потом двигаем на нужное место.
-    if (saved && creating.atIndex !== null && creating.atIndex !== undefined && activeTrail) {
-      const ordered = [...activeTrail.checkpoints].sort((a, b) => a.order_index - b.order_index).map(x => x.id);
+    if (saved && creating && creating.atIndex !== null && creating.atIndex !== undefined && trailId) {
+      const trail = trails.find(t => t.id === trailId);
+      const ordered = [...(trail ? trail.checkpoints : [])].sort((a, b) => a.order_index - b.order_index).map(x => x.id);
       ordered.splice(creating.atIndex, 0, saved.id);
-      await api('PATCH', `/trails/${activeTrail.id}/checkpoints/order`, { ids: ordered });
+      await api('PATCH', `/trails/${trailId}/checkpoints/order`, { ids: ordered });
     }
   }
   if (!saved) return;
 
   clearDescDraft(placeDraftScope);
+  syncCheckpointGlobals(saved);
   const wasNew = !editingPlaceId;
   editingPlaceId = saved.id;
   placeCreating = null;
@@ -1536,7 +1933,7 @@ async function savePlace() {
   toast('Сохранено');
 
   if (activeTrail && placeReturnView === 'route-map') {
-    await refreshActiveTrail();
+    await reloadActiveTrail();
     // Новую точку ставят с карты и обычно ставят следующую — возвращаем туда.
     if (wasNew) { closePlaceEditor(); return; }
   } else {
@@ -1550,7 +1947,25 @@ async function savePlace() {
 //  МЕСТА
 // ═══════════════════════════════════════════════════════════════
 
+// «Места на сайте» — отдельные карточки (show_as_place); «Точки маршрутов» —
+// все точки внутри маршрутов, включая ещё не выделенные в места. Раньше
+// вторых нигде не было видно вне карты конкретного маршрута.
+let placesSubtab = 'public';
+
+function switchPlacesSubtab(tab) {
+  placesSubtab = tab;
+  document.getElementById('places-subtab-public').classList.toggle('active', tab === 'public');
+  document.getElementById('places-subtab-trail').classList.toggle('active', tab === 'trail');
+  document.getElementById('places-search').placeholder = tab === 'trail' ? 'Найти точку...' : 'Найти место...';
+  document.getElementById('places-add-btn').style.display = tab === 'trail' ? 'none' : '';
+  document.getElementById('places-sub').textContent = tab === 'trail'
+    ? 'Все точки внутри маршрутов — включая те, что ещё не выделены отдельным местом'
+    : 'Всё, что показывается на сайте отдельными карточками';
+  renderPlaces();
+}
+
 function renderPlaces() {
+  if (placesSubtab === 'trail') { renderTrailPoints(); return; }
   const q = (document.getElementById('places-search').value || '').toLowerCase();
   const list = checkpoints
     .filter(c => c.show_as_place)
@@ -1568,6 +1983,7 @@ function renderPlaces() {
       <div class="row-thumb" style="${cover ? `background-image:url('${escAttr(cover)}')` : ''}"></div>
       <div class="row-main">
         <div class="row-title">${escHtml(c.name)}
+          ${c.is_published === false ? '<span class="badge badge-draft">скрыт</span>' : ''}
           ${c.popularity === 'top' ? '<span class="badge badge-gold">Топ</span>' : ''}
           ${trail ? `<span class="badge">в маршруте «${escHtml(trail.name)}»</span>` : ''}
         </div>
@@ -1587,41 +2003,59 @@ function renderPlaces() {
   }).join('');
 }
 
+function renderTrailPoints() {
+  const q = (document.getElementById('places-search').value || '').toLowerCase();
+  const list = checkpoints
+    .filter(c => c.trail_id != null)
+    .filter(c => !q || c.name.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const ta = (trails.find(t => t.id === a.trail_id) || {}).name || '';
+      const tb = (trails.find(t => t.id === b.trail_id) || {}).name || '';
+      return ta.localeCompare(tb, 'ru') || a.order_index - b.order_index;
+    });
+  const el = document.getElementById('places-list');
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><b>Точек нет</b>Добавляются кнопкой «Карта и точки» у маршрута.</div>`;
+    return;
+  }
+  el.innerHTML = list.map(c => {
+    const cover = (c.photos && c.photos.length) ? c.photos[0].thumb_url || c.photos[0].url : '';
+    const trail = trails.find(t => t.id === c.trail_id);
+    return `
+    <div class="row">
+      <div class="row-thumb" style="${cover ? `background-image:url('${escAttr(cover)}')` : ''}"></div>
+      <div class="row-main">
+        <div class="row-title">${escHtml(c.name)}
+          ${c.is_published === false ? '<span class="badge badge-draft">скрыт</span>' : ''}
+          <span class="badge">${trail ? escHtml(trail.name) : '— без маршрута —'}</span>
+          ${c.show_as_place ? '<span class="badge badge-green">видна как место</span>' : ''}
+        </div>
+        <div class="row-meta">
+          <span>${escHtml(categoryLabel(c.category))}</span>
+          <span>№ ${c.order_index + 1} по маршруту</span>
+        </div>
+      </div>
+      <div class="row-actions">
+        ${trail ? `<button class="btn btn-ghost btn-sm" onclick="openRouteMap(${trail.id})">На карте маршрута</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="openPointForm(${c.id})">Редактировать</button>
+        <button class="btn btn-ghost btn-sm" onclick="openPhotos('checkpoint', ${c.id})">Фото (${c.photos.length})</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePlace(${c.id})">Удалить</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 async function deletePlace(id) {
   if (!confirm('Удалить место?')) return;
   await api('DELETE', `/checkpoints/${id}`);
   await loadAll();
 }
 
+// Раньше новое место сначала требовало ткнуть в отдельный экран с картой и
+// только потом пускало в форму. Теперь карта живёт внутри самой формы —
+// название, описание и точка ставятся в одном месте и в любом порядке.
 function startAddStandalonePlace() {
-  showTab('place-map');
-  ensurePlaceMap();
-  placePickCallback = (lat, lon) => {
-    showTab('places');
-    openPointForm(null, { lat, lon, standalone: true, atIndex: null });
-  };
-}
-
-function cancelPlacePicking() {
-  placePickCallback = null;
-  showTab('places');
-}
-
-function ensurePlaceMap() {
-  if (!placeMap) {
-    placeMap = L.map('place-map').setView([44.15, 40.17], 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap', maxZoom: 18,
-    }).addTo(placeMap);
-    placeMap.on('click', (e) => {
-      if (placePickCallback) {
-        const cb = placePickCallback;
-        placePickCallback = null;
-        cb(e.latlng.lat, e.latlng.lng);
-      }
-    });
-  }
-  setTimeout(() => placeMap.invalidateSize(), 60);
+  openPointForm(null, { standalone: true, atIndex: null });
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1634,13 +2068,17 @@ function openPhotos(kind, id) {
   const photos = obj.photos || [];
   showModal(`Фото — ${obj.name}`, `
     <div class="hint" style="color:var(--muted);font-size:13px;margin-bottom:14px">
-      Первое фото становится обложкой на карточке и в соцсетях.
+      Первое фото становится обложкой на карточке и в соцсетях. Подпись видна
+      под фото в карусели на странице места/маршрута — без неё просто фото без текста.
     </div>
     <div class="photos" id="photo-grid">
       ${photos.map(p => `
         <div class="photo">
           <img src="${escAttr(p.thumb_url || p.url)}" alt="">
           <button onclick="deletePhoto(${p.id}, '${kind}', ${id})">×</button>
+          <input type="text" class="photo-caption" placeholder="Подпись (необязательно)"
+                 value="${escAttr(p.caption || '')}"
+                 onchange="savePhotoCaption(${p.id}, this.value)">
         </div>`).join('') || '<div class="picker-empty">Фото пока нет</div>'}
     </div>
     <div class="field" style="margin-top:16px;margin-bottom:0">
@@ -1663,9 +2101,14 @@ function openPhotos(kind, id) {
     await loadAll();
     closeModal();
     toast('Фото добавлены');
-    if (activeTrail && document.getElementById('view-route-map').classList.contains('active')) refreshActiveTrail();
+    if (activeTrail && document.getElementById('view-route-map').classList.contains('active')) reloadActiveTrail();
     renderPlaces(); renderRoutes();
   }, { saveLabel: 'Загрузить' });
+}
+
+async function savePhotoCaption(photoId, caption) {
+  const saved = await api('PATCH', `/photos/${photoId}`, { caption: caption.trim() || null });
+  if (saved) toast('Подпись сохранена');
 }
 
 async function deletePhoto(photoId, kind, ownerId) {
