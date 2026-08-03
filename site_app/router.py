@@ -133,6 +133,18 @@ def _likes_label(count: int) -> str:
     return f"Оценили: {count} {word}"
 
 
+def _ru_plural(n: int, one: str, few: str, many: str) -> str:
+    n = abs(n) % 100
+    n1 = n % 10
+    if 11 <= n <= 14:
+        return many
+    if n1 == 1:
+        return one
+    if 2 <= n1 <= 4:
+        return few
+    return many
+
+
 def _rich_text_html(text: Optional[str]) -> str:
     """Текст из Quill-редактора (статьи, описания мест/маршрутов) уже HTML —
     отдаём как есть (авторизуется только через админку). Записи, заведённые
@@ -842,8 +854,13 @@ def home(request: Request, db: Session = Depends(get_db)):
             select(Article).where(Article.is_published == True).order_by(Article.created_at.desc()).limit(6)
         ).scalars().all()
     ]
+    # Берём на одну карточку больше колонки в ряду (4): если на сайте мест
+    # больше показанных, седьмое место в сетке освобождает место плитке
+    # «ещё N мест» — она и подсказывает про остальные, и всегда закрывает
+    # сетку ровно двумя рядами вместо повисшего хвоста в 6 карточек из 8.
     place_rows = db.execute(
-        _with_place_relations(select(Checkpoint)).order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(6)
+        _with_place_relations(select(Checkpoint)).where(Checkpoint.show_as_place == True)
+        .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(7)
     ).scalars().all()
     places = [_place_card_dict(cp) for cp in place_rows]
     place_likes = _like_counts_map(db, "checkpoint", [cp.id for cp in place_rows])
@@ -852,13 +869,19 @@ def home(request: Request, db: Session = Depends(get_db)):
             p["likes_label"] = _likes_label(place_likes[p["id"]])
 
     route_rows = db.execute(
-        _with_route_relations(select(Trail)).order_by(_POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(6)
+        _with_route_relations(select(Trail)).order_by(_POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(7)
     ).scalars().all()
     routes = [_route_card_dict(t) for t in route_rows]
     route_likes = _like_counts_map(db, "trail", [t.id for t in route_rows])
     for r in routes:
         if route_likes.get(r["id"]):
             r["likes_label"] = _likes_label(route_likes[r["id"]])
+
+    stats = _footer_stats(db)
+    places_remaining = max(stats["places"] - len(places), 0)
+    routes_remaining = max(stats["trails"] - len(routes), 0)
+    places_remaining_word = _ru_plural(places_remaining, "место", "места", "мест")
+    routes_remaining_word = _ru_plural(routes_remaining, "маршрут", "маршрута", "маршрутов")
 
     doors = _scenario_doors(db)
     wizard_categories = db.execute(
@@ -868,6 +891,8 @@ def home(request: Request, db: Session = Depends(get_db)):
         "home.html",
         _ctx(
             request, db, active_nav="home", highlight=highlight, articles=articles, places=places, routes=routes,
+            places_remaining=places_remaining, places_remaining_word=places_remaining_word,
+            routes_remaining=routes_remaining, routes_remaining_word=routes_remaining_word,
             wizard_categories=wizard_categories, doors=doors, page=_site_page(db, "home"),
         ),
     )

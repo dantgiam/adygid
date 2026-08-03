@@ -56,51 +56,51 @@
   </div>
 </section>
 
+{# Пустые разделы на главной не показываем вовсе. Раньше на их месте стояла
+   заглушка «добавьте первую в админке» — служебная подсказка редактору,
+   которую видел и обычный гость. Пока раздел не наполнен, честнее не
+   обещать его в меню страницы, чем показывать пустую полку. #}
+{% if articles %}
 <section class="section">
   <div class="wrap">
     <div class="section-head">
       <h2>С чего начать</h2>
       <a class="see-all" href="/stati">Все статьи →</a>
     </div>
-    {% if articles %}
     <div class="grid">
       {% for a in articles %}{{ cards.article_card(a) }}{% endfor %}
     </div>
-    {% else %}
-    <div class="empty-state">Статей пока нет — добавьте первую в админке.</div>
-    {% endif %}
   </div>
 </section>
+{% endif %}
 
+{% if places %}
 <section class="section">
   <div class="wrap">
     <div class="section-head">
       <h2>Подборка мест</h2>
       <a class="see-all" href="/mesta">Все места →</a>
     </div>
-    {% if places %}
     <div class="grid">
       {% for p in places %}{{ cards.place_card(p) }}{% endfor %}
+      {% if places_remaining %}{{ cards.more_tile(places_remaining, places_remaining_word, '/mesta') }}{% endif %}
     </div>
-    {% else %}
-    <div class="empty-state">Мест пока нет — добавьте первое в админке.</div>
-    {% endif %}
   </div>
 </section>
+{% endif %}
 
+{% if routes %}
 <section class="section">
   <div class="wrap">
     <div class="section-head">
       <h2>Подборка маршрутов</h2>
       <a class="see-all" href="/marshruty">Все маршруты →</a>
     </div>
-    {% if routes %}
     <div class="grid">
       {% for r in routes %}{{ cards.route_card(r) }}{% endfor %}
+      {% if routes_remaining %}{{ cards.more_tile(routes_remaining, routes_remaining_word, '/marshruty') }}{% endif %}
     </div>
-    {% else %}
-    <div class="empty-state">Маршрутов пока нет — добавьте первый в админке.</div>
-    {% endif %}
   </div>
 </section>
+{% endif %}
 {% endblock %}
