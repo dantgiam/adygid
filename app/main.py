@@ -1390,12 +1390,16 @@ class PreviewIn(BaseModel):
 
 
 @app.post("/api/preview")
-def render_preview(body: PreviewIn, _: bool = Depends(require_admin)):
-    from site_app.router import _add_toc_anchors, _render_article_gallery, _render_consider_blocks, _rich_text_html
+def render_preview(body: PreviewIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    from site_app.router import _add_toc_anchors, _render_article_gallery, _render_embeds, _rich_text_html
 
-    rendered = _render_consider_blocks(_rich_text_html(body.html))
+    # Место/маршрут/сценарий вставляют коллажи и лид-магниты тем же редактором,
+    # что и статья (см. descEditorHtml в admin.js) — раньше здесь разворачивался
+    # только «Что учесть», и коллаж в предпросмотре так и оставался рядом
+    # обычных картинок, а не галереей.
+    rendered = _render_article_gallery(_rich_text_html(body.html))
+    rendered, _faq = _render_embeds(db, rendered)
     if body.kind == "article":
-        rendered = _render_article_gallery(rendered)
         rendered, _toc = _add_toc_anchors(rendered)
     return {"html": rendered}
 

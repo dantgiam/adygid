@@ -486,3 +486,28 @@ document.addEventListener("click", (e) => {
     paint(0);
   });
 })();
+
+// ── Мобильное меню шапки ────────────────────────────────────────────────
+(function () {
+  const btn = document.getElementById("menu-toggle");
+  const panel = document.getElementById("mobile-menu");
+  if (!btn || !panel) return;
+
+  function close() {
+    panel.hidden = true;
+    btn.setAttribute("aria-expanded", "false");
+    btn.classList.remove("open");
+  }
+  function open() {
+    panel.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+    btn.classList.add("open");
+  }
+
+  btn.addEventListener("click", () => (panel.hidden ? open() : close()));
+  panel.addEventListener("click", (e) => { if (e.target.tagName === "A") close(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  document.addEventListener("click", (e) => {
+    if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) close();
+  });
+})();

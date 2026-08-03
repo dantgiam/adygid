@@ -622,12 +622,19 @@ def _related_articles(db: Session, current: Article, limit: int = 3) -> list:
     return [_article_card_dict(a) for a in ranked[:limit]]
 
 
-def _place_detail_dict(cp: Checkpoint) -> dict:
+def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
+    # Тот же редактор, что у статьи (см. descEditorHtml в admin.js), даёт те
+    # же вставки — коллаж, лид-магнит, набор вопросов. Раньше здесь разворачивался
+    # только «Что учесть», поэтому коллаж на странице места оставался просто
+    # набором подряд идущих <img> вместо галереи, а магнит/вопросы — сырым
+    # <div data-...> без разметки.
+    description_html = _render_article_gallery(_rich_text_html(cp.description))
+    description_html, _faq = _render_embeds(db, description_html)
     return {
         "id": cp.id,
         "name": cp.name,
         "excerpt": _excerpt(cp.description, 200),
-        "description_html": _render_consider_blocks(_rich_text_html(cp.description)),
+        "description_html": description_html,
         "cover": _cover_of(cp.photos),
         "photos": [p.url for p in cp.photos],
         "gallery": _gallery_of(cp.photos),
@@ -648,7 +655,7 @@ def _place_detail_dict(cp: Checkpoint) -> dict:
     }
 
 
-def _route_detail_dict(t: Trail) -> dict:
+def _route_detail_dict(db: Session, t: Trail) -> dict:
     ordered_cps = sorted(t.checkpoints, key=lambda c: c.order_index)
     # Погода привязана к финальной точке маршрута — по ней ориентируются,
     # когда планируют выезд, а не по стартовой (та обычно у посёлка/парковки).
@@ -656,11 +663,13 @@ def _route_detail_dict(t: Trail) -> dict:
     if ordered_cps:
         shp = to_shape(ordered_cps[-1].geom)
         weather_url = _weather_url(shp.y, shp.x)
+    description_html = _render_article_gallery(_rich_text_html(t.description))
+    description_html, _faq = _render_embeds(db, description_html)
     return {
         "id": t.id,
         "name": t.name,
         "excerpt": _excerpt(t.description, 200),
-        "description_html": _render_consider_blocks(_rich_text_html(t.description)),
+        "description_html": description_html,
         "cover": _cover_of(t.photos),
         "gallery": _gallery_of(t.photos),
         "district_label": DISTRICTS.get(t.district),
@@ -916,7 +925,7 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
     if not cp or not cp.show_as_place:
         raise HTTPException(404, "Место не найдено")
 
-    place = _place_detail_dict(cp)
+    place = _place_detail_dict(db, cp)
     conditions = [c for c in [
         Checkpoint.district == cp.district if cp.district else None,
         Checkpoint.category_id == cp.category_id if cp.category_id else None,
@@ -994,7 +1003,7 @@ def route_detail(request: Request, route_id: int, db: Session = Depends(get_db))
     if not t:
         raise HTTPException(404, "Маршрут не найден")
 
-    route = _route_detail_dict(t)
+    route = _route_detail_dict(db, t)
     conditions = [c for c in [
         Trail.district == t.district if t.district else None,
         Trail.category_id == t.category_id if t.category_id else None,

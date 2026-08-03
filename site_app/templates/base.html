@@ -62,16 +62,39 @@
 
 <header class="site-header">
   <div class="wrap">
-    <a class="brand" href="/">АдыГид<span>личный гид по Адыгее</span></a>
-    <nav class="main-nav">
-      <a href="/" class="{{ 'active' if active_nav == 'home' else '' }}">Главная</a>
-      <a href="/kuda" class="{{ 'active' if active_nav == 'scenarios' else '' }}">Куда поехать</a>
+    <div class="capsule">
+      <a class="brand" href="/" aria-label="АдыГид — на главную">
+        <svg class="brand-mark" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+          <polygon points="4,24 12,10 20,24" fill="#9BCBA4"/>
+          <polygon points="10,24 21,8 30,24" fill="#278C3E"/>
+          <circle cx="24" cy="9" r="2.6" fill="#D6A324"/>
+        </svg>
+        <span class="brand-word">АдыГид</span>
+      </a>
+      <nav class="main-nav">
+        <a href="/mesta" class="{{ 'active' if active_nav == 'places' else '' }}">Места</a>
+        <a href="/marshruty" class="{{ 'active' if active_nav == 'routes' else '' }}">Маршруты</a>
+        <a href="/kuda" class="{{ 'active' if active_nav == 'scenarios' else '' }}">Куда поехать</a>
+        <a href="/okrugi" class="{{ 'active' if active_nav == 'districts' else '' }}">Округа</a>
+        <a href="/stati" class="{{ 'active' if active_nav == 'articles' else '' }}">Статьи</a>
+      </nav>
+      <a class="header-cta" href="/klub">Клуб</a>
+      <button type="button" class="menu-btn" id="menu-toggle" aria-expanded="false" aria-controls="mobile-menu" aria-label="Открыть меню">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path class="menu-bar-top" d="M4 7h16"/>
+          <path class="menu-bar-mid" d="M4 12h16"/>
+          <path class="menu-bar-bot" d="M4 17h16"/>
+        </svg>
+      </button>
+    </div>
+    <nav class="mobile-menu" id="mobile-menu" hidden>
       <a href="/mesta" class="{{ 'active' if active_nav == 'places' else '' }}">Места</a>
       <a href="/marshruty" class="{{ 'active' if active_nav == 'routes' else '' }}">Маршруты</a>
+      <a href="/kuda" class="{{ 'active' if active_nav == 'scenarios' else '' }}">Куда поехать</a>
       <a href="/okrugi" class="{{ 'active' if active_nav == 'districts' else '' }}">Округа</a>
       <a href="/stati" class="{{ 'active' if active_nav == 'articles' else '' }}">Статьи</a>
       <a href="/voprosy" class="{{ 'active' if active_nav == 'faq' else '' }}">Вопросы</a>
-      <a href="/klub" class="{{ 'active' if active_nav == 'club' else '' }}">Клуб</a>
+      <a href="/klub" class="{{ 'active' if active_nav == 'club' else '' }}">Клуб АдыГид в MAX</a>
     </nav>
   </div>
 </header>
@@ -85,6 +108,7 @@
     <div class="footer-stats">
       На сайте собрано <b>{{ footer_stats.places }}</b> мест и <b>{{ footer_stats.trails }}</b> маршрутов
     </div>
+    <a class="footer-faq" href="/voprosy">Частые вопросы</a>
     <div class="footer-club">Живые впечатления и отзывы — в <a href="/klub">клубе АдыГид в MAX →</a></div>
   </div>
 </footer>

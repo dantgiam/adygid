@@ -85,22 +85,67 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 @keyframes deco-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .deco-item { animation: none; } }
 
-/* ── Header ─────────────────────────────────────── */
-.site-header {
-  position: sticky; top: 0; z-index: 50;
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--border);
+/* ── Header: капсула, плавающая над градиентным фоном страницы ──────────
+   Сама .site-header прозрачна и ничего не красит — весь визуальный вес
+   (фон, блюр, тень) несёт .capsule внутри неё, поэтому вокруг пилюли
+   видно фон/подложку страницы, а не сплошную полосу во всю ширину. */
+.site-header { position: sticky; top: 14px; z-index: 50; margin-bottom: 34px; }
+.site-header .wrap { position: relative; }
+.capsule {
+  display: flex; align-items: center; gap: 6px;
+  background: color-mix(in srgb, var(--bg-card) 85%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border); border-radius: 999px;
+  padding: 8px 8px 8px 20px;
+  box-shadow: 0 10px 30px -16px rgba(30, 110, 48, .35), 0 1px 2px rgba(20, 30, 15, .04);
 }
-.site-header .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 24px; }
-.brand { font-family: var(--font-display); font-size: 21px; color: var(--accent); white-space: nowrap; }
-.brand span { color: var(--text-muted); font-family: var(--font-body); font-size: 13px; display: block; margin-top: -2px; }
-nav.main-nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 9px; text-decoration: none; flex: none; }
+.brand-mark { flex: none; }
+.brand-word { font-family: var(--font-display); font-size: 18px; color: var(--text); white-space: nowrap; }
+nav.main-nav { display: flex; gap: 2px; flex: 1; justify-content: center; padding: 0 8px; }
 nav.main-nav a {
-  padding: 8px 14px; border-radius: 8px; font-size: 15px; color: var(--text-muted);
+  padding: 8px 13px; border-radius: 999px; font-size: 14px; font-weight: 600;
+  color: var(--text-muted); text-decoration: none; white-space: nowrap;
 }
 nav.main-nav a:hover { color: var(--text); background: var(--bg-elevated); }
-nav.main-nav a.active { color: var(--accent); font-weight: 700; }
+nav.main-nav a.active { color: var(--accent-dark); background: var(--accent-soft); }
+
+.header-cta {
+  flex: none; font-size: 14px; font-weight: 700; color: #2A2205; background: var(--gold);
+  padding: 9px 18px; border-radius: 999px; text-decoration: none; white-space: nowrap;
+  transition: background .15s ease;
+}
+.header-cta:hover { background: var(--gold-dark); }
+
+.menu-btn {
+  display: none; flex: none; width: 38px; height: 38px; border-radius: 50%;
+  border: none; background: none; color: var(--text); align-items: center; justify-content: center;
+}
+.menu-btn:hover { background: var(--bg-elevated); }
+.menu-btn .menu-bar-top, .menu-btn .menu-bar-bot { transition: transform .18s ease, opacity .18s ease; transform-origin: center; }
+.menu-btn.open .menu-bar-top { transform: translateY(5px) rotate(45deg); }
+.menu-btn.open .menu-bar-mid { opacity: 0; }
+.menu-btn.open .menu-bar-bot { transform: translateY(-5px) rotate(-45deg); }
+@media (prefers-reduced-motion: reduce) {
+  .menu-btn .menu-bar-top, .menu-btn .menu-bar-bot { transition: none; }
+}
+
+.mobile-menu {
+  display: none; flex-direction: column; gap: 2px; margin-top: 8px; padding: 10px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px;
+  box-shadow: 0 10px 30px -16px rgba(30, 110, 48, .35);
+}
+.mobile-menu a {
+  padding: 11px 14px; border-radius: 11px; font-size: 15px; font-weight: 600;
+  color: var(--text-muted); text-decoration: none;
+}
+.mobile-menu a:hover, .mobile-menu a.active { color: var(--accent-dark); background: var(--accent-soft); }
+
+@media (max-width: 900px) {
+  nav.main-nav, .header-cta { display: none; }
+  .menu-btn { display: flex; }
+  .mobile-menu:not([hidden]) { display: flex; }
+}
 
 /* ── Buttons ────────────────────────────────────── */
 .btn {
@@ -518,17 +563,21 @@ h1.article-title {
 
 /* ── Footer ────────────────────────────────────────*/
 .site-footer { border-top: 1px solid var(--border); margin-top: 60px; padding: 32px 0; }
-.site-footer .wrap { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.site-footer .wrap { display: flex; justify-content: space-between; align-items: center; gap: 16px 28px; flex-wrap: wrap; }
 .footer-stats { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
 .footer-stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+/* Раньше был в верхнем меню — переехал сюда, когда шапка сжалась до пяти
+   основных пунктов; сама страница /voprosy никуда не делась. */
+.footer-faq { font-size: 14px; color: var(--text-muted); text-decoration: none; margin-right: auto; }
+.footer-faq:hover { color: var(--accent); }
 .footer-club { font-size: 15px; }
 .footer-club a { color: var(--accent); font-weight: 700; }
 
 @media (max-width: 640px) {
   .wrap { padding: 0 16px; }
-  .site-header .wrap { height: auto; flex-direction: column; align-items: flex-start; padding: 12px 16px; gap: 8px; }
-  nav.main-nav { gap: 2px; }
-  nav.main-nav a { padding: 10px 10px; font-size: 13.5px; }
+  .site-header { top: 10px; margin-bottom: 26px; }
+  .capsule { padding: 6px 6px 6px 14px; gap: 4px; }
+  .brand-word { font-size: 16px; }
 }
 
 /* ── Избранное — звёздочка, чисто клиентское состояние (localStorage) ──── */
