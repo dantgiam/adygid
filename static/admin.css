@@ -510,6 +510,40 @@ a { color: var(--accent); }
 .ql-editor .consider-embed ul { margin: 8px 0 0; padding-left: 20px; }
 .ql-editor .consider-embed li { margin-bottom: 4px; }
 
+/* Коллаж и одиночное фото с подписью — превью в редакторе повторяет
+   вёрстку сайта (.article-gallery/.article-figure в site.css), чтобы автор
+   видел готовый результат, а не подряд идущие картинки без подписей.
+   Блок нередактируемый (contenteditable=false) — правка через переливку. */
+.ql-editor .gallery-embed { margin: 22px 0; user-select: none; }
+.ql-editor .editor-gallery-track {
+  display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; margin: 0 -2px;
+}
+.ql-editor .editor-gallery-item { flex: 0 0 calc(50% - 5px); margin: 0; }
+@media (max-width: 640px) {
+  .ql-editor .editor-gallery-item { flex-basis: 80%; }
+}
+.ql-editor .editor-gallery-caption {
+  display: flex; gap: 8px; margin-top: 10px; font-family: var(--font); font-size: 13px;
+  line-height: 1.4; color: var(--muted);
+}
+.ql-editor .editor-gallery-counter { flex: none; font-weight: 700; color: var(--text); }
+.ql-editor .editor-gallery-text { flex: 1; min-width: 0; }
+/* Специфичность выше, чем у общего «#article-editor .ql-editor img» и
+   «#desc-editor .ql-editor img» (margin/max-width) — иначе те правила
+   перебивают отступы и рвут сетку коллажа. */
+#article-editor .ql-editor .editor-gallery-item img,
+#desc-editor .ql-editor .editor-gallery-item img {
+  width: 100%; max-width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px;
+  display: block; margin: 0;
+}
+#article-editor .ql-editor .gallery-embed.single img,
+#desc-editor .ql-editor .gallery-embed.single img {
+  width: 100%; max-width: 100%; border-radius: 10px; display: block; margin: 0;
+}
+.ql-editor .gallery-embed.single figcaption {
+  margin-top: 10px; font-family: var(--font); font-size: 13px; line-height: 1.4; color: var(--muted);
+}
+
 /* Живой предпросмотр блока в форме */
 .block-preview { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: var(--bg); }
 .preview-warn { font-size: 13px; color: #96591B; background: #FFF4E5; border: 1px solid #F5DDBB; border-radius: 8px; padding: 10px 12px; }

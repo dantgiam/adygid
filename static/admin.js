@@ -453,6 +453,7 @@ function initDescEditor(html, scope) {
       ],
     },
   });
+  registerGalleryMatcher(descQuill);
   descQuill.setContents([], 'silent');
   if (html) descQuill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
 
@@ -519,6 +520,7 @@ function readDescEditor() {
   if (!descQuill) return null;
   const clone = descQuill.root.cloneNode(true);
   clone.querySelectorAll('.magnet-embed, .faq-embed, .consider-embed').forEach(el => { el.innerHTML = ''; });
+  flattenGalleryEmbeds(clone);
   const html = clone.innerHTML.trim();
   // Пустой Quill отдаёт <p><br></p> — на сайте это лишний пустой абзац.
   return (!html || html === '<p><br></p>') ? null : html;
@@ -723,6 +725,7 @@ function initArticleQuill() {
       ],
     },
   });
+  registerGalleryMatcher(articleQuill);
   articleQuill.on('text-change', scheduleAutosave);
   // Кнопка «+» должна стоять напротив той строки, где сейчас курсор
   articleQuill.on('editor-change', positionInsertPlus);
@@ -820,7 +823,26 @@ function readArticleBody() {
   // иначе в статье осела бы копия текста магнита и правки не подхватывались.
   const clone = articleQuill.root.cloneNode(true);
   clone.querySelectorAll('.magnet-embed, .faq-embed, .consider-embed').forEach(el => { el.innerHTML = ''; });
+  flattenGalleryEmbeds(clone);
   return clone.innerHTML;
+}
+
+// Коллаж — это не блок с сервера, а самостоятельная разметка (см.
+// registerEmbedBlots), поэтому вместо очистки, как у магнита/FAQ, здесь
+// превью разворачивается обратно в голые <img> внутри <p> — именно то, что
+// умеет разобрать _render_article_gallery на сервере.
+function flattenGalleryEmbeds(clone) {
+  clone.querySelectorAll('.gallery-embed').forEach(el => {
+    const p = document.createElement('p');
+    el.querySelectorAll('img').forEach(img => {
+      const out = document.createElement('img');
+      out.setAttribute('src', img.getAttribute('src') || '');
+      const alt = img.getAttribute('alt') || '';
+      if (alt) out.setAttribute('alt', alt);
+      p.appendChild(out);
+    });
+    el.replaceWith(p);
+  });
 }
 
 function collectArticleDraft() {
@@ -1049,18 +1071,18 @@ async function photoFlow(quill, multiple) {
     document.getElementById('modal2-save').disabled = false;
 
     if (uploaded.length) {
-      let index = at;
-      uploaded.forEach(item => {
-        quill.insertEmbed(index, 'image', item.url, 'user');
-        // Quill не умеет alt из коробки — проставляем прямо в DOM редактора,
-        // при сохранении он уедет вместе с картинкой (сайт делает из alt подпись).
-        const imgs = quill.root.querySelectorAll(`img[src="${CSS.escape(item.url)}"]`);
-        const el = imgs[imgs.length - 1];
-        if (el) { el.alt = item.caption; el.title = item.caption; }
-        index += 1;
-      });
-      quill.insertText(index, '\n', 'user');
-      quill.setSelection(index + 1);
+      // Одиночное фото без подписи остаётся обычной вставкой на всю ширину —
+      // ровно то, что и раньше. Коллаж и одиночное фото С подписью вставляем
+      // блоком «gallery», чтобы подпись было видно сразу в редакторе, а не
+      // только в alt-атрибуте (см. registerEmbedBlots).
+      if (uploaded.length === 1 && !uploaded[0].caption) {
+        quill.insertEmbed(at, 'image', uploaded[0].url, 'user');
+        quill.insertText(at + 1, '\n', 'user');
+        quill.setSelection(at + 2);
+      } else {
+        quill.insertEmbed(at, 'gallery', { items: uploaded }, 'user');
+        quill.setSelection(at + 1);
+      }
       scheduleAutosave();
     }
     closeModal2();
@@ -2399,10 +2421,76 @@ function registerEmbedBlots() {
   ConsiderBlot.tagName = 'div';
   ConsiderBlot.className = 'consider-embed';
 
+  // Коллаж/фото с подписью — в отличие от магнита и набора вопросов, сюда
+  // не подставляется ничего с сервера: на сайте это просто несколько <img>
+  // подряд в одном <p> (см. _render_article_gallery в site_app/router.py),
+  // сервер группирует их в галерею сам. Здесь блот нужен только чтобы то же
+  // самое было видно уже в редакторе — при сохранении (readArticleBody/
+  // readDescEditor) он разворачивается обратно в голые <img>, а не остаётся
+  // пустым контейнером.
+  class GalleryBlot extends BlockEmbed {
+    static create(value) {
+      const node = super.create();
+      node.setAttribute('contenteditable', 'false');
+      const items = (value && value.items) || [];
+      if (items.length >= 2) {
+        const total = items.length;
+        node.innerHTML = '<div class="editor-gallery-track">' + items.map((it, i) => {
+          const cap = (it.caption || '').trim();
+          const capHtml = cap
+            ? '<figcaption class="editor-gallery-caption"><span class="editor-gallery-counter">' + (i + 1) + '/' + total + '</span><span class="editor-gallery-text">' + escHtml(cap) + '</span></figcaption>'
+            : '';
+          return '<figure class="editor-gallery-item"><img src="' + escAttr(it.url) + '" alt="' + escAttr(cap) + '">' + capHtml + '</figure>';
+        }).join('') + '</div>';
+      } else {
+        node.classList.add('single');
+        const it = items[0] || { url: '', caption: '' };
+        const cap = (it.caption || '').trim();
+        node.innerHTML = '<img src="' + escAttr(it.url) + '" alt="' + escAttr(cap) + '">' +
+          (cap ? '<figcaption>' + escHtml(cap) + '</figcaption>' : '');
+      }
+      return node;
+    }
+    static value(node) {
+      const items = Array.from(node.querySelectorAll('img')).map(img => ({
+        url: img.getAttribute('src') || '',
+        caption: img.getAttribute('alt') || '',
+      }));
+      return { items };
+    }
+  }
+  GalleryBlot.blotName = 'gallery';
+  GalleryBlot.tagName = 'div';
+  GalleryBlot.className = 'gallery-embed';
+
   Quill.register(MagnetBlot);
   Quill.register(FaqBlot);
   Quill.register(ConsiderBlot);
+  Quill.register(GalleryBlot);
   window.__embedBlotsRegistered = true;
+}
+
+// При загрузке уже сохранённой статьи Quill парсит её HTML заново, и без этой
+// подсказки коллаж (несколько <img> подряд в одном <p>) снова превратился бы
+// в голые картинки без подписи — ровно баг, который этот блот и чинит.
+// Одиночное фото без подписи матчер не трогает — оно и на сайте, и в
+// редакторе остаётся обычной вставкой на всю ширину.
+function registerGalleryMatcher(quill) {
+  const Delta = Quill.import('delta');
+  quill.clipboard.addMatcher('p', (node, delta) => {
+    const children = Array.from(node.childNodes);
+    const onlyImgs = children.length > 0 && children.every(n =>
+      (n.nodeType === 1 && n.tagName === 'IMG') || (n.nodeType === 3 && !n.textContent.trim()));
+    if (!onlyImgs) return delta;
+    const imgs = children.filter(n => n.nodeType === 1 && n.tagName === 'IMG');
+    if (!imgs.length) return delta;
+    const items = imgs.map(img => ({
+      url: img.getAttribute('src') || '',
+      caption: (img.getAttribute('alt') || '').trim(),
+    }));
+    if (items.length === 1 && !items[0].caption) return delta;
+    return new Delta().insert({ gallery: { items } });
+  });
 }
 
 // ── «Что учесть» — локальный блок: вставка и правка через второе,
