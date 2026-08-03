@@ -51,6 +51,13 @@
    (window, document,'script','https://mc.yandex.ru/metrika/tag.js?id={{ yandex_metrika_id }}', 'ym');
 
    ym({{ yandex_metrika_id }}, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
+
+   /* Номер счётчика нужен и в site.js — там размечены цели (переход в клуб,
+      клик по магниту, глубина чтения). Отдаём его через window, а не дублируем
+      константой в скрипте: счётчик задаётся переменной окружения и на разных
+      стендах разный. Пусто — блока нет вовсе, и аналитика в site.js молча
+      выключается, поэтому локальная разработка не шлёт events в статистику. */
+   window.ADYGID_METRIKA_ID = {{ yandex_metrika_id }};
 </script>
 <noscript><div><img src="https://mc.yandex.ru/watch/{{ yandex_metrika_id }}" style="position:absolute; left:-9999px;" alt=""></div></noscript>
 <!-- /Yandex.Metrika counter -->

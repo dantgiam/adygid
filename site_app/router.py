@@ -244,8 +244,11 @@ def _magnet_html(m) -> str:
         for u, label, cls, src in links
     )
 
+    # data-magnet-* читает аналитика в site.js: без них в отчёте видно только
+    # «кликнули по магниту», а не какой именно магнит сработал. Имя берём
+    # служебное (m.name) — в списке целей оно короче и понятнее заголовка.
     return (
-        '<aside class="magnet">'
+        f'<aside class="magnet" data-magnet-id="{m.id}" data-magnet-name="{escape(m.name, quote=True)}">'
         '<div class="magnet-top">'
         f'<img class="magnet-gift" src="/assets/magnet-gift.png?v={ASSET_VERSION}" alt="" loading="lazy">'
         f'<div class="magnet-copy"><p class="magnet-title">{escape(m.title)}</p>{text_html}</div>'

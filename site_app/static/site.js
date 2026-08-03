@@ -487,6 +487,214 @@ document.addEventListener("click", (e) => {
   });
 })();
 
+// ── Аналитика: цели Яндекс.Метрики ───────────────────────────────────────
+// Метрика из коробки считает визиты, время и отказы, но не знает, ради чего
+// сайт сделан: переход в клуб. Здесь размечено ровно то, чего в отчётах нет:
+// какой магнит сработал и в какой мессенджер ушли, на каком месте статьи это
+// случилось, до какого раздела дочитали и какие вопросы раскрывали.
+//
+// Всё вешается делегированно и через IntersectionObserver, поэтому не зависит
+// от того, сколько блоков на странице и как они отрендерены. Любая ошибка
+// внутри гасится: аналитика не должна ронять страницу.
+(function () {
+  const ID = window.ADYGID_METRIKA_ID;
+  if (!ID) return;   // счётчик не задан (локальная разработка) — молчим
+
+  // Очередь ym() создаётся синхронно в шапке, поэтому вызывать её можно и до
+  // того, как догрузился tag.js: события не потеряются, а встанут в очередь.
+  function goal(name, params) {
+    try {
+      if (typeof window.ym === "function") window.ym(ID, "reachGoal", name, params);
+    } catch (e) { /* аналитика не должна ронять страницу */ }
+  }
+
+  const path = location.pathname;
+
+  // ── Активное время: считаем только когда вкладка на экране ──
+  // «Время на сайте» в Метрике включает вкладки, брошенные в фоне на час.
+  // Нам нужно время реального чтения, поэтому копим сами.
+  let activeMs = 0;
+  let since = document.visibilityState === "visible" ? Date.now() : 0;
+  function stopClock() {
+    if (since) { activeMs += Date.now() - since; since = 0; }
+    return Math.round(activeMs / 1000);
+  }
+  function seconds() {
+    return Math.round((activeMs + (since ? Date.now() - since : 0)) / 1000);
+  }
+
+  // ── Глубина скролла ──
+  function depth() {
+    const doc = document.documentElement;
+    const scrollable = doc.scrollHeight - window.innerHeight;
+    if (scrollable <= 40) return 100;   // страница короче экрана — она вся прочитана
+    return Math.max(0, Math.min(100, Math.round((window.scrollY / scrollable) * 100)));
+  }
+  let maxDepth = depth();
+
+  // ── Раздел, который читают прямо сейчас ──
+  // Заголовки статьи уже размечены якорями (_add_toc_anchors в router.py),
+  // поэтому в отчёт уходит человекочитаемое название раздела, а не section-3.
+  const sections = Array.from(document.querySelectorAll(".article-body h2[id]"))
+    .map((el) => ({ id: el.id, title: (el.textContent || "").trim().slice(0, 80), el }));
+  const timeInSection = Object.create(null);
+  let currentSection = null;
+  let sectionSince = 0;
+
+  function sectionAt() {
+    if (!sections.length) return null;
+    let found = null;
+    for (const s of sections) {
+      if (s.el.getBoundingClientRect().top - 140 <= 0) found = s;
+    }
+    return found;
+  }
+  function switchSection(next) {
+    const now = Date.now();
+    if (currentSection && sectionSince) {
+      const key = currentSection.title || currentSection.id;
+      timeInSection[key] = (timeInSection[key] || 0) + (now - sectionSince);
+    }
+    currentSection = next;
+    sectionSince = next ? now : 0;
+  }
+  function longestSection() {
+    let best = null, bestMs = 0;
+    for (const key in timeInSection) {
+      if (timeInSection[key] > bestMs) { bestMs = timeInSection[key]; best = key; }
+    }
+    // Меньше трёх секунд — это пролистали мимо, а не читали
+    return bestMs >= 3000 ? best : null;
+  }
+
+  // ── Пороги дочитывания: 25 / 50 / 75 / 100 ──
+  const firedDepth = new Set();
+  function checkDepth() {
+    const d = depth();
+    if (d > maxDepth) maxDepth = d;
+    for (const step of [25, 50, 75, 100]) {
+      if (maxDepth >= step && !firedDepth.has(step)) {
+        firedDepth.add(step);
+        goal("read_" + step, { page: path, seconds: seconds() });
+      }
+    }
+  }
+
+  let queued = false;
+  document.addEventListener("scroll", () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      checkDepth();
+      const s = sectionAt();
+      if (s !== currentSection) switchSection(s);
+    });
+  }, { passive: true });
+  checkDepth();
+  switchSection(sectionAt());
+
+  // ── Лид-магнит: показ и клик ──
+  // Показы нужны как знаменатель: без них «10 кликов» ничего не значат —
+  // непонятно, это 10 из 20 или 10 из 5000. Конверсия магнита = click / view.
+  const magnets = Array.from(document.querySelectorAll(".magnet"));
+  function magnetInfo(el) {
+    return {
+      magnet: el.getAttribute("data-magnet-name") || "без имени",
+      magnet_id: el.getAttribute("data-magnet-id") || "",
+      page: path
+    };
+  }
+  if (magnets.length && window.IntersectionObserver) {
+    const seen = new WeakSet();
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        // Полосой в 40% отсекаем магниты, мелькнувшие при быстром пролистывании
+        if (!entry.isIntersecting || entry.intersectionRatio < 0.4) continue;
+        if (seen.has(entry.target)) continue;
+        seen.add(entry.target);
+        io.unobserve(entry.target);
+        const info = magnetInfo(entry.target);
+        info.seconds = seconds();
+        goal("magnet_view", info);
+      }
+    }, { threshold: [0.4] });
+    magnets.forEach((m) => io.observe(m));
+  }
+
+  document.addEventListener("click", (e) => {
+    // Магнит: в какой мессенджер ушли и на какой секунде чтения
+    const pill = e.target.closest(".magnet-pill");
+    if (pill) {
+      const wrap = pill.closest(".magnet");
+      const info = wrap ? magnetInfo(wrap) : { page: path };
+      info.messenger = pill.classList.contains("magnet-pill-max") ? "max" : "telegram";
+      info.seconds = seconds();
+      info.depth = maxDepth;
+      info.section = currentSection ? (currentSection.title || currentSection.id) : "";
+      goal("magnet_click", info);
+      goal("magnet_click_" + info.messenger, info);   // отдельные цели под воронку в Метрике
+      return;
+    }
+
+    // Нижний блок «Открыть клуб» — второй по важности выход в мессенджер
+    const clubBtn = e.target.closest(".club-cta .btn");
+    if (clubBtn) {
+      goal("club_cta_click", { page: path, seconds: seconds(), depth: maxDepth });
+      return;
+    }
+
+    // Ссылка в клуб из футера и из шапки — отличаем от блока в тексте,
+    // чтобы понимать, доводит ли до клуба сам контент или общая навигация
+    const clubLink = e.target.closest('a[href="/klub"], .footer-club a');
+    if (clubLink) {
+      goal("club_nav_click", { page: path, seconds: seconds() });
+      return;
+    }
+
+    // Раскрытый вопрос — самый честный источник тем для новых статей:
+    // видно, что людей волнует, их же словами
+    const summary = e.target.closest(".faq-item summary");
+    if (summary && !summary.closest(".faq-item").open) {
+      goal("faq_open", { page: path, question: (summary.textContent || "").trim().slice(0, 100) });
+      return;
+    }
+
+    // Пользуются ли оглавлением — если да, статью стоит дробить на разделы жёстче
+    if (e.target.closest(".article-toc nav a")) {
+      goal("toc_click", { page: path });
+    }
+  });
+
+  // ── Итог по странице ──
+  // Шлём один раз, когда человек уходит: и по visibilitychange (надёжно на
+  // мобильных, где unload часто не срабатывает), и по pagehide как подстраховка.
+  let reported = false;
+  function report() {
+    if (reported) return;
+    reported = true;
+    switchSection(null);          // дозакрываем текущий раздел
+    const total = stopClock();
+    goal("page_read", {
+      page: path,
+      seconds: total,
+      depth: maxDepth,
+      // «Где именно» — раздел, в котором провели больше всего времени
+      section: longestSection() || ""
+    });
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      if (!since) since = Date.now();
+      if (!sectionSince && currentSection) sectionSince = Date.now();
+    } else {
+      report();
+    }
+  });
+  window.addEventListener("pagehide", report);
+})();
+
 // ── Мобильное меню шапки ────────────────────────────────────────────────
 (function () {
   const btn = document.getElementById("menu-toggle");
