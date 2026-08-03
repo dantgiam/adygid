@@ -454,6 +454,7 @@ function initDescEditor(html, scope) {
     },
   });
   registerGalleryMatcher(descQuill);
+  preserveScrollOnPaste(descQuill);
   descQuill.setContents([], 'silent');
   if (html) descQuill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
 
@@ -726,6 +727,7 @@ function initArticleQuill() {
     },
   });
   registerGalleryMatcher(articleQuill);
+  preserveScrollOnPaste(articleQuill);
   articleQuill.on('text-change', scheduleAutosave);
   // Кнопка «+» должна стоять напротив той строки, где сейчас курсор
   articleQuill.on('editor-change', positionInsertPlus);
@@ -2490,6 +2492,33 @@ function registerGalleryMatcher(quill) {
     }));
     if (items.length === 1 && !items[0].caption) return delta;
     return new Delta().insert({ gallery: { items } });
+  });
+}
+
+// Quill после вставки из буфера зовёт root.focus() — а focus() без
+// preventScroll браузер сам трактует как «прокрути к этому элементу», и
+// секунду спустя страницу (или скроллящийся родитель модалки) уносит к
+// началу редактора, будто вставилось не туда. Запоминаем, что было
+// проскроллено до вставки, и на следующих двух кадрах возвращаем как было —
+// два кадра, потому что сам скролл-прыжок Quill происходит не мгновенно, а
+// уже после re-layout после paste.
+function preserveScrollOnPaste(quill) {
+  quill.root.addEventListener('paste', () => {
+    const scrollers = [];
+    let node = quill.root.parentElement;
+    while (node) {
+      const style = getComputedStyle(node);
+      if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight) {
+        scrollers.push([node, node.scrollTop]);
+      }
+      node = node.parentElement;
+    }
+    const windowY = window.scrollY;
+    const restore = () => {
+      if (window.scrollY !== windowY) window.scrollTo(window.scrollX, windowY);
+      scrollers.forEach(([el, top]) => { if (el.scrollTop !== top) el.scrollTop = top; });
+    };
+    requestAnimationFrame(() => requestAnimationFrame(restore));
   });
 }
 
