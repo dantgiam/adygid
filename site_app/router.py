@@ -310,6 +310,27 @@ def _render_consider_blocks(html: str) -> str:
     return _CONSIDER_EMBED_RE.sub(lambda mt: _consider_html(mt.group(1)), html)
 
 
+def _faq_ld(items: list) -> Optional[dict]:
+    """Разметка FAQPage для расширенного сниппета в поиске. Нужна и статьям, и
+    сценариям (у «Впервые в Адыгею» вопросов не меньше, чем у иной статьи),
+    поэтому собирается здесь, а не в теле маршрута. Jinja не умеет list
+    comprehension в выражениях — готовый словарь отдаём в шаблон."""
+    if not items:
+        return None
+    return {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": item["question"],
+                "acceptedAnswer": {"@type": "Answer", "text": item["answer"]},
+            }
+            for item in items
+        ],
+    }
+
+
 def _render_embeds(db: Session, html: str) -> tuple[str, list]:
     """Подставляет в текст статьи содержимое вставленных блоков — лид-магнитов
     и наборов вопросов. В самой статье хранится только ссылка на id, поэтому
@@ -1185,7 +1206,7 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
 
     lead_html = _render_article_gallery(_rich_text_html(sc.lead))
     lead_html, toc = _add_toc_anchors(lead_html)
-    lead_html, _embedded_faq = _render_embeds(db, lead_html)
+    lead_html, embedded_faq = _render_embeds(db, lead_html)
 
     scenario = {
         "id": sc.id,
@@ -1195,6 +1216,9 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "cover_url": sc.cover_url,
         "lead": lead_html,
         "toc": toc if len(toc) >= 3 else [],
+        # Вопросы из вставленных наборов раньше собирались и молча терялись:
+        # сценарий с полноценным гайдом внутри оставался без сниппета в поиске.
+        "faq_ld": _faq_ld(embedded_faq),
         "seo_description": sc.seo_description or _excerpt(sc.lead, 200) or sc.title,
         "places": places,
         "routes": routes,
@@ -1302,7 +1326,13 @@ def articles_list(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/stati/{slug}")
 def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
-    a = db.execute(select(Article).where(Article.slug == slug)).scalars().first()
+    # is_published проверяем здесь же, как у мест и маршрутов: снятая с публикации
+    # статья не должна открываться и по прямой ссылке. Без этого переключатель в
+    # админке лишь убирал её из списков и sitemap, а сама страница оставалась
+    # доступной — и черновик мог утечь в поиск по уже проиндексированному адресу.
+    a = db.execute(
+        select(Article).where(Article.slug == slug, Article.is_published == True)
+    ).scalars().first()
     if not a:
         raise HTTPException(404, "Статья не найдена")
 
@@ -1340,23 +1370,7 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     # В сниппет поиска отдаём и «хвостовой» FAQ статьи, и все вопросы из
     # вставленных в текст наборов — для поисковика это одна страница.
     faq = a.faq or []
-    all_faq = list(faq) + embedded_faq
-    faq_ld = None
-    if all_faq:
-        # Jinja не умеет list comprehension в выражениях — список вопросов
-        # для JSON-LD собираем здесь, а не в шаблоне.
-        faq_ld = {
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            "mainEntity": [
-                {
-                    "@type": "Question",
-                    "name": item["question"],
-                    "acceptedAnswer": {"@type": "Answer", "text": item["answer"]},
-                }
-                for item in all_faq
-            ],
-        }
+    faq_ld = _faq_ld(list(faq) + embedded_faq)
 
     article = {
         "title": a.title,
