@@ -296,6 +296,16 @@ h1.article-title {
 }
 .tag-likes { color: #e0554a; border-color: #f2c9c5; background: #fdf1f0; }
 
+/* Категория в теге — со своей иконкой вместо системного эмодзи (см.
+   site_app/icons.py: какой категории какая картинка). */
+.tag-cat { display: inline-flex; align-items: center; gap: 5px; }
+/* Иконка приходит либо картинкой (site_app/static/icons), либо вектором —
+   размер задаём одинаковый, object-fit нужен растровому варианту. */
+.cat-icon { width: 15px; height: 15px; flex: none; object-fit: contain; }
+/* В шапке страницы места/маршрута строка набрана капслоком и крупнее —
+   иконке нужен свой размер и поправка на базовую линию. */
+.eyebrow .cat-icon { width: 17px; height: 17px; vertical-align: -3px; margin-right: 6px; }
+
 /* Плитка «ещё N мест/маршрутов» — последняя клетка сетки вместо пустого
    места, когда карточек в подборке меньше, чем всего есть на сайте. Ровно
    card по форме (сетке без разницы), но с обратными цветами акцента. */
@@ -326,6 +336,8 @@ h1.article-title {
   }
   .card .tags { gap: 4px; }
   .tag { font-size: 11px; padding: 2px 7px; }
+  .tag-cat { gap: 4px; }
+  .cat-icon { width: 13px; height: 13px; }
   .card-relation { font-size: 11.5px; }
   .fav-btn-card { width: 28px; height: 28px; }
   .more-tile { padding: 16px 10px; }

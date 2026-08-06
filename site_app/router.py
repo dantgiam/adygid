@@ -26,6 +26,7 @@ from site_app.content import (
     POPULARITY_WEIGHT,
     SEASON_LABELS,
 )
+from site_app.icons import category_svg
 
 router = APIRouter()
 templates = Jinja2Templates(directory="site_app/templates")
@@ -391,7 +392,14 @@ def _gallery_of(photos) -> list:
 def _category_lite(cat) -> Optional[dict]:
     if not cat:
         return None
-    return {"id": cat.id, "name": cat.name, "icon": cat.icon}
+    # icon оставлен для совместимости (в базе там эмодзи), рисуется icon_svg —
+    # см. site_app/icons.py: единый набор вместо системных эмодзи.
+    return {
+        "id": cat.id,
+        "name": cat.name,
+        "icon": cat.icon,
+        "icon_svg": category_svg(cat.name, cat.icon),
+    }
 
 
 def _price_label(is_paid: bool, price_note: Optional[str]) -> str:

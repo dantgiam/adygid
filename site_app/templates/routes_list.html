@@ -14,7 +14,8 @@
       <select name="type">
         <option value="">Любой тип</option>
         {% for c in categories %}
-        <option value="{{ c.id }}" {{ 'selected' if selected.type == c.id|string else '' }}>{{ c.icon or '' }} {{ c.name }}</option>
+        {# Внутри <option> браузер рисует только текст — вектор туда не вставить. #}
+        <option value="{{ c.id }}" {{ 'selected' if selected.type == c.id|string else '' }}>{{ c.name }}</option>
         {% endfor %}
       </select>
       <select name="district">

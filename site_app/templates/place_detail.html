@@ -28,7 +28,7 @@
 
     <div class="detail-grid">
       <div class="detail-body">
-        <p class="eyebrow">{{ place.category.name if place.category else 'Место' }}{% if place.district_label %} · {% if place.district_url %}<a href="{{ place.district_url }}" style="color:inherit">{{ place.district_label }}</a>{% else %}{{ place.district_label }}{% endif %}{% endif %}</p>
+        <p class="eyebrow">{% if place.category %}{{ place.category.icon_svg | safe }}{% endif %}{{ place.category.name if place.category else 'Место' }}{% if place.district_label %} · {% if place.district_url %}<a href="{{ place.district_url }}" style="color:inherit">{{ place.district_label }}</a>{% else %}{{ place.district_label }}{% endif %}{% endif %}</p>
         <div class="title-row">
           <h1 class="page-title">{{ place.name }}</h1>
           <button type="button" class="fav-btn fav-btn-lg" data-type="place" data-id="{{ place.id }}" aria-label="Добавить в избранное">{{ cards.fav_icon() }}<span class="fav-btn-text">В избранное</span></button>

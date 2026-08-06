@@ -21,7 +21,7 @@
     {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
     <div class="tags">
       {% if item.district_label %}<span class="tag">{{ item.district_label }}</span>{% endif %}
-      {% if item.category and item.category.name %}<span class="tag">{{ item.category.icon or '' }} {{ item.category.name }}</span>{% endif %}
+      {% if item.category and item.category.name %}<span class="tag tag-cat">{{ item.category.icon_svg | safe }}{{ item.category.name }}</span>{% endif %}
       {% if item.is_paid %}<span class="tag">Платно</span>{% endif %}
       {% if item.kid_friendly %}<span class="tag">Для детей</span>{% endif %}
       {% if item.distance_label %}<span class="tag">📍 {{ item.distance_label }}</span>{% endif %}
@@ -43,7 +43,7 @@
     {% if item.relation %}<p class="card-relation">{{ item.relation }}</p>{% endif %}
     <div class="tags">
       {% if item.district_label %}<span class="tag">{{ item.district_label }}</span>{% endif %}
-      {% if item.category and item.category.name %}<span class="tag">{{ item.category.icon or '' }} {{ item.category.name }}</span>{% endif %}
+      {% if item.category and item.category.name %}<span class="tag tag-cat">{{ item.category.icon_svg | safe }}{{ item.category.name }}</span>{% endif %}
       {% if item.difficulty_label %}<span class="tag">{{ item.difficulty_label }}</span>{% endif %}
       {% if item.duration_label %}<span class="tag">{{ item.duration_label }}</span>{% endif %}
       {% if item.likes_label %}<span class="tag tag-likes">♥ {{ item.likes_label }}</span>{% endif %}
