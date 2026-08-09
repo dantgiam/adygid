@@ -16,19 +16,18 @@
    /naugad — тот редиректом уводит на случайное место сам. #}
 {% macro random_card(item) %}
 <div class="card random-card" id="random-card">
-  <a class="random-card-link" href="{{ item.url }}">
-    <div class="cover">
-      {{ cover_img(item.cover, item.cover_style) }}
-      <span class="random-tag">{{ item.tag_label }}</span>
+  <div class="cover">
+    {{ cover_img(item.cover, item.cover_style) }}
+    <span class="random-tag">{{ item.tag_label }}</span>
+  </div>
+  <div class="body">
+    <h3>{{ item.name }}</h3>
+    {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
+    <div class="random-actions">
+      <a class="btn btn-gold random-open" href="{{ item.url }}">Смотреть</a>
+      <a class="btn btn-gold-ghost" href="/naugad" rel="nofollow" id="random-again">Ещё</a>
     </div>
-    <div class="body">
-      <h3>{{ item.name }}</h3>
-      {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
-    </div>
-  </a>
-  <a class="random-again" href="/naugad" rel="nofollow" id="random-again">
-    <span aria-hidden="true">🎲</span>Ещё
-  </a>
+  </div>
 </div>
 {% endmacro %}
 

@@ -326,33 +326,30 @@ h1.article-title {
    а эта выпала жребием, и это должно быть видно до клика. */
 /* Через .card.random-card, а не просто .random-card: у «.card:hover» тот же
    вес, и порядок в файле решал бы, каким станет цвет рамки на наведении. */
-.card.random-card { position: relative; border-color: var(--gold); }
+.card.random-card { border-color: var(--gold); }
 .card.random-card:hover { border-color: var(--gold-dark); }
-.random-card-link { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .random-tag {
   position: absolute; top: 10px; left: 10px;
   font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
   padding: 4px 10px; border-radius: 999px; background: rgba(20, 23, 15, .55); color: #fff;
 }
-/* Кнопка поверх карточки, а не внутри ссылки: вложенные <a> браузер разрывает
-   в разметке, и «Ещё» вываливался бы из карточки. */
-.random-again {
-  position: absolute; right: 12px; bottom: 12px; z-index: 2;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 14px; border-radius: 999px;
-  background: var(--gold); color: #2A2205; font-size: 13.5px; font-weight: 700;
-  box-shadow: 0 2px 10px rgba(40, 30, 0, .18);
-  transition: background .15s ease, transform .12s ease;
-}
-.random-again:hover { background: var(--gold-dark); color: #fff; }
-.random-again:active { transform: scale(.96); }
-/* Место под кнопкой, чтобы она не легла на текст описания */
-.card.random-card .body { padding-bottom: 52px; }
-/* Пока идёт перетасовка — карточка притухает, но не прыгает: она стоит в сетке,
-   и любой сдвиг размера дёргал бы соседние клетки. */
-.random-card.rolling .random-card-link { opacity: .35; transition: opacity .15s ease; }
+/* Пара кнопок внизу карточки — «Смотреть» и «Ещё», как было у колоды в шапке.
+   Карточка целиком не ссылка: две кнопки внутри ссылки браузер не разрешает. */
+.random-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.random-actions .btn { padding: 9px 16px; font-size: 14px; }
+.btn-gold { background: var(--gold); color: #2A2205; }
+.btn-gold:hover { background: var(--gold-dark); color: #fff; }
+.btn-gold-ghost { background: transparent; color: var(--gold-dark); border-color: #E6CE8E; }
+.btn-gold-ghost:hover { border-color: var(--gold-dark); background: var(--gold-soft); }
+/* Пока идёт перетасовка — содержимое притухает, но карточка не прыгает: она
+   стоит в сетке, и любой сдвиг размера дёргал бы соседние клетки. Кнопки не
+   гасим, чтобы «Ещё» под пальцем оставался на виду. */
+.random-card .cover, .random-card h3, .random-card .excerpt { transition: opacity .15s ease; }
+.random-card.rolling .cover,
+.random-card.rolling h3,
+.random-card.rolling .excerpt { opacity: .3; }
 @media (prefers-reduced-motion: reduce) {
-  .random-card.rolling .random-card-link { transition: none; }
+  .random-card .cover, .random-card h3, .random-card .excerpt { transition: none; }
 }
 
 /* Округ над заголовком карточки — общий стиль для мест, маршрутов и статей:
@@ -409,7 +406,20 @@ h1.article-title {
 .detail-hero { height: clamp(280px, 38vw, 460px); border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; background: linear-gradient(135deg, var(--accent-soft), var(--bg-elevated)); background-size: cover; background-position: center; }
 .detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; align-items: start; }
 .detail-body, .article-main { min-width: 0; }
-@media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
+/* На телефоне колонки справа нет, и спецификация (сложность, сезон, стоимость,
+   кнопка в навигатор) улетала в самый конец — за описание, галерею и точки
+   маршрута. Раскрываем .detail-body в display:contents, чтобы его дети стали
+   клетками того же грида, и опускаем ниже спецификации только текст: заголовок
+   с категорией остаются наверху, как и были. */
+@media (max-width: 900px) {
+  /* gap: 0 — у детей .detail-body свои отступы, и общий зазор грида добавился
+     бы к ним сверху; спецификации задаём поля отдельно. */
+  .detail-grid { grid-template-columns: 1fr; gap: 0; }
+  .detail-body { display: contents; }
+  .detail-grid > *, .detail-body > * { min-width: 0; }
+  .detail-text { order: 1; }
+  .spec-box { margin: 6px 0 24px; }
+}
 .detail-body p { font-size: 17px; color: var(--text); max-width: 68ch; margin: 0 0 16px; }
 .detail-body .lede { font-size: 18.5px; color: var(--text-muted); }
 .detail-body h2 { font-family: var(--font-display); font-weight: 400; font-size: 23px; margin: 28px 0 12px; }
@@ -639,8 +649,22 @@ h1.article-title {
   .door-arrow { display: none; }
   .door-photo { padding: 0; }
   .door-photo .door-main { left: 12px; right: 12px; bottom: 12px; }
-  .door-photo .door-title { font-size: 16px; }
-  .door-photo .door-hint { font-size: 12px; }
+  /* Длинные названия и подписи в плитке шириной в пол-экрана растягивались на
+     6–8 строк и закрывали весь кадр — фото переставало быть фото. Режем по
+     строкам: три на название, две на подпись, дальше многоточие. */
+  .door-photo .door-title {
+    font-size: 15.5px; line-height: 1.2;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+  }
+  .door-photo .door-hint {
+    font-size: 12px; line-height: 1.3; margin-top: 3px;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  }
+  /* Затемнение поднимаем выше: текста теперь до пяти строк, и на светлом небе
+     верхние из них не читались. */
+  .door-photo-veil {
+    background: linear-gradient(180deg, rgba(8, 12, 6, 0) 8%, rgba(6, 10, 5, .58) 42%, rgba(4, 7, 3, .94) 100%);
+  }
 }
 @media (max-width: 300px) {
   .doors { grid-template-columns: 1fr; }

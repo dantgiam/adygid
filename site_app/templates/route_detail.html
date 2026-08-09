@@ -36,6 +36,10 @@
           <button type="button" class="fav-btn fav-btn-lg" data-type="route" data-id="{{ route.id }}" aria-label="Добавить в избранное">{{ cards.fav_icon() }}<span class="fav-btn-text">В избранное</span></button>
         </div>
         {% if route.updated_label %}<p class="updated-note">{{ route.updated_label }}</p>{% endif %}
+
+        {# Обёртка нужна только телефону — см. тот же блок в place_detail.html:
+           спецификация должна встать перед описанием, а не в конце страницы. #}
+        <div class="detail-text">
         {% if route.description_html %}{{ route.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
         {{ cards.photo_carousel(route.gallery) }}
@@ -60,6 +64,7 @@
             {{ cards.heart_icon() }} <span class="like-text">{{ "Вам понравилось" if like.liked else "Понравилось" }}</span>
             <span class="like-count"{% if not like.count %} hidden{% endif %}>{{ like.count }}</span>
           </button>
+        </div>
         </div>
       </div>
 

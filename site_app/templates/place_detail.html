@@ -34,15 +34,22 @@
           <button type="button" class="fav-btn fav-btn-lg" data-type="place" data-id="{{ place.id }}" aria-label="Добавить в избранное">{{ cards.fav_icon() }}<span class="fav-btn-text">В избранное</span></button>
         </div>
         {% if place.updated_label %}<p class="updated-note">{{ place.updated_label }}</p>{% endif %}
-        {% if place.description_html %}{{ place.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
-        {{ cards.photo_carousel(place.gallery) }}
+        {# Обёртка нужна только телефону: там .detail-body раскрывается в
+           display:contents, и эта часть уезжает под спецификацию — иначе
+           сложность, сезон и стоимость оказывались в самом низу страницы,
+           за описанием и галереей. Заголовок при этом остаётся наверху. #}
+        <div class="detail-text">
+          {% if place.description_html %}{{ place.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
-        <div class="like-row">
-          <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="checkpoint" data-id="{{ place.id }}">
-            {{ cards.heart_icon() }} <span class="like-text">{{ "Вам понравилось" if like.liked else "Понравилось" }}</span>
-            <span class="like-count"{% if not like.count %} hidden{% endif %}>{{ like.count }}</span>
-          </button>
+          {{ cards.photo_carousel(place.gallery) }}
+
+          <div class="like-row">
+            <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="checkpoint" data-id="{{ place.id }}">
+              {{ cards.heart_icon() }} <span class="like-text">{{ "Вам понравилось" if like.liked else "Понравилось" }}</span>
+              <span class="like-count"{% if not like.count %} hidden{% endif %}>{{ like.count }}</span>
+            </button>
+          </div>
         </div>
       </div>
 

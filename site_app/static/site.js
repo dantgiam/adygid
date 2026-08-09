@@ -7,7 +7,7 @@
   const again = document.getElementById("random-again");
   if (!card || !again) return;
 
-  const link = card.querySelector(".random-card-link");
+  const link = card.querySelector(".random-open");
   const cover = card.querySelector(".cover");
   let busy = false;
   let next = null;   // следующая карточка, взятая заранее — клик срабатывает сразу
