@@ -140,6 +140,14 @@ with engine.begin() as _conn:
         _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP"))
         _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS is_published BOOLEAN NOT NULL DEFAULT true"))
     _conn.execute(text("ALTER TABLE photos ADD COLUMN IF NOT EXISTS caption VARCHAR(255)"))
+    # Точка фокуса кадра — что именно оставить в кадре, когда обложка обрезается
+    # под формат карточки. Хранится готовым значением object-position («50% 30%»),
+    # пусто — центр, как было до появления настройки.
+    _conn.execute(text("ALTER TABLE photos ADD COLUMN IF NOT EXISTS focus VARCHAR(20)"))
+    _conn.execute(text("ALTER TABLE articles ADD COLUMN IF NOT EXISTS cover_focus VARCHAR(20)"))
+    _conn.execute(text("ALTER TABLE districts ADD COLUMN IF NOT EXISTS cover_focus VARCHAR(20)"))
+    _conn.execute(text("ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS cover_focus VARCHAR(20)"))
+    _conn.execute(text("ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS tile_cover_focus VARCHAR(20)"))
 
 # scenarios.tips (отдельный список коротких советов) заменён на локальный
 # блок «Что учесть», вставляемый прямо в текст lead — см. site_app.content.
@@ -472,7 +480,9 @@ SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "uploads")
 ALLOWED_EXT = {"jpg": "JPEG", "jpeg": "JPEG", "png": "PNG", "webp": "WEBP"}
 CONTENT_TYPES = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
-THUMB_SIZE = (480, 480)
+# Обложка карточки — примерно 357 px шириной, на retina это 714.
+# Прежние 480 px давали заметное мыло на телефонах и ноутбуках.
+THUMB_SIZE = (800, 800)
 # Потолок для «оригинала»: под обложку детальной страницы с запасом на retina.
 MAX_IMAGE_SIZE = (1920, 1920)
 WEBP_QUALITY = 82
@@ -659,6 +669,7 @@ class PhotoIn(BaseModel):
 
 class PhotoUpdate(BaseModel):
     caption: Optional[str] = None
+    focus: Optional[str] = None
 
 class CategoryIn(BaseModel):
     name: str
@@ -683,6 +694,7 @@ class ArticleIn(BaseModel):
     excerpt: Optional[str] = None
     cover_url: Optional[str] = None
     cover_thumb_url: Optional[str] = None
+    cover_focus: Optional[str] = None
     body: str = ""
     faq: Optional[List[FAQItemIn]] = None
     district: Optional[str] = None
@@ -696,6 +708,7 @@ class ArticleUpdate(BaseModel):
     excerpt: Optional[str] = None
     cover_url: Optional[str] = None
     cover_thumb_url: Optional[str] = None
+    cover_focus: Optional[str] = None
     body: Optional[str] = None
     faq: Optional[List[FAQItemIn]] = None
     district: Optional[str] = None
@@ -713,8 +726,10 @@ class ScenarioIn(BaseModel):
     lead: Optional[str] = None
     cover_url: Optional[str] = None
     cover_thumb_url: Optional[str] = None
+    cover_focus: Optional[str] = None
     tile_cover_url: Optional[str] = None
     tile_cover_thumb_url: Optional[str] = None
+    tile_cover_focus: Optional[str] = None
     seo_description: Optional[str] = None
     featured_article_ids: List[int] = []
     # Три состояния — "any"/"yes"/"no" и "any"/"year_round"/"summer_only" —
@@ -1070,6 +1085,7 @@ def add_photo(cp_id: int, body: PhotoIn, db: Session = Depends(get_db), _: bool 
 def update_photo(photo_id: int, body: PhotoUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     photo = _get_or_404(db, Photo, photo_id)
     if body.caption is not None: photo.caption = body.caption
+    if body.focus is not None: photo.focus = body.focus or None
     db.commit(); db.refresh(photo)
     return _photo_out(photo)
 
@@ -1083,7 +1099,7 @@ def delete_photo(photo_id: int, db: Session = Depends(get_db), _: bool = Depends
 
 
 def _photo_out(p: Photo):
-    return {"id": p.id, "url": p.url, "thumb_url": p.thumb_url, "caption": p.caption}
+    return {"id": p.id, "url": p.url, "thumb_url": p.thumb_url, "caption": p.caption, "focus": p.focus}
 
 
 def _cp_out(c: Checkpoint):
@@ -1147,6 +1163,7 @@ def create_article(body: ArticleIn, db: Session = Depends(get_db), _: bool = Dep
         excerpt=body.excerpt,
         cover_url=body.cover_url,
         cover_thumb_url=body.cover_thumb_url,
+        cover_focus=body.cover_focus,
         body=body.body,
         faq=[item.model_dump() for item in body.faq] if body.faq is not None else [],
         district=body.district,
@@ -1166,6 +1183,7 @@ def update_article(article_id: int, body: ArticleUpdate, db: Session = Depends(g
     if body.excerpt is not None: a.excerpt = body.excerpt
     if body.cover_url is not None: a.cover_url = body.cover_url
     if body.cover_thumb_url is not None: a.cover_thumb_url = body.cover_thumb_url
+    if body.cover_focus is not None: a.cover_focus = body.cover_focus or None
     if body.body is not None: a.body = body.body
     if body.faq is not None: a.faq = [item.model_dump() for item in body.faq]
     if body.district is not None: a.district = body.district
@@ -1191,6 +1209,7 @@ def _article_out(a: Article):
         "excerpt": a.excerpt,
         "cover_url": a.cover_url,
         "cover_thumb_url": a.cover_thumb_url,
+        "cover_focus": a.cover_focus,
         "body": a.body,
         "faq": a.faq or [],
         "district": a.district,
@@ -1222,8 +1241,10 @@ def _apply_scenario(sc: Scenario, body: ScenarioIn):
     sc.lead = body.lead
     sc.cover_url = body.cover_url
     sc.cover_thumb_url = body.cover_thumb_url
+    sc.cover_focus = body.cover_focus or None
     sc.tile_cover_url = body.tile_cover_url
     sc.tile_cover_thumb_url = body.tile_cover_thumb_url
+    sc.tile_cover_focus = body.tile_cover_focus or None
     sc.seo_description = body.seo_description
     sc.featured_article_ids = body.featured_article_ids or []
     sc.filter_kid_friendly = _tri_to_kid(body.filter_kid_friendly)
@@ -1278,8 +1299,10 @@ def _scenario_out(s: Scenario):
         "lead": s.lead,
         "cover_url": s.cover_url,
         "cover_thumb_url": s.cover_thumb_url,
+        "cover_focus": s.cover_focus,
         "tile_cover_url": s.tile_cover_url,
         "tile_cover_thumb_url": s.tile_cover_thumb_url,
+        "tile_cover_focus": s.tile_cover_focus,
         "seo_description": s.seo_description,
         "featured_article_ids": s.featured_article_ids or [],
         "filter_kid_friendly": {True: "yes", False: "no"}.get(s.filter_kid_friendly, "any"),
@@ -1482,6 +1505,7 @@ class DistrictIn(BaseModel):
     facts: Optional[List[str]] = None
     cover_url: Optional[str] = None
     cover_thumb_url: Optional[str] = None
+    cover_focus: Optional[str] = None
     order_index: Optional[int] = None
     is_published: Optional[bool] = None
 
@@ -1490,6 +1514,7 @@ def _district_out(d: District) -> dict:
     return {
         "id": d.id, "slug": d.slug, "name": d.name, "lead": d.lead or "",
         "facts": d.facts or [], "cover_url": d.cover_url, "cover_thumb_url": d.cover_thumb_url,
+        "cover_focus": d.cover_focus,
         "order_index": d.order_index, "is_published": d.is_published,
     }
 
@@ -1509,7 +1534,7 @@ def create_district(body: DistrictIn, db: Session = Depends(get_db), _: bool = D
         raise HTTPException(400, "Округ с таким адресом уже есть")
     d = District(
         slug=slug, name=body.name, lead=body.lead, facts=body.facts or [],
-        cover_url=body.cover_url, cover_thumb_url=body.cover_thumb_url,
+        cover_url=body.cover_url, cover_thumb_url=body.cover_thumb_url, cover_focus=body.cover_focus,
         order_index=body.order_index or 0,
         is_published=True if body.is_published is None else body.is_published,
     )
@@ -1527,6 +1552,7 @@ def update_district(district_id: int, body: DistrictIn, db: Session = Depends(ge
     if body.facts is not None: d.facts = body.facts
     if body.cover_url is not None: d.cover_url = body.cover_url or None
     if body.cover_thumb_url is not None: d.cover_thumb_url = body.cover_thumb_url or None
+    if body.cover_focus is not None: d.cover_focus = body.cover_focus or None
     if body.order_index is not None: d.order_index = body.order_index
     if body.is_published is not None: d.is_published = body.is_published
     db.commit()

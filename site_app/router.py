@@ -247,7 +247,21 @@ def _render_article_gallery(html: str) -> str:
                 f'{caption_html}'
                 '</figure>'
             )
-        return '<div class="article-gallery"><div class="article-gallery-track">' + "".join(items) + '</div></div>'
+        # Стрелки — только когда листать действительно есть куда. Разметка
+        # такая же, как у карусели места (_cards.html:photo_carousel), поэтому
+        # и стили, и обработчик в site.js общие.
+        nav = (
+            '<button type="button" class="gal-nav gal-prev" data-gal-prev aria-label="Предыдущее фото">'
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
+            '<button type="button" class="gal-nav gal-next" data-gal-next aria-label="Следующее фото">'
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
+        )
+        return (
+            '<div class="article-gallery" data-gallery>'
+            '<div class="article-gallery-track" data-gal-track>' + "".join(items) + '</div>'
+            + nav +
+            '</div>'
+        )
 
     return _GALLERY_PARAGRAPH_RE.sub(repl, html)
 
@@ -394,6 +408,12 @@ def _render_embeds(db: Session, html: str) -> tuple[str, list]:
 def _cover_of(photos) -> Optional[str]:
     """Полноразмерное фото — для крупной обложки на детальной странице."""
     return photos[0].url if photos else None
+
+
+def _focus_of(photos) -> str:
+    """object-position первой фотографии: чем обрезать кадр под формат карточки
+    решает автор в админке, по умолчанию центр."""
+    return (photos[0].focus if photos else None) or "50% 50%"
 
 
 def _thumb_of(photos) -> Optional[str]:
@@ -673,6 +693,7 @@ def _place_card_dict(cp: Checkpoint) -> dict:
         "name": cp.name,
         "excerpt": _excerpt(cp.description),
         "cover": _thumb_of(cp.photos),
+        "cover_focus": _focus_of(cp.photos),
         "popularity": cp.popularity,
         "district_label": _DISTRICT_LABELS.get(cp.district),
         "category": _category_lite(cp.category),
@@ -688,6 +709,7 @@ def _route_card_dict(t: Trail) -> dict:
         "name": t.name,
         "excerpt": _excerpt(t.description),
         "cover": _thumb_of(t.photos),
+        "cover_focus": _focus_of(t.photos),
         "popularity": t.popularity,
         "district_label": _DISTRICT_LABELS.get(t.district),
         "category": _category_lite(t.category),
@@ -703,6 +725,7 @@ def _article_card_dict(a: Article) -> dict:
         "title": a.title,
         "excerpt": a.excerpt,
         "cover": a.cover_thumb_url or a.cover_url,
+        "cover_focus": a.cover_focus or "50% 50%",
         "district_label": _DISTRICT_LABELS.get(a.district),
     }
 
@@ -748,6 +771,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "excerpt": _excerpt(cp.description, 200),
         "description_html": description_html,
         "cover": _cover_of(cp.photos),
+        "cover_focus": _focus_of(cp.photos),
         "photos": [p.url for p in cp.photos],
         "gallery": _gallery_of(cp.photos),
         "district_label": _DISTRICT_LABELS.get(cp.district),
@@ -783,6 +807,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         "excerpt": _excerpt(t.description, 200),
         "description_html": description_html,
         "cover": _cover_of(t.photos),
+        "cover_focus": _focus_of(t.photos),
         "gallery": _gallery_of(t.photos),
         "district_label": _DISTRICT_LABELS.get(t.district),
         "category": _category_lite(t.category),
@@ -855,6 +880,7 @@ def _districts(db: Session) -> list:
         {
             "slug": d.slug, "label": d.name, "lead": d.lead or "", "facts": d.facts or [],
             "cover": d.cover_url, "cover_thumb": d.cover_thumb_url or d.cover_url,
+            "cover_focus": d.cover_focus or "50% 50%",
             "published": d.is_published,
         }
         for d in rows
@@ -1020,26 +1046,21 @@ def home(request: Request, db: Session = Depends(get_db)):
         return Response(cached, media_type="text/html; charset=utf-8")
 
     highlight = _pick_highlight(db)
-    # Лимит 7 и у статей — как у мест и маршрутов: седьмая карточка освобождает
-    # место плитке «ещё N», и сетка закрывается ровно двумя рядами. Раньше
-    # статей бралось 6, и последний ряд повисал двумя карточками из четырёх,
-    # а про остальные статьи на главной вообще ничего не говорилось.
+    # Тот же расчёт, что у мест и маршрутов: пять карточек плюс плитка «ещё N».
     articles_total = db.execute(
         select(func.count()).select_from(Article).where(Article.is_published == True)
     ).scalar() or 0
     articles = [
         _article_card_dict(a)
         for a in db.execute(
-            select(Article).where(Article.is_published == True).order_by(Article.created_at.desc()).limit(7)
+            select(Article).where(Article.is_published == True).order_by(Article.created_at.desc()).limit(5)
         ).scalars().all()
     ]
-    # Берём на одну карточку больше колонки в ряду (4): если на сайте мест
-    # больше показанных, седьмое место в сетке освобождает место плитке
-    # «ещё N мест» — она и подсказывает про остальные, и всегда закрывает
-    # сетку ровно двумя рядами вместо повисшего хвоста в 6 карточек из 8.
+    # В ряду три карточки, поэтому берём пять: шестой ячейкой встаёт плитка
+    # «ещё N», и сетка закрывается ровно двумя рядами без повисшего хвоста.
     place_rows = db.execute(
         _with_place_relations(select(Checkpoint)).where(Checkpoint.show_as_place == True)
-        .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(7)
+        .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(5)
     ).scalars().all()
     places = [_place_card_dict(cp) for cp in place_rows]
     place_likes = _like_counts_map(db, "checkpoint", [cp.id for cp in place_rows])
@@ -1048,7 +1069,7 @@ def home(request: Request, db: Session = Depends(get_db)):
             p["likes_label"] = _likes_label(place_likes[p["id"]])
 
     route_rows = db.execute(
-        _with_route_relations(select(Trail)).order_by(_POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(7)
+        _with_route_relations(select(Trail)).order_by(_POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(5)
     ).scalars().all()
     routes = [_route_card_dict(t) for t in route_rows]
     route_likes = _like_counts_map(db, "trail", [t.id for t in route_rows])

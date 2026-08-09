@@ -26,7 +26,7 @@
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    <div class="detail-hero">{% if route.cover %}<img class="hero-img" src="{{ route.cover }}" alt="{{ route.name }}" fetchpriority="high" decoding="async">{% endif %}</div>
+    <div class="detail-hero">{% if route.cover %}<img class="hero-img" style="object-position: {{ route.cover_focus }}" src="{{ route.cover }}" alt="{{ route.name }}" fetchpriority="high" decoding="async">{% endif %}</div>
 
     <div class="detail-grid">
       <div class="detail-body">

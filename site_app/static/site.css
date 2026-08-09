@@ -271,20 +271,27 @@ h1.article-title {
 .section-note { color: var(--text-muted); font-size: 14.5px; margin: -14px 0 22px; max-width: 60ch; }
 
 /* ── Card grids ───────────────────────────────────*/
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+/* Три карточки в ряд, а не четыре: в путеводителе решает фотография, а на
+   четверти ширины её толком не видно. На 1160 px колонки карточка выходит
+   ~357 px шириной, обложка при 3:2 — ~238 px высотой. */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
 .card {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
   overflow: hidden; display: flex; flex-direction: column; transition: border-color .15s ease, transform .15s ease;
 }
 .card:hover { border-color: var(--accent); }
 .card .cover {
-  height: 150px; background: linear-gradient(135deg, var(--accent-soft), var(--bg-elevated));
+  /* 3:2 от ширины карточки — соотношение, под которое снимает почти любая
+     камера, поэтому обложка обрезается минимально. */
+  aspect-ratio: 3 / 2; overflow: hidden; background: linear-gradient(135deg, var(--accent-soft), var(--bg-elevated));
   background-size: cover; background-position: center; position: relative;
 }
 /* Обложка лежит картинкой внутри .cover, а не фоном самого блока: так браузер
    умеет отложить загрузку тех, до которых человек ещё не доскроллил.
    Градиент под ней остаётся заглушкой на время загрузки и у карточек без фото. */
-.card .cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.card .cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
 .card .cover .top-badge {
   position: absolute; top: 10px; right: 10px;
   font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em;
@@ -322,8 +329,6 @@ h1.article-title {
 .more-tile-label { font-size: 14px; color: var(--text-muted); }
 .more-tile-cta { margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--accent); }
 
-/* ── Article card variant ────────────────────────*/
-.article-card .cover { height: 130px; }
 /* Округ над заголовком карточки — общий стиль для мест, маршрутов и статей:
    раньше у мест и маршрутов округ был обычным серым тегом внизу и терялся
    среди «Платно» и «Для детей». */
@@ -333,8 +338,7 @@ h1.article-title {
    лента превращалась в полноэкранный список без обзора. Два столбца плотнее
    и информативнее: превью меньше, но видно сразу и заголовок, и теги. */
 @media (max-width: 640px) {
-  .grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .card .cover { height: 96px; }
+  .grid { gap: 12px; }
   .card .body { padding: 10px 11px 12px; gap: 5px; }
   .card h3 { font-size: 14.5px; line-height: 1.25; }
   .card .excerpt {
@@ -484,7 +488,25 @@ h1.article-title {
    в галереях Т—Ж). Серверный рендер группирует подряд идущие <img> в один
    параграф в этот блок — см. _render_article_gallery в site_app/router.py.
    Прокрутка нативная (overflow-x + scroll-snap) — без JS-карусели. ── */
-.article-gallery { margin: 36px 0; }
+.article-gallery { margin: 36px 0; position: relative; }
+/* Стрелки поверх ленты — появляются при наведении на десктопе, на телефоне
+   не нужны: там листают пальцем и стрелки только закрывают кадр. */
+.gal-nav {
+  position: absolute; top: calc(50% - 22px); transform: translateY(-50%);
+  width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-card) 92%, transparent);
+  backdrop-filter: blur(6px); color: var(--text);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  box-shadow: var(--shadow); opacity: 0; transition: opacity .15s ease, border-color .15s ease;
+  z-index: 2;
+}
+.gal-nav svg { width: 20px; height: 20px; }
+.gal-prev { left: 10px; }
+.gal-next { right: 10px; }
+.article-gallery:hover .gal-nav, .gal-nav:focus-visible { opacity: 1; }
+.gal-nav:hover { border-color: var(--accent); color: var(--accent); }
+.gal-nav[disabled] { opacity: 0 !important; pointer-events: none; }
+@media (hover: none) { .gal-nav { display: none; } }
 .article-gallery-track {
   display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch; padding-bottom: 2px; margin: 0 -2px;

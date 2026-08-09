@@ -692,3 +692,9 @@ a { color: var(--accent); }
 .pickfile-move:hover:not([disabled]) { border-color: var(--accent); color: var(--accent); }
 .pickfile-move[disabled] { opacity: .35; cursor: default; }
 .pickfile-num { font-size: 12px; font-weight: 700; color: var(--muted); }
+
+/* Кадрирование обложки — превью показывает тот же прямоугольник, что увидит
+   гость, и картинка внутри него двигается перетаскиванием. */
+.cover-preview-focus { cursor: grab; touch-action: none; user-select: none; }
+.cover-preview-focus:active { cursor: grabbing; }
+.cover-preview-focus img { object-fit: cover; width: 100%; height: 100%; pointer-events: none; }

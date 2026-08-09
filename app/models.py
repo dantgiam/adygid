@@ -207,10 +207,12 @@ class Scenario(Base):
     lead                  = Column(Text, nullable=True)     # HTML из Quill-редактора в админке
     cover_url             = Column(String(500), nullable=True)     # шапка страницы сценария
     cover_thumb_url       = Column(String(500), nullable=True)
+    cover_focus           = Column(String(20), nullable=True)
     # Отдельное вертикальное фото для плитки развилки — шапка страницы горизонтальная,
     # для карточки нужен свой кадр, а не автоматический кроп той же картинки.
     tile_cover_url        = Column(String(500), nullable=True)
     tile_cover_thumb_url  = Column(String(500), nullable=True)
+    tile_cover_focus      = Column(String(20), nullable=True)
     seo_description       = Column(String(500), nullable=True)
     featured_article_ids  = Column(ARRAY(Integer), nullable=False, default=list)
 
@@ -242,6 +244,7 @@ class Article(Base):
     # Уменьшенная копия обложки — её показывают карточки статей; оригинал
     # весит мегабайты и нужен только на самой странице.
     cover_thumb_url        = Column(String(500), nullable=True)
+    cover_focus            = Column(String(20), nullable=True)
     body                   = Column(Text, nullable=False, default="")
     # Список {"question": "...", "answer": "..."} — рендерится и текстом в
     # конце статьи, и как JSON-LD FAQPage для расширенного сниппета в поиске.
@@ -263,6 +266,7 @@ class Photo(Base):
     url           = Column(String(500), nullable=False)
     thumb_url     = Column(String(500), nullable=True)
     caption       = Column(String(255), nullable=True)
+    focus         = Column(String(20), nullable=True)
 
     checkpoint = relationship("Checkpoint", back_populates="photos")
     trail      = relationship("Trail", back_populates="photos")
@@ -332,5 +336,6 @@ class District(Base):
     facts           = Column(JSONB, nullable=False, server_default="[]")
     cover_url       = Column(String(500), nullable=True)
     cover_thumb_url = Column(String(500), nullable=True)
+    cover_focus     = Column(String(20), nullable=True)
     order_index     = Column(Integer, nullable=False, default=0)
     is_published    = Column(Boolean, nullable=False, default=True)

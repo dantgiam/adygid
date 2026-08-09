@@ -728,3 +728,48 @@ document.addEventListener("click", (e) => {
     if (!panel.hidden && !panel.contains(e.target) && !btn.contains(e.target)) close();
   });
 })();
+
+
+// ── Стрелки у коллажа в тексте ───────────────────────────────────────────
+// Кадры в коллаже разной ширины, поэтому листаем не на фиксированный шаг, а
+// к ближайшему кадру за краем видимой области — как в карусели места.
+document.querySelectorAll("[data-gallery]").forEach((root) => {
+  const track = root.querySelector("[data-gal-track]");
+  const prev = root.querySelector("[data-gal-prev]");
+  const next = root.querySelector("[data-gal-next]");
+  if (!track || !prev || !next) return;
+
+  const slides = () => Array.from(track.querySelectorAll(".article-gallery-item"));
+
+  function go(dir) {
+    const list = slides();
+    if (!list.length) return;
+    // Шагаем по кадрам, а не на фиксированную ширину: кадры разной ширины, и
+    // «пролистать на экран» уводило бы то на полкадра, то на два.
+    let idx = 0;
+    let best = Infinity;
+    list.forEach((el, i) => {
+      const d = Math.abs(el.offsetLeft - track.scrollLeft);
+      if (d < best) { best = d; idx = i; }
+    });
+    const target = list[Math.max(0, Math.min(list.length - 1, idx + dir))];
+    if (target) track.scrollTo({ left: Math.max(0, target.offsetLeft), behavior: "smooth" });
+  }
+
+  function paint() {
+    prev.disabled = track.scrollLeft < 4;
+    next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+  }
+
+  prev.addEventListener("click", () => go(-1));
+  next.addEventListener("click", () => go(1));
+  track.addEventListener("scroll", paint, { passive: true });
+  window.addEventListener("resize", paint);
+  // Ширину ленты знаем только после загрузки кадров: до этого scrollWidth
+  // равен видимой части, и «вперёд» выключилась бы, хотя листать есть куда.
+  track.querySelectorAll("img").forEach((img) => {
+    if (img.complete) return;
+    img.addEventListener("load", paint, { once: true });
+  });
+  paint();
+});

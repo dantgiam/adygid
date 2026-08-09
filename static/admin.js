@@ -677,12 +677,41 @@ function draftKey(id) { return 'adygid_draft_article_' + (id || 'new'); }
 // Статью редактирует один и тот же постоянный DOM (не пересоздаётся при
 // каждом открытии, в отличие от модалок), поэтому вешаем слушатели один раз
 // (dataset-флаг) и на каждый вызов только обновляем картинку. ──
-function setupCoverPreview(fileId, urlId, previewId) {
+function setupCoverPreview(fileId, urlId, previewId, focusId) {
   const fileEl = document.getElementById(fileId);
   const urlEl = document.getElementById(urlId);
   const boxEl = document.getElementById(previewId);
   if (!fileEl || !urlEl || !boxEl) return;
   const imgEl = boxEl.querySelector('img');
+  const focusEl = focusId ? document.getElementById(focusId) : null;
+
+  // Кадрирование: превью показывает ровно тот прямоугольник, который увидит
+  // гость на карточке, а перетаскивание внутри него двигает картинку — так
+  // из вертикального снимка можно оставить в кадре человека, а не небо.
+  function applyFocus() {
+    if (focusEl) imgEl.style.objectPosition = focusEl.value || '50% 50%';
+  }
+  if (focusEl && !boxEl.dataset.dragBound) {
+    boxEl.dataset.dragBound = '1';
+    boxEl.classList.add('cover-preview-focus');
+    let dragging = false;
+    const setFrom = (e) => {
+      const r = boxEl.getBoundingClientRect();
+      const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+      const y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
+      focusEl.value = `${Math.round(x)}% ${Math.round(y)}%`;
+      applyFocus();
+    };
+    boxEl.addEventListener('pointerdown', (e) => {
+      dragging = true; boxEl.setPointerCapture(e.pointerId); setFrom(e); e.preventDefault();
+    });
+    boxEl.addEventListener('pointermove', (e) => { if (dragging) setFrom(e); });
+    boxEl.addEventListener('pointerup', (e) => {
+      dragging = false;
+      try { boxEl.releasePointerCapture(e.pointerId); } catch (err) { /* уже отпущен */ }
+    });
+  }
+
   const update = () => {
     if (fileEl.files.length) {
       imgEl.src = URL.createObjectURL(fileEl.files[0]);
@@ -694,6 +723,7 @@ function setupCoverPreview(fileId, urlId, previewId) {
       boxEl.hidden = true;
       imgEl.removeAttribute('src');
     }
+    applyFocus();
   };
   if (!fileEl.dataset.previewBound) {
     fileEl.addEventListener('change', update);
@@ -785,8 +815,9 @@ function openArticleEditor(id) {
   document.getElementById('a-excerpt').value = a ? (a.excerpt || '') : '';
   document.getElementById('a-slug').value = a ? a.slug : '';
   document.getElementById('a-cover-url').value = a ? (a.cover_url || '') : '';
+  document.getElementById('a-cover-focus').value = a ? (a.cover_focus || '') : '';
   document.getElementById('a-cover-file').value = '';
-  setupCoverPreview('a-cover-file', 'a-cover-url', 'a-cover-preview');
+  setupCoverPreview('a-cover-file', 'a-cover-url', 'a-cover-preview', 'a-cover-focus');
   document.getElementById('a-published').checked = a ? a.is_published !== false : true;
   document.getElementById('a-district').innerHTML = districtOptionsHtml(a ? a.district : null);
   setArticleBody(a ? (a.body || '') : '');
@@ -892,7 +923,8 @@ function applyDraft(d) {
   document.getElementById('a-excerpt').value = d.excerpt || '';
   document.getElementById('a-slug').value = d.slug || '';
   document.getElementById('a-cover-url').value = d.cover_url || '';
-  setupCoverPreview('a-cover-file', 'a-cover-url', 'a-cover-preview');
+  document.getElementById('a-cover-focus').value = d.cover_focus || '';
+  setupCoverPreview('a-cover-file', 'a-cover-url', 'a-cover-preview', 'a-cover-focus');
   document.getElementById('a-published').checked = d.is_published !== false;
   document.getElementById('a-district').innerHTML = districtOptionsHtml(d.district || null);
   setArticleBody(d.body || '');
@@ -927,6 +959,7 @@ async function saveArticle() {
     slug: document.getElementById('a-slug').value.trim() || null,
     excerpt: document.getElementById('a-excerpt').value.trim() || null,
     cover_url: coverUrl || null,
+    cover_focus: document.getElementById('a-cover-focus') ? (document.getElementById('a-cover-focus').value || null) : null,
     cover_thumb_url: coverThumb,
     body: readArticleBody(),
     faq: readFaqRows(),
@@ -2277,8 +2310,10 @@ function openScenarioForm(id) {
   document.getElementById('sc-title').value = v.title || '';
   document.getElementById('sc-slug').value = v.slug || '';
   document.getElementById('sc-cover-url').value = v.cover_url || '';
+  document.getElementById('sc-cover-focus').value = v.cover_focus || '';
   document.getElementById('sc-cover-file').value = '';
   document.getElementById('sc-tile-cover-url').value = v.tile_cover_url || '';
+  document.getElementById('sc-tile-cover-focus').value = v.tile_cover_focus || '';
   document.getElementById('sc-tile-cover-file').value = '';
   document.getElementById('sc-seo').value = v.seo_description || '';
   document.getElementById('sc-order').value = v.order_index;
@@ -2299,8 +2334,8 @@ function openScenarioForm(id) {
   document.getElementById('sc-articles').innerHTML = pickerHtml(articles, v.featured_article_ids || [], a => a.title);
   document.getElementById('sc-desc-slot').innerHTML = descEditorHtml('Вступительный текст');
 
-  setupCoverPreview('sc-cover-file', 'sc-cover-url', 'sc-cover-preview');
-  setupCoverPreview('sc-tile-cover-file', 'sc-tile-cover-url', 'sc-tile-cover-preview');
+  setupCoverPreview('sc-cover-file', 'sc-cover-url', 'sc-cover-preview', 'sc-cover-focus');
+  setupCoverPreview('sc-tile-cover-file', 'sc-tile-cover-url', 'sc-tile-cover-preview', 'sc-tile-cover-focus');
   initDescEditor(v.lead || '', 'scenario:' + (s ? s.id : 'new'));
   autoGrow(document.getElementById('sc-title'));
   setSaveState('', false, 'sc-save-state');
@@ -2350,6 +2385,8 @@ async function saveScenario() {
     lead: readDescEditor(),
     cover_url: coverUrl || null,
     cover_thumb_url: coverUrl ? coverThumb : null,
+    cover_focus: document.getElementById('sc-cover-focus').value || null,
+    tile_cover_focus: document.getElementById('sc-tile-cover-focus').value || null,
     tile_cover_url: tileCoverUrl || null,
     tile_cover_thumb_url: tileCoverUrl ? tileCoverThumb : null,
     seo_description: document.getElementById('sc-seo').value.trim() || null,
@@ -2775,7 +2812,9 @@ function openDistrictForm(id) {
     <div class="field"><label>Обложка</label>
       <input type="file" id="dist-cover-file" accept="image/*">
       <input type="hidden" id="dist-cover-url" value="${escAttr(d.cover_url || '')}">
-      <div id="dist-cover-preview" class="cover-preview" hidden><img alt=""></div></div>
+      <input type="hidden" id="dist-cover-focus" value="${escAttr(d.cover_focus || '')}">
+      <div id="dist-cover-preview" class="cover-preview cover-preview-wide" hidden><img alt=""></div>
+      <div class="hint">Потяните по картинке, чтобы выбрать видимую часть кадра.</div></div>
     <div class="field"><label class="check"><input type="checkbox" id="dist-published" ${d.is_published === false ? '' : 'checked'}> Показывать на сайте</label></div>
   `, async () => {
     const name = document.getElementById('dist-name').value.trim();
@@ -2793,6 +2832,7 @@ function openDistrictForm(id) {
       facts: Array.from(document.querySelectorAll('#dist-facts .dist-fact')).map(e => e.value.trim()).filter(Boolean),
       cover_url: coverUrl,
       cover_thumb_url: coverThumb,
+      cover_focus: document.getElementById('dist-cover-focus').value || null,
       is_published: document.getElementById('dist-published').checked,
     };
     if (isNew) {
@@ -2808,7 +2848,7 @@ function openDistrictForm(id) {
     closeModal();
     toast('Сохранено');
   });
-  setupCoverPreview('dist-cover-file', 'dist-cover-url', 'dist-cover-preview');
+  setupCoverPreview('dist-cover-file', 'dist-cover-url', 'dist-cover-preview', 'dist-cover-focus');
 }
 
 async function removeDistrict(id) {
