@@ -1050,25 +1050,57 @@ async function photoFlow(quill, multiple) {
   const chosen = multiple ? files.slice(0, 4) : files.slice(0, 1);
   if (multiple && chosen.length < 2) { toast('Для коллажа нужно минимум 2 фото', true); return; }
 
-  const rows = chosen.map((f, i) => `
-    <div class="pickfile-item">
-      <img src="${URL.createObjectURL(f)}" alt="">
-      <div class="field">
-        <label>Подпись к фото ${i + 1}</label>
-        <input class="cap-input" placeholder="Можно оставить пустым">
-      </div>
-    </div>`).join('');
+  // Порядок в коллаже — это порядок в ленте, а браузер отдаёт файлы так, как
+  // они лежали в папке. Держим кадры отдельным списком и даём двигать их
+  // стрелками; подписи при перестановке едут вместе со своим фото.
+  const items = chosen.map(f => ({ file: f, preview: URL.createObjectURL(f), caption: '' }));
+
+  function renderPickRows() {
+    const box = document.getElementById('pickfile-rows');
+    if (!box) return;
+    box.innerHTML = items.map((it, i) => `
+      <div class="pickfile-item">
+        ${multiple ? `<div class="pickfile-order">
+          <button type="button" class="pickfile-move" onclick="movePickItem(${i}, -1)" ${i === 0 ? 'disabled' : ''} aria-label="Выше">↑</button>
+          <span class="pickfile-num">${i + 1}</span>
+          <button type="button" class="pickfile-move" onclick="movePickItem(${i}, 1)" ${i === items.length - 1 ? 'disabled' : ''} aria-label="Ниже">↓</button>
+        </div>` : ''}
+        <img src="${it.preview}" alt="">
+        <div class="field">
+          <label>Подпись к фото ${i + 1}</label>
+          <input class="cap-input" data-idx="${i}" value="${escAttr(it.caption)}" placeholder="Можно оставить пустым">
+        </div>
+      </div>`).join('');
+  }
+
+  function readPickCaptions() {
+    document.querySelectorAll('#pickfile-rows .cap-input').forEach(el => {
+      items[Number(el.dataset.idx)].caption = el.value;
+    });
+  }
+
+  // Вешаем на window: обработчики в разметке выше вызываются по имени.
+  window.movePickItem = (i, dir) => {
+    const j = i + dir;
+    if (j < 0 || j >= items.length) return;
+    readPickCaptions();
+    [items[i], items[j]] = [items[j], items[i]];
+    renderPickRows();
+  };
 
   // Вторая, стековая модалка — эта форма может открыться поверх уже открытой
   // (маршрут/место/сценарий), общую модалку для этого переиспользовать нельзя.
-  showModal2(multiple ? 'Коллаж' : 'Фото', `<div class="pickfile">${rows}</div>`, async () => {
-    const caps = Array.from(document.querySelectorAll('.cap-input')).map(el => el.value.trim());
+  showModal2(multiple ? 'Коллаж' : 'Фото',
+    `<div class="pickfile" id="pickfile-rows"></div>${multiple ? '<div class="hint">Стрелками задайте порядок — в этом же порядке фото встанут в ленте.</div>' : ''}`,
+    async () => {
+    readPickCaptions();
+    const caps = items.map(it => it.caption.trim());
     document.getElementById('modal2-save').disabled = true;
     document.getElementById('modal2-save').textContent = 'Загружаю...';
 
     const uploaded = [];
-    for (let i = 0; i < chosen.length; i++) {
-      const up = await uploadFile(chosen[i]);
+    for (let i = 0; i < items.length; i++) {
+      const up = await uploadFile(items[i].file);
       if (up) uploaded.push({ url: up.url, caption: caps[i] || '' });
     }
     document.getElementById('modal2-save').disabled = false;
@@ -1090,6 +1122,7 @@ async function photoFlow(quill, multiple) {
     }
     closeModal2();
   }, { saveLabel: 'Вставить' });
+  renderPickRows();
 }
 
 function insertInternalLink(quill) {

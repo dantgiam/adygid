@@ -489,18 +489,25 @@ h1.article-title {
   display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch; padding-bottom: 2px; margin: 0 -2px;
 }
+/* Кадры в коллаже сохраняют свои пропорции: высота у всех одна, а ширину
+   задаёт само фото — горизонтальное занимает много места, вертикальное
+   узкую полосу. Раньше всё резалось под 3:4, и панорама с плато выглядела
+   так же, как портретный кадр водопада. */
 .article-gallery-item {
-  flex: 0 0 calc(50% - 5px); scroll-snap-align: start; margin: 0;
-}
-@media (max-width: 640px) {
-  .article-gallery-item { flex-basis: 80%; }
+  flex: 0 0 auto; scroll-snap-align: start; margin: 0;
 }
 .article-gallery-item img {
-  width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px;
-  display: block; margin: 0;
+  height: 440px; width: auto;
+  /* max-width глобально стоит 100% на всех img — здесь он мешает картинке
+     стать шире колонки, а панораме это как раз нужно. Потолок оставляем,
+     чтобы совсем широкий кадр не уезжал за экран. */
+  max-width: 78vw; object-fit: cover;
+  border-radius: 10px; display: block; margin: 0;
 }
+@media (max-width: 900px) { .article-gallery-item img { height: 340px; max-width: 88vw; } }
+@media (max-width: 640px) { .article-gallery-item img { height: 260px; } }
 .article-gallery-caption {
-  display: flex; gap: 8px; margin-top: 12px;
+  display: flex; gap: 8px; margin-top: 12px; width: 0; min-width: 100%;
   font-family: var(--font-body); font-size: 14px; line-height: 1.4; color: var(--text-muted);
 }
 .article-gallery-counter { flex: none; font-weight: 700; color: var(--text); }
@@ -707,6 +714,9 @@ h1.article-title {
   color: var(--text-muted);
   transition: color .12s ease;
 }
+/* Подпункты h3 — с отступом и легче по начертанию, чтобы структура читалась
+   с одного взгляда, а не выглядела плоским списком. */
+.article-toc nav a.toc-l3 { padding-left: 32px; font-size: 14px; font-weight: 600; }
 .article-toc nav a:hover { color: var(--accent); }
 .article-toc nav a.active { color: var(--accent-dark); }
 .article-toc nav a.active::before {

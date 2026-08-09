@@ -173,23 +173,30 @@ def _rich_text_html(text: Optional[str]) -> str:
     return "".join(f"<p>{escape(p)}</p>" for p in paragraphs)
 
 
-_H2_RE = re.compile(r"<h2(?![^>]*\bid=)([^>]*)>(.*?)</h2>", re.IGNORECASE | re.DOTALL)
 _TAG_STRIP_RE = re.compile(r"<[^>]+>")
+
+# Оглавление собирает и h2, и h3: длинный разбор обычно делится на разделы и
+# подразделы, и по одним только h2 непонятно, что внутри. Обратная ссылка \1
+# нужна, чтобы <h2> не закрылся ближайшим </h3>.
+_HEADING_RE = re.compile(r"<(h[23])(?![^>]*\bid=)([^>]*)>(.*?)</\1>", re.IGNORECASE | re.DOTALL)
 
 
 def _add_toc_anchors(html: str) -> tuple[str, list[dict]]:
-    """Проставляет id каждому <h2> без собственного id и параллельно
-    собирает список якорей для бокового оглавления длинной статьи."""
+    """Проставляет id каждому заголовку без собственного id и параллельно
+    собирает список якорей для бокового оглавления длинной статьи.
+    Уровень (2 или 3) уезжает в шаблон — подпункты рисуются с отступом."""
     toc: list[dict] = []
 
     def repl(match: "re.Match[str]") -> str:
-        attrs, inner = match.group(1), match.group(2)
+        tag, attrs, inner = match.group(1).lower(), match.group(2), match.group(3)
         anchor = f"section-{len(toc) + 1}"
         title = _TAG_STRIP_RE.sub("", inner).strip()
-        toc.append({"id": anchor, "title": title})
-        return f'<h2{attrs} id="{anchor}">{inner}</h2>'
+        if not title:
+            return match.group(0)
+        toc.append({"id": anchor, "title": title, "level": 3 if tag == "h3" else 2})
+        return f'<{tag}{attrs} id="{anchor}">{inner}</{tag}>'
 
-    return _H2_RE.sub(repl, html), toc
+    return _HEADING_RE.sub(repl, html), toc
 
 
 _GALLERY_PARAGRAPH_RE = re.compile(r"<p>((?:\s*<img\b[^>]*>|\s*&nbsp;)+)\s*</p>", re.IGNORECASE)
@@ -1356,7 +1363,7 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "door": sc.door,
         "cover_url": sc.cover_url,
         "lead": lead_html,
-        "toc": toc if len(toc) >= 3 else [],
+        "toc": toc if sum(1 for i in toc if i["level"] == 2) >= 3 else [],
         # Вопросы из вставленных наборов раньше собирались и молча терялись:
         # сценарий с полноценным гайдом внутри оставался без сниппета в поиске.
         "faq_ld": _faq_ld(embedded_faq),
@@ -1519,7 +1526,7 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "district_label": _DISTRICT_LABELS.get(a.district),
         "cover_url": a.cover_url,
         "body_html": body_html,
-        "toc": toc if len(toc) >= 3 else [],
+        "toc": toc if sum(1 for i in toc if i["level"] == 2) >= 3 else [],
         "faq": faq,
         "faq_ld": faq_ld,
         "featured_places": featured_places,

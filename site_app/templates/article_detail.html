@@ -70,7 +70,7 @@
       {% if article.toc %}
       <aside class="article-toc">
         <p class="toc-label">Содержание</p>
-        <nav>{% for item in article.toc %}<a href="#{{ item.id }}">{{ item.title }}</a>{% endfor %}</nav>
+        <nav>{% for item in article.toc %}<a class="toc-l{{ item.level }}" href="#{{ item.id }}">{{ item.title }}</a>{% endfor %}</nav>
       </aside>
       {% endif %}
     </div>
