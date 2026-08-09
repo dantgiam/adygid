@@ -67,11 +67,17 @@
         {% endif %}
       </div>
 
+      {# <details>, а не <aside>: на телефоне оглавление раньше просто пряталось
+         (display:none), и длинную статью нельзя было окинуть взглядом. Теперь
+         это сворачиваемый блок над текстом — на широком экране он всегда
+         раскрыт и стоит колонкой справа, на узком его схлопывает site.js.
+         Атрибут open прописан в разметке, поэтому без скриптов оглавление
+         остаётся видимым, а не пропадает. #}
       {% if article.toc %}
-      <aside class="article-toc">
-        <p class="toc-label">Содержание</p>
+      <details class="article-toc" open>
+        <summary class="toc-label">Содержание</summary>
         <nav>{% for item in article.toc %}<a class="toc-l{{ item.level }}" href="#{{ item.id }}">{{ item.title }}</a>{% endfor %}</nav>
-      </aside>
+      </details>
       {% endif %}
     </div>
   </div>

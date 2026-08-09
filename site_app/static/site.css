@@ -264,8 +264,11 @@ h1.article-title {
    четверти ширины её толком не видно. На 1160 px колонки карточка выходит
    ~357 px шириной, обложка при 3:2 — ~238 px высотой. */
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+/* Две колонки держим до самых узких экранов: правило «ниже 560 px — одна
+   карточка» превращало ленту в полноэкранный список, по которому не видно
+   ничего, кроме текущей карточки. Под два столбца ниже (640 px) уже подогнаны
+   размеры шрифтов и отступов. */
 @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
 .card {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
   overflow: hidden; display: flex; flex-direction: column; transition: border-color .15s ease, transform .15s ease;
@@ -377,6 +380,9 @@ h1.article-title {
   .more-tile { padding: 16px 10px; }
   .more-tile-count { font-size: 24px; }
   .more-tile-label, .more-tile-cta { font-size: 12px; }
+  .random-tag { font-size: 10px; padding: 3px 8px; top: 8px; left: 8px; }
+  .random-again { right: 8px; bottom: 8px; padding: 6px 11px; font-size: 12px; }
+  .card.random-card .body { padding-bottom: 44px; }
 }
 @media (max-width: 300px) {
   .grid { grid-template-columns: 1fr; }
@@ -620,6 +626,26 @@ h1.article-title {
 .door-photo .door-title { color: #fff; font-size: 21px; text-shadow: 0 1px 10px rgba(0, 0, 0, .35); }
 .door-photo .door-hint { color: rgba(255, 255, 255, .9); text-shadow: 0 1px 8px rgba(0, 0, 0, .3); margin-top: 4px; }
 
+/* На телефоне minmax(300px) оставлял одну дверь на всю ширину — сценарии
+   листались по одному, как лента. Ставим ровно два столбца и разворачиваем
+   строку в колонку: в половине ширины иконка, название и подпись в один ряд
+   не помещаются. Стрелка уходит — на тач-экране она ничего не поясняет. */
+@media (max-width: 640px) {
+  .doors { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .door { flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px; }
+  .door-icon { font-size: 22px; }
+  .door-title { font-size: 16px; line-height: 1.25; }
+  .door-hint { font-size: 12.5px; margin-top: 4px; }
+  .door-arrow { display: none; }
+  .door-photo { padding: 0; }
+  .door-photo .door-main { left: 12px; right: 12px; bottom: 12px; }
+  .door-photo .door-title { font-size: 16px; }
+  .door-photo .door-hint { font-size: 12px; }
+}
+@media (max-width: 300px) {
+  .doors { grid-template-columns: 1fr; }
+}
+
 /* ── Переход в клуб ───────────────────────────────*/
 .club-cta-section { padding: 32px 0; }
 .club-cta {
@@ -770,12 +796,19 @@ h1.article-title {
 .diff-popover li:last-child { margin-bottom: 0; }
 .diff-popover li.current { font-weight: 700; color: var(--text); }
 
-/* ── Статья: боковое оглавление ─────────────────────────────────────────── */
+/* ── Статья: оглавление ─────────────────────────────────────────────────── */
 .article-layout { display: block; }
 .article-layout.has-toc { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 44px; align-items: start; }
-@media (max-width: 900px) { .article-layout.has-toc { grid-template-columns: 1fr; } .article-toc { display: none; } }
 .article-toc { position: sticky; top: 84px; }
 .toc-label { font-family: var(--font-mono); font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 0 0 12px; }
+
+/* На широком экране это по-прежнему просто колонка справа: <details> раскрыт
+   всегда, а его треугольник и реакция на клик убраны — сворачивать сайдбар,
+   который и так помещается, незачем. */
+@media (min-width: 901px) {
+  .article-toc > summary { list-style: none; cursor: default; pointer-events: none; }
+  .article-toc > summary::-webkit-details-marker { display: none; }
+}
 .article-toc nav { display: flex; flex-direction: column; gap: 2px; border-left: 2px solid var(--border); }
 .article-toc nav a {
   position: relative;
@@ -793,6 +826,34 @@ h1.article-title {
 .article-toc nav a.active { color: var(--accent-dark); }
 .article-toc nav a.active::before {
   content: ""; position: absolute; left: -2px; top: 0; bottom: 0; width: 2px; background: var(--accent);
+}
+
+/* На телефоне колонки справа нет — оглавление переезжает наверх (order: -1,
+   в разметке оно идёт после текста) и становится сворачиваемой полосой.
+   Свёрнутым его делает site.js: в разметке стоит open, чтобы без скриптов
+   содержание осталось на виду. */
+@media (max-width: 900px) {
+  .article-layout.has-toc { grid-template-columns: 1fr; gap: 0; }
+  .article-toc {
+    order: -1; position: static; margin: 0 0 26px; padding: 2px 16px;
+    background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .article-toc > summary {
+    display: flex; align-items: center; justify-content: space-between;
+    margin: 0; padding: 13px 0; cursor: pointer; list-style: none;
+  }
+  .article-toc > summary::-webkit-details-marker { display: none; }
+  .article-toc > summary::after {
+    content: "⌄"; font-size: 17px; line-height: 1; color: var(--accent);
+    transform: translateY(-3px); transition: transform .18s ease;
+  }
+  .article-toc[open] > summary::after { transform: rotate(180deg) translateY(-1px); }
+  .article-toc nav { border-left: none; padding: 0 0 12px; gap: 0; }
+  .article-toc nav a { padding: 8px 0 8px 12px; font-size: 15px; border-left: 2px solid var(--border); }
+  .article-toc nav a.toc-l3 { padding-left: 26px; font-size: 13.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .article-toc > summary::after { transition: none; }
 }
 
 /* ── FAQ-блок в конце статьи ─────────────────────────────────────────────── */

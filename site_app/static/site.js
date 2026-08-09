@@ -334,6 +334,21 @@ document.querySelectorAll(".like-btn").forEach((btn) => {
   });
 });
 
+// ── Оглавление статьи на телефоне: свернуть и закрывать после перехода ────
+// В разметке <details> стоит open — без скриптов содержание видно, а не
+// спрятано. Схлопываем только там, где оглавление лежит поперёк текста и
+// развёрнутым отодвигало бы саму статью на пол-экрана вниз.
+(() => {
+  const toc = document.querySelector("details.article-toc");
+  if (!toc) return;
+  const narrow = window.matchMedia("(max-width: 900px)");
+  if (narrow.matches) toc.open = false;
+
+  toc.addEventListener("click", (e) => {
+    if (narrow.matches && e.target.closest("nav a")) toc.open = false;
+  });
+})();
+
 // ── Оглавление статьи — подсветка раздела, который читают прямо сейчас ────
 (() => {
   const headings = Array.from(document.querySelectorAll(".article-toc nav a"))
