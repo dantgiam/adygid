@@ -677,52 +677,86 @@ function draftKey(id) { return 'adygid_draft_article_' + (id || 'new'); }
 // Статью редактирует один и тот же постоянный DOM (не пересоздаётся при
 // каждом открытии, в отличие от модалок), поэтому вешаем слушатели один раз
 // (dataset-флаг) и на каждый вызов только обновляем картинку. ──
-function setupCoverPreview(fileId, urlId, previewId, focusId) {
+// Один и тот же файл сайт режет по-разному: в карточке это 3:2, в шапке
+// страницы широкая полоса, у плитки сценария вертикальный кадр. Поэтому
+// предпросмотр показывает все форматы, в которых снимок реально появится, —
+// раньше рамка была одна и с произвольным соотношением 12:5, и выбранная в
+// ней точка не совпадала с тем, что видел гость.
+const COVER_FRAMES = {
+  cover: [
+    { label: 'В карточке', ratio: '3 / 2', width: 210 },
+    { label: 'В шапке страницы', ratio: '12 / 5', width: 300 },
+  ],
+  tile: [
+    { label: 'Плитка на главной', ratio: '4 / 5', width: 150 },
+  ],
+  photo: [
+    { label: 'В карточке', ratio: '3 / 2', width: 190 },
+    { label: 'В шапке страницы', ratio: '12 / 5', width: 270 },
+  ],
+};
+
+function setupCoverPreview(fileId, urlId, previewId, focusId, kind) {
   const fileEl = document.getElementById(fileId);
   const urlEl = document.getElementById(urlId);
   const boxEl = document.getElementById(previewId);
   if (!fileEl || !urlEl || !boxEl) return;
-  const imgEl = boxEl.querySelector('img');
   const focusEl = focusId ? document.getElementById(focusId) : null;
+  const frames = COVER_FRAMES[kind || 'cover'] || COVER_FRAMES.cover;
 
-  // Кадрирование: превью показывает ровно тот прямоугольник, который увидит
-  // гость на карточке, а перетаскивание внутри него двигает картинку — так
-  // из вертикального снимка можно оставить в кадре человека, а не небо.
-  function applyFocus() {
-    if (focusEl) imgEl.style.objectPosition = focusEl.value || '50% 50%';
+  // Рамки строим здесь, а не в разметке: их состав зависит от того, где
+  // обложка будет показана, и держать это в трёх местах шаблона незачем.
+  if (boxEl.dataset.framesBuilt !== previewId) {
+    boxEl.dataset.framesBuilt = previewId;
+    boxEl.classList.add('cover-frames');
+    boxEl.innerHTML = frames.map(f => `
+      <figure class="cover-frame-wrap" style="width:${f.width}px">
+        <div class="cover-frame" style="aspect-ratio:${f.ratio}"><img alt=""></div>
+        <figcaption>${f.label}</figcaption>
+      </figure>`).join('');
   }
+  const imgs = Array.from(boxEl.querySelectorAll('.cover-frame img'));
+
+  function applyFocus() {
+    const pos = (focusEl && focusEl.value) || '50% 50%';
+    imgs.forEach(im => { im.style.objectPosition = pos; });
+  }
+
   if (focusEl && !boxEl.dataset.dragBound) {
     boxEl.dataset.dragBound = '1';
-    boxEl.classList.add('cover-preview-focus');
-    let dragging = false;
+    boxEl.classList.add('cover-frames-draggable');
+    let dragging = null;
     const setFrom = (e) => {
-      const r = boxEl.getBoundingClientRect();
+      if (!dragging) return;
+      const r = dragging.getBoundingClientRect();
       const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
       const y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
       focusEl.value = `${Math.round(x)}% ${Math.round(y)}%`;
       applyFocus();
     };
     boxEl.addEventListener('pointerdown', (e) => {
-      dragging = true; boxEl.setPointerCapture(e.pointerId); setFrom(e); e.preventDefault();
+      const frame = e.target.closest('.cover-frame');
+      if (!frame) return;
+      dragging = frame;
+      frame.setPointerCapture(e.pointerId);
+      setFrom(e);
+      e.preventDefault();
     });
-    boxEl.addEventListener('pointermove', (e) => { if (dragging) setFrom(e); });
+    boxEl.addEventListener('pointermove', setFrom);
     boxEl.addEventListener('pointerup', (e) => {
-      dragging = false;
-      try { boxEl.releasePointerCapture(e.pointerId); } catch (err) { /* уже отпущен */ }
+      if (dragging) {
+        try { dragging.releasePointerCapture(e.pointerId); } catch (err) { /* уже отпущен */ }
+      }
+      dragging = null;
     });
   }
 
   const update = () => {
-    if (fileEl.files.length) {
-      imgEl.src = URL.createObjectURL(fileEl.files[0]);
-      boxEl.hidden = false;
-    } else if (urlEl.value.trim()) {
-      imgEl.src = urlEl.value.trim();
-      boxEl.hidden = false;
-    } else {
-      boxEl.hidden = true;
-      imgEl.removeAttribute('src');
-    }
+    let src = '';
+    if (fileEl.files.length) src = URL.createObjectURL(fileEl.files[0]);
+    else if (urlEl.value.trim()) src = urlEl.value.trim();
+    boxEl.hidden = !src;
+    imgs.forEach(im => { if (src) im.src = src; else im.removeAttribute('src'); });
     applyFocus();
   };
   if (!fileEl.dataset.previewBound) {
@@ -2163,13 +2197,15 @@ function openPhotos(kind, id) {
       под фото в карусели на странице места/маршрута — без неё просто фото без текста.
     </div>
     <div class="photos" id="photo-grid">
-      ${photos.map(p => `
+      ${photos.map((p, i) => `
         <div class="photo">
-          <img src="${escAttr(p.thumb_url || p.url)}" alt="">
+          <img src="${escAttr(p.thumb_url || p.url)}" alt=""${i === 0 ? ' style="object-position:' + escAttr(p.focus || '50% 50%') + '"' : ''}>
           <button onclick="deletePhoto(${p.id}, '${kind}', ${id})">×</button>
           <input type="text" class="photo-caption" placeholder="Подпись (необязательно)"
                  value="${escAttr(p.caption || '')}"
                  onchange="savePhotoCaption(${p.id}, this.value)">
+          ${i === 0 ? `<button type="button" class="btn btn-ghost btn-sm photo-crop"
+                 onclick="openPhotoCrop(${p.id}, '${escAttr(p.url)}', '${escAttr(p.focus || '')}')">Кадрировать обложку</button>` : ''}
         </div>`).join('') || '<div class="picker-empty">Фото пока нет</div>'}
     </div>
     <div class="field" style="margin-top:16px;margin-bottom:0">
@@ -2195,6 +2231,22 @@ function openPhotos(kind, id) {
     if (activeTrail && document.getElementById('view-route-map').classList.contains('active')) reloadActiveTrail();
     renderPlaces(); renderRoutes();
   }, { saveLabel: 'Загрузить' });
+}
+
+function openPhotoCrop(photoId, url, focus) {
+  showModal2('Кадр обложки', `
+    <div class="hint" style="margin-bottom:10px">Потяните по любой рамке — обе показывают, каким этот кадр увидит гость.</div>
+    <input type="hidden" id="ph-crop-url" value="${escAttr(url)}">
+    <input type="hidden" id="ph-crop-focus" value="${escAttr(focus)}">
+    <input type="file" id="ph-crop-file" style="display:none">
+    <div class="cover-preview" id="ph-crop-preview"></div>
+  `, async () => {
+    const value = document.getElementById('ph-crop-focus').value || null;
+    await api('PATCH', `/photos/${photoId}`, { focus: value });
+    closeModal2();
+    toast('Кадр сохранён');
+  }, { saveLabel: 'Сохранить' });
+  setupCoverPreview('ph-crop-file', 'ph-crop-url', 'ph-crop-preview', 'ph-crop-focus', 'photo');
 }
 
 async function savePhotoCaption(photoId, caption) {
@@ -2335,7 +2387,7 @@ function openScenarioForm(id) {
   document.getElementById('sc-desc-slot').innerHTML = descEditorHtml('Вступительный текст');
 
   setupCoverPreview('sc-cover-file', 'sc-cover-url', 'sc-cover-preview', 'sc-cover-focus');
-  setupCoverPreview('sc-tile-cover-file', 'sc-tile-cover-url', 'sc-tile-cover-preview', 'sc-tile-cover-focus');
+  setupCoverPreview('sc-tile-cover-file', 'sc-tile-cover-url', 'sc-tile-cover-preview', 'sc-tile-cover-focus', 'tile');
   initDescEditor(v.lead || '', 'scenario:' + (s ? s.id : 'new'));
   autoGrow(document.getElementById('sc-title'));
   setSaveState('', false, 'sc-save-state');
@@ -2813,7 +2865,7 @@ function openDistrictForm(id) {
       <input type="file" id="dist-cover-file" accept="image/*">
       <input type="hidden" id="dist-cover-url" value="${escAttr(d.cover_url || '')}">
       <input type="hidden" id="dist-cover-focus" value="${escAttr(d.cover_focus || '')}">
-      <div id="dist-cover-preview" class="cover-preview cover-preview-wide" hidden><img alt=""></div>
+      <div id="dist-cover-preview" class="cover-preview" hidden></div>
       <div class="hint">Потяните по картинке, чтобы выбрать видимую часть кадра.</div></div>
     <div class="field"><label class="check"><input type="checkbox" id="dist-published" ${d.is_published === false ? '' : 'checked'}> Показывать на сайте</label></div>
   `, async () => {

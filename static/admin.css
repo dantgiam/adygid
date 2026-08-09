@@ -134,13 +134,17 @@ a { color: var(--accent); }
 
 /* Живой предпросмотр обложки — под полями файла/ссылки, обновляется на
    каждое изменение, чтобы было видно кадрирование ДО сохранения формы. */
-.cover-preview {
-  margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius);
-  overflow: hidden; background: var(--bg); max-width: 320px;
+/* Предпросмотр обложки — по рамке на каждый формат, в котором снимок реально
+   появится на сайте. Рамки строит setupCoverPreview в admin.js. */
+.cover-preview { margin-top: 10px; }
+.cover-frames { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-start; }
+.cover-frame-wrap { margin: 0; max-width: 100%; }
+.cover-frame {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; background: var(--bg); width: 100%;
 }
-.cover-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.cover-preview-wide { aspect-ratio: 12 / 5; }
-.cover-preview-tile { aspect-ratio: 4 / 5; max-width: 200px; }
+.cover-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cover-frame-wrap figcaption { margin-top: 6px; font-size: 12px; color: var(--muted); }
 @media (max-width: 720px) { .field-row { grid-template-columns: 1fr; } }
 
 /* Группы критериев — вместо сплошной простыни полей */
@@ -695,6 +699,11 @@ a { color: var(--accent); }
 
 /* Кадрирование обложки — превью показывает тот же прямоугольник, что увидит
    гость, и картинка внутри него двигается перетаскиванием. */
-.cover-preview-focus { cursor: grab; touch-action: none; user-select: none; }
-.cover-preview-focus:active { cursor: grabbing; }
-.cover-preview-focus img { object-fit: cover; width: 100%; height: 100%; pointer-events: none; }
+/* Кадрирование: тянем прямо по любой из рамок, обе слушают один и тот же
+   фокус и перерисовываются вместе. */
+.cover-frames-draggable .cover-frame { cursor: grab; touch-action: none; user-select: none; }
+.cover-frames-draggable .cover-frame:active { cursor: grabbing; }
+.cover-frames-draggable .cover-frame img { pointer-events: none; }
+
+/* Кнопка кадрирования — только у первого фото, оно и есть обложка */
+.photo .photo-crop { width: 100%; margin-top: 6px; }
