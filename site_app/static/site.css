@@ -378,7 +378,8 @@ h1.article-title {
 
 /* ── Detail page ──────────────────────────────────*/
 .detail-hero { height: clamp(280px, 38vw, 460px); border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; background: linear-gradient(135deg, var(--accent-soft), var(--bg-elevated)); background-size: cover; background-position: center; }
-.detail-grid { display: grid; grid-template-columns: 1fr 300px; gap: 40px; align-items: start; }
+.detail-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; align-items: start; }
+.detail-body, .article-main { min-width: 0; }
 @media (max-width: 900px) { .detail-grid { grid-template-columns: 1fr; } }
 .detail-body p { font-size: 17px; color: var(--text); max-width: 68ch; margin: 0 0 16px; }
 .detail-body .lede { font-size: 18.5px; color: var(--text-muted); }
@@ -507,9 +508,14 @@ h1.article-title {
 .gal-nav:hover { border-color: var(--accent); color: var(--accent); }
 .gal-nav[disabled] { opacity: 0 !important; pointer-events: none; }
 @media (hover: none) { .gal-nav { display: none; } }
+/* width:0 + min-width:100% — лента не участвует в расчёте «сколько места мне
+   нужно», а берёт ширину колонки и прокручивается внутри себя. Без этого
+   кадры произвольной ширины раздвигали саму колонку: на странице места
+   коллаж вылезал поверх боковой панели. */
 .article-gallery-track {
   display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch; padding-bottom: 2px; margin: 0 -2px;
+  width: 0; min-width: 100%;
 }
 /* Кадры в коллаже сохраняют свои пропорции: высота у всех одна, а ширину
    задаёт само фото — горизонтальное занимает много места, вертикальное
@@ -722,7 +728,7 @@ h1.article-title {
 
 /* ── Статья: боковое оглавление ─────────────────────────────────────────── */
 .article-layout { display: block; }
-.article-layout.has-toc { display: grid; grid-template-columns: 1fr 270px; gap: 44px; align-items: start; }
+.article-layout.has-toc { display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 44px; align-items: start; }
 @media (max-width: 900px) { .article-layout.has-toc { grid-template-columns: 1fr; } .article-toc { display: none; } }
 .article-toc { position: sticky; top: 84px; }
 .toc-label { font-family: var(--font-mono); font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 0 0 12px; }
