@@ -522,13 +522,13 @@ a { color: var(--accent); }
 .ql-editor .editor-gallery-track {
   display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; margin: 0 -2px;
 }
-.ql-editor .editor-gallery-item { flex: 0 0 calc(50% - 5px); margin: 0; }
-@media (max-width: 640px) {
-  .ql-editor .editor-gallery-item { flex-basis: 80%; }
-}
+/* Кадры держат свои пропорции при общей высоте — ровно так же, как на сайте
+   (site.css: .article-gallery-item). Раньше редактор резал всё под 3:4, и
+   автор видел не тот коллаж, который получится у гостя. */
+.ql-editor .editor-gallery-item { flex: 0 0 auto; margin: 0; }
 .ql-editor .editor-gallery-caption {
   display: flex; gap: 8px; margin-top: 10px; font-family: var(--font); font-size: 13px;
-  line-height: 1.4; color: var(--muted);
+  line-height: 1.4; color: var(--muted); width: 0; min-width: 100%;
 }
 .ql-editor .editor-gallery-counter { flex: none; font-weight: 700; color: var(--text); }
 .ql-editor .editor-gallery-text { flex: 1; min-width: 0; }
@@ -537,7 +537,9 @@ a { color: var(--accent); }
    перебивают отступы и рвут сетку коллажа. */
 #article-editor .ql-editor .editor-gallery-item img,
 #desc-editor .ql-editor .editor-gallery-item img {
-  width: 100%; max-width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px;
+  /* Высота меньше сайтовых 440 px: колонка редактора уже, и при 440 в неё
+     помещался бы один кадр. Пропорции при этом те же самые. */
+  height: 300px; width: auto; max-width: 70vw; object-fit: cover; border-radius: 10px;
   display: block; margin: 0;
 }
 #article-editor .ql-editor .gallery-embed.single img,
