@@ -400,8 +400,13 @@ def _thumb_of(photos) -> Optional[str]:
 
 def _gallery_of(photos) -> list:
     """Данные для карусели на странице места/маршрута: полный размер (не
-    миниатюра — карусель на весь экран, мылить незачем) плюс подпись."""
-    return [{"url": p.url, "caption": p.caption or ""} for p in photos]
+    миниатюра — карусель на весь экран, мылить незачем) плюс подпись.
+
+    Первое фото пропускаем: оно уже показано крупной обложкой сверху, и в
+    карусели шло вторым экземпляром той же картинки. У места с единственным
+    фото (сейчас это почти все) карусели теперь просто нет — вместо
+    бессмысленного повтора одного кадра."""
+    return [{"url": p.url, "caption": p.caption or ""} for p in photos[1:]]
 
 
 def _category_lite(cat) -> Optional[dict]:
@@ -889,13 +894,40 @@ def api_favorites(items: str = "", db: Session = Depends(get_db)):
 #  Главная
 # ─────────────────────────────────────────────
 
+# Главная — единственная страница, которая собирается из 15 запросов к базе, и
+# при этом одинакова для всех: избранное подгружает браузер, лайки показаны
+# общим счётчиком, личного в разметке нет. Под наплывом из канала это 15 × N
+# обращений к удалённой базе ради одного и того же HTML — держим готовый ответ
+# минуту. Любая правка в админке сбрасывает кэш сразу (см. _cache_policy
+# в app/main.py: он зовёт invalidate_home_cache на каждый не-GET запрос),
+# так что «поправил и не вижу» не случится.
+_HOME_CACHE: dict = {"body": None, "at": 0.0}
+_HOME_TTL_S = 60
+
+
+def invalidate_home_cache() -> None:
+    _HOME_CACHE["body"] = None
+    _FOOTER_CACHE["value"] = None
+
+
 @router.get("/")
 def home(request: Request, db: Session = Depends(get_db)):
+    cached = _HOME_CACHE["body"]
+    if cached is not None and time.monotonic() - _HOME_CACHE["at"] < _HOME_TTL_S:
+        return Response(cached, media_type="text/html; charset=utf-8")
+
     highlight = _pick_highlight(db)
+    # Лимит 7 и у статей — как у мест и маршрутов: седьмая карточка освобождает
+    # место плитке «ещё N», и сетка закрывается ровно двумя рядами. Раньше
+    # статей бралось 6, и последний ряд повисал двумя карточками из четырёх,
+    # а про остальные статьи на главной вообще ничего не говорилось.
+    articles_total = db.execute(
+        select(func.count()).select_from(Article).where(Article.is_published == True)
+    ).scalar() or 0
     articles = [
         _article_card_dict(a)
         for a in db.execute(
-            select(Article).where(Article.is_published == True).order_by(Article.created_at.desc()).limit(6)
+            select(Article).where(Article.is_published == True).order_by(Article.created_at.desc()).limit(7)
         ).scalars().all()
     ]
     # Берём на одну карточку больше колонки в ряду (4): если на сайте мест
@@ -924,22 +956,28 @@ def home(request: Request, db: Session = Depends(get_db)):
     stats = _footer_stats(db)
     places_remaining = max(stats["places"] - len(places), 0)
     routes_remaining = max(stats["trails"] - len(routes), 0)
+    articles_remaining = max(articles_total - len(articles), 0)
     places_remaining_word = _ru_plural(places_remaining, "место", "места", "мест")
     routes_remaining_word = _ru_plural(routes_remaining, "маршрут", "маршрута", "маршрутов")
+    articles_remaining_word = _ru_plural(articles_remaining, "статью", "статьи", "статей")
 
     doors = _scenario_doors(db)
     wizard_categories = db.execute(
         select(Category).where(Category.is_public == True, Category.type.in_(["checkpoint", "both"]))
     ).scalars().all()
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "home.html",
         _ctx(
             request, db, active_nav="home", highlight=highlight, articles=articles, places=places, routes=routes,
             places_remaining=places_remaining, places_remaining_word=places_remaining_word,
             routes_remaining=routes_remaining, routes_remaining_word=routes_remaining_word,
+            articles_remaining=articles_remaining, articles_remaining_word=articles_remaining_word,
             wizard_categories=wizard_categories, doors=doors, page=_site_page(db, "home"),
         ),
     )
+    _HOME_CACHE["body"] = response.body
+    _HOME_CACHE["at"] = time.monotonic()
+    return response
 
 
 # ─────────────────────────────────────────────

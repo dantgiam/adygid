@@ -24,7 +24,7 @@
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    <div class="detail-hero" style="{% if place.cover %}background-image:url('{{ place.cover }}'){% endif %}"></div>
+    <div class="detail-hero">{% if place.cover %}<img class="hero-img" src="{{ place.cover }}" alt="{{ place.name }}" fetchpriority="high" decoding="async">{% endif %}</div>
 
     <div class="detail-grid">
       <div class="detail-body">

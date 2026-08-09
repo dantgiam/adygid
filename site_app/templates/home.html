@@ -69,6 +69,7 @@
     </div>
     <div class="grid">
       {% for a in articles %}{{ cards.article_card(a) }}{% endfor %}
+      {% if articles_remaining %}{{ cards.more_tile(articles_remaining, articles_remaining_word, '/stati') }}{% endif %}
     </div>
   </div>
 </section>

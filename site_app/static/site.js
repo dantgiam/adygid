@@ -346,9 +346,13 @@ document.querySelectorAll("form.filters").forEach((form) => {
 
       grid.innerHTML = data.map((item) => {
         const url = item.kind === "route" ? `/marshruty/${item.id}` : `/mesta/${item.id}`;
-        const cover = item.cover ? `background-image:url('${item.cover}')` : "";
+        // Разметка обложки — та же, что у серверных карточек (_cards.html:cover_img):
+        // картинка внутри .cover, чтобы работала ленивая загрузка и object-fit.
+        const cover = item.cover
+          ? `<img class="cover-img" src="${escapeHtml(item.cover)}" alt="" loading="lazy" decoding="async">`
+          : "";
         return `<a class="card" href="${url}">
-          <div class="cover" style="${cover}"></div>
+          <div class="cover">${cover}</div>
           <div class="body">
             <h3>${escapeHtml(item.name)}</h3>
             ${item.excerpt ? `<p class="excerpt">${escapeHtml(item.excerpt)}</p>` : ""}

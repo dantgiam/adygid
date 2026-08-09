@@ -52,6 +52,15 @@ async def _cache_policy(request, call_next):
     переходе между страницами — именно это делало навигацию медленной."""
     response = await call_next(request)
     path = request.url.path
+
+    # Любой не-GET запрос — это правка через админку (или лайк, который тоже
+    # виден на главной). Сбрасываем готовый HTML главной здесь, одним местом,
+    # вместо того чтобы дёргать сброс из двух десятков эндпоинтов по отдельности.
+    # Именно после call_next: до него правка ещё не записана, и параллельный
+    # заход на главную успел бы закэшировать старое содержимое заново.
+    if request.method != "GET":
+        from site_app.router import invalidate_home_cache
+        invalidate_home_cache()
     # Стили и скрипты сайта подключаются с ?v=<версия>, фото загружаются под
     # уникальными именами — их можно смело кэшировать надолго. Файлы админки
     # сюда не попадают: она правится часто, а открывает её один человек.
@@ -424,6 +433,9 @@ ALLOWED_EXT = {"jpg": "JPEG", "jpeg": "JPEG", "png": "PNG", "webp": "WEBP"}
 CONTENT_TYPES = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp"}
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 THUMB_SIZE = (480, 480)
+# Потолок для «оригинала»: под обложку детальной страницы с запасом на retina.
+MAX_IMAGE_SIZE = (1920, 1920)
+WEBP_QUALITY = 82
 _PUBLIC_URL_PREFIX = f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/"
 
 
@@ -476,7 +488,7 @@ async def upload_photo(file: UploadFile = File(...), _: bool = Depends(require_a
         raise HTTPException(400, "Файл слишком большой (максимум 8MB)")
 
     name = uuid.uuid4().hex
-    content_type = CONTENT_TYPES[ext]
+    out_ext, content_type = ext, CONTENT_TYPES[ext]
 
     thumb_data = data
     try:
@@ -487,23 +499,34 @@ async def upload_photo(file: UploadFile = File(...), _: bool = Depends(require_a
         # (Pillow не переносит EXIF в .save()) и превью показывает сырой кадр
         # боком: широкое фото на обложке карточки вдруг становится вертикальным.
         img = ImageOps.exif_transpose(img)
-        if ext in ("jpg", "jpeg") and img.mode != "RGB":
+        if img.mode not in ("RGB", "RGBA"):
             img = img.convert("RGB")
 
+        # Кадр с телефона — это 4000×3000 и мегабайты, а самое крупное место на
+        # сайте под фото — обложка детальной страницы, меньше 1600 CSS px даже
+        # на большом мониторе. Раньше оригинал уходил в хранилище как есть, и
+        # человек с телефона качал 5 МБ ради картинки в 460 px высотой.
+        img.thumbnail(MAX_IMAGE_SIZE, Image.LANCZOS)
+
+        # WebP независимо от исходного формата: он и сам по себе легче JPEG,
+        # и снимает главную беду PNG — рисованная обложка в PNG весила 357 КБ
+        # даже в виде миниатюры 480 px, в WebP тот же кадр занимает 41 КБ.
+        out_ext, content_type = "webp", CONTENT_TYPES["webp"]
         orig_buf = io.BytesIO()
-        img.save(orig_buf, ALLOWED_EXT[ext])
+        img.save(orig_buf, "WEBP", quality=WEBP_QUALITY, method=6)
         data = orig_buf.getvalue()
 
         thumb_img = img.copy()
         thumb_img.thumbnail(THUMB_SIZE)
         thumb_buf = io.BytesIO()
-        thumb_img.save(thumb_buf, ALLOWED_EXT[ext])
+        thumb_img.save(thumb_buf, "WEBP", quality=WEBP_QUALITY, method=6)
         thumb_data = thumb_buf.getvalue()
     except Exception:
+        # Не смогли разобрать картинку — кладём файл как прислали, без потерь
         pass
 
-    orig_object = f"{name}.{ext}"
-    thumb_object = f"{name}_thumb.{ext}"
+    orig_object = f"{name}.{out_ext}"
+    thumb_object = f"{name}_thumb.{out_ext}"
     await _storage_upload(orig_object, data, content_type)
     await _storage_upload(thumb_object, thumb_data, content_type)
 
