@@ -12,8 +12,24 @@
    пройденного, справа фото автора — оно и есть доказательство «прошёл сам»,
    а рандом уехал ссылкой «Ткнуть наугад» к блоку «Куда вы едете?». #}
 <section class="hero">
+  {# Фото идёт в разметке раньше текста: на телефоне оно уходит во float и
+     текст обтекает его сбоку, а float работает только с тем, что стоит после
+     него. На широком экране порядок не важен — обе колонки расставлены по
+     grid-column явно, поэтому фото по-прежнему справа. #}
   <div class="wrap hero-grid">
-    <div>
+    {% if page.cover %}
+    <figure class="hero-photo">
+      <img src="{{ page.cover }}" alt="{{ page.lead_extra or 'Автор сайта' }}" style="{{ page.cover_style }}" width="800" height="800">
+      {% if page.lead_extra %}
+      <figcaption class="hero-photo-badge">
+        {{ page.lead_extra }}
+        <img class="hero-photo-mark" src="/assets/favicon-32x32.png" alt="" width="22" height="22">
+      </figcaption>
+      {% endif %}
+    </figure>
+    {% endif %}
+
+    <div class="hero-col">
       <p class="eyebrow">{{ page.eyebrow }}</p>
       <h1 class="page-title">{{ page.title }}</h1>
       {% if page.lead %}<p class="about-text">{{ page.lead }}</p>{% endif %}
@@ -29,18 +45,6 @@
         <a class="btn btn-ghost" href="/mesta">Все места</a>
       </div>
     </div>
-
-    {% if page.cover %}
-    <figure class="hero-photo">
-      <img src="{{ page.cover }}" alt="{{ page.lead_extra or 'Автор сайта' }}" style="{{ page.cover_style }}" width="800" height="1000">
-      {% if page.lead_extra %}
-      <figcaption class="hero-photo-badge">
-        {{ page.lead_extra }}
-        <img class="hero-photo-mark" src="/assets/favicon-32x32.png" alt="" width="22" height="22">
-      </figcaption>
-      {% endif %}
-    </figure>
-    {% endif %}
   </div>
 </section>
 

@@ -9,8 +9,16 @@
    их там ещё не завели — падаем на константу CLUB_URL, как было раньше. #}
 {% set max_href = page.max_url or club_url %}
 <section class="hero">
+  {# Фото перед текстом — как на главной: на телефоне оно уходит во float
+     и текст обтекает его, а на широком экране колонки расставлены явно. #}
   <div class="wrap hero-grid">
-    <div>
+    {% if page.cover %}
+    <figure class="hero-photo">
+      <img src="{{ page.cover }}" alt="Автор клуба АдыГид" style="{{ page.cover_style }}" width="800" height="800">
+    </figure>
+    {% endif %}
+
+    <div class="hero-col">
       <p class="eyebrow">{{ page.eyebrow }}</p>
       <h1 class="page-title">{{ page.title }}</h1>
       {% if page.lead %}<p class="about-text">{{ page.lead }}</p>{% endif %}
@@ -29,12 +37,6 @@
         {% endif %}
       </div>
     </div>
-
-    {% if page.cover %}
-    <figure class="hero-photo">
-      <img src="{{ page.cover }}" alt="Автор клуба АдыГид" style="{{ page.cover_style }}" width="800" height="800">
-    </figure>
-    {% endif %}
   </div>
 </section>
 

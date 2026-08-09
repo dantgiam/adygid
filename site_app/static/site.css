@@ -181,8 +181,12 @@ nav.main-nav a.active { color: var(--accent-dark); background: var(--accent-soft
 
 /* ── Hero / about ──────────────────────────────── */
 .hero { padding: 48px 0 40px; }
+/* Колонки расставлены явно, а не порядком в разметке: фото стоит в HTML перед
+   текстом (иначе на телефоне не работает обтекание), но на широком экране
+   должно остаться справа. */
 .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: start; }
-@media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; } }
+.hero-col { grid-column: 1; grid-row: 1; min-width: 0; }
+.hero-grid > .hero-photo { grid-column: 2; grid-row: 1; }
 .eyebrow {
   font-family: var(--font-mono); font-size: 14px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
   color: var(--accent); margin: 0 0 12px;
@@ -246,10 +250,43 @@ h1.article-title {
   object-fit: cover;
 }
 
-/* В одну колонку вертикальный портрет во всю ширину экрана занял бы почти
-   весь первый скролл — ограничиваем, чтобы под ним сразу читались двери. */
+/* На телефоне фото не отдельным блоком под текстом (так первый экран уходил
+   почти целиком на него и приходилось долго листать), а маленьким квадратом
+   в углу, который текст обтекает. Плашка с подписью при этом переезжает под
+   кадр: поверх снимка в 150 px она бы его закрыла. */
 @media (max-width: 860px) {
-  .hero-photo { max-width: 320px; }
+  .hero { padding: 26px 0 30px; }
+  .hero-grid { display: block; }
+  .hero-photo {
+    float: right; width: 42%; max-width: 168px;
+    margin: 3px 0 10px 16px;
+    /* Рамку и скругление забирает сама картинка — фигуре нужно место под
+       подпись, а с overflow:hidden и жёстким квадратом её бы срезало. */
+    aspect-ratio: auto; overflow: visible;
+    border: none; box-shadow: none; background: none; border-radius: 0;
+  }
+  .hero-photo > img {
+    aspect-ratio: 1 / 1; height: auto;
+    border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  .hero-photo-badge {
+    position: static; max-width: none; margin-top: 8px; padding: 0;
+    gap: 6px; align-items: flex-start;
+    background: none; backdrop-filter: none; box-shadow: none;
+    font-size: 11.5px; font-weight: 600; line-height: 1.3; color: var(--text-muted);
+  }
+  .hero-photo-badge .hero-photo-mark { width: 16px; height: 16px; border-radius: 4px; }
+
+  h1.page-title { font-size: clamp(25px, 6.6vw, 34px); margin-bottom: 12px; }
+  .about-text { font-size: 15.5px; }
+  /* Флекс-контейнер float не обтекает — он встаёт рядом и жмётся в остаток
+     ширины. Счётчику это ломало бы верхнюю линейку, кнопкам — размер, поэтому
+     оба пропускают фото и идут во всю ширину под ним. Обычно к этому месту
+     float уже кончился, и clear ничего не двигает. */
+  .hero-stats { clear: right; margin: 16px 0 18px; padding-top: 14px; font-size: 12.5px; gap: 6px 16px; }
+  .hero-stats b { font-size: 20px; }
+  .hero-ctas { clear: right; }
+  .hero-ctas .btn { flex: 1 1 auto; justify-content: center; }
 }
 
 /* ── Section headings ─────────────────────────────*/
