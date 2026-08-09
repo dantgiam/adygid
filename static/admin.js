@@ -690,6 +690,11 @@ const COVER_FRAMES = {
   tile: [
     { label: 'Плитка на главной', ratio: '4 / 5', width: 150 },
   ],
+  // У сценария карточки нет — обложка живёт только шапкой его страницы,
+  // и вторая рамка «в карточке» вводила в заблуждение.
+  hero: [
+    { label: 'В шапке страницы', ratio: '12 / 5', width: 300 },
+  ],
   photo: [
     { label: 'В карточке', ratio: '3 / 2', width: 190 },
     { label: 'В шапке страницы', ratio: '12 / 5', width: 270 },
@@ -980,8 +985,13 @@ async function saveArticle() {
   const title = document.getElementById('a-title').value.trim();
   if (!title) { toast('Введите заголовок', true); return; }
 
+  // Если новый файл не выбирали, миниатюру берём прежнюю. Раньше здесь было
+  // просто null, и любое сохранение — хоть правка заголовка — стирало
+  // cover_thumb_url: карточки начинали грузить оригинал вместо превью.
+  const editingArticle = articles.find(x => x.id === editingArticleId) || {};
   let coverUrl = document.getElementById('a-cover-url').value.trim();
-  let coverThumb = null;
+  let coverThumb = coverUrl && coverUrl === (editingArticle.cover_url || '')
+    ? (editingArticle.cover_thumb_url || null) : null;
   const fileEl = document.getElementById('a-cover-file');
   if (fileEl.files.length) {
     const up = await uploadFile(fileEl.files[0]);
@@ -2386,7 +2396,7 @@ function openScenarioForm(id) {
   document.getElementById('sc-articles').innerHTML = pickerHtml(articles, v.featured_article_ids || [], a => a.title);
   document.getElementById('sc-desc-slot').innerHTML = descEditorHtml('Вступительный текст');
 
-  setupCoverPreview('sc-cover-file', 'sc-cover-url', 'sc-cover-preview', 'sc-cover-focus');
+  setupCoverPreview('sc-cover-file', 'sc-cover-url', 'sc-cover-preview', 'sc-cover-focus', 'hero');
   setupCoverPreview('sc-tile-cover-file', 'sc-tile-cover-url', 'sc-tile-cover-preview', 'sc-tile-cover-focus', 'tile');
   initDescEditor(v.lead || '', 'scenario:' + (s ? s.id : 'new'));
   autoGrow(document.getElementById('sc-title'));
@@ -2412,8 +2422,13 @@ async function saveScenario() {
   const title = document.getElementById('sc-title').value.trim();
   if (!door || !title) { toast('Заполните подпись и заголовок', true); return; }
 
+  // Та же история, что у статьи: без выбора нового файла миниатюра
+  // затиралась в null, и плитка сценария на главной начинала тянуть
+  // оригинал — именно поэтому обложка «Впервые в Адыгею» весила 383 КБ.
+  const editingScenario = scenarios.find(x => x.id === editingScenarioId) || {};
   let coverUrl = document.getElementById('sc-cover-url').value.trim();
-  let coverThumb = null;
+  let coverThumb = coverUrl && coverUrl === (editingScenario.cover_url || '')
+    ? (editingScenario.cover_thumb_url || null) : null;
   const coverFileEl = document.getElementById('sc-cover-file');
   if (coverFileEl.files.length) {
     const up = await uploadFile(coverFileEl.files[0]);
@@ -2421,7 +2436,8 @@ async function saveScenario() {
   }
 
   let tileCoverUrl = document.getElementById('sc-tile-cover-url').value.trim();
-  let tileCoverThumb = null;
+  let tileCoverThumb = tileCoverUrl && tileCoverUrl === (editingScenario.tile_cover_url || '')
+    ? (editingScenario.tile_cover_thumb_url || null) : null;
   const tileCoverFileEl = document.getElementById('sc-tile-cover-file');
   if (tileCoverFileEl.files.length) {
     const up = await uploadFile(tileCoverFileEl.files[0]);

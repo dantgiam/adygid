@@ -18,8 +18,8 @@
           <h3>{{ d.label }}</h3>
           <p class="excerpt">{{ d.lead }}</p>
           <div class="tags">
-            {% if d.places %}<span class="tag">{{ d.places }} мест</span>{% endif %}
-            {% if d.routes %}<span class="tag">{{ d.routes }} маршрут{{ '' if d.routes == 1 else ('а' if d.routes < 5 else 'ов') }}</span>{% endif %}
+            {% if d.places %}<span class="tag">{{ places_label(d.places) }}</span>{% endif %}
+            {% if d.routes %}<span class="tag">{{ routes_label(d.routes) }}</span>{% endif %}
           </div>
         </div>
       </a>

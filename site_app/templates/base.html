@@ -128,7 +128,7 @@
 <footer class="site-footer">
   <div class="wrap">
     <div class="footer-stats">
-      На сайте собрано <b>{{ footer_stats.places }}</b> мест и <b>{{ footer_stats.trails }}</b> маршрутов
+      На сайте собрано {{ places_label(footer_stats.places) }} и {{ routes_label(footer_stats.trails) }}
     </div>
     <a class="footer-faq" href="/voprosy">Частые вопросы</a>
     <div class="footer-club">Живые впечатления и отзывы — в <a href="/klub">клубе АдыГид в MAX →</a></div>

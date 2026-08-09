@@ -69,6 +69,15 @@ def _abs_url(url: Optional[str]) -> str:
 
 templates.env.filters["abs_url"] = _abs_url
 
+
+def _count_label(n: int, one: str, few: str, many: str) -> str:
+    """«3 места», «2 маршрута» — число вместе с правильной формой слова."""
+    return f"{n} {_ru_plural(n, one, few, many)}"
+
+
+templates.env.globals["places_label"] = lambda n: _count_label(n, "место", "места", "мест")
+templates.env.globals["routes_label"] = lambda n: _count_label(n, "маршрут", "маршрута", "маршрутов")
+
 _POPULARITY_ORDER = case((Checkpoint.popularity == "top", 0), (Checkpoint.popularity == "popular", 1), else_=2)
 _POPULARITY_ORDER_TRAIL = case((Trail.popularity == "top", 0), (Trail.popularity == "popular", 1), else_=2)
 
@@ -1409,13 +1418,18 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
 @router.get("/okrugi")
 def districts_index(request: Request, db: Session = Depends(get_db)):
     # Считаем всё двумя групповыми запросами, а не парой на каждый округ.
+    # is_published обязателен: без него в счётчик попадали черновики, и округ
+    # обещал «12 мест», а на его странице открывалось четыре — списки ниже
+    # фильтруются через _with_place_relations, а этот подсчёт шёл мимо.
     place_counts = dict(db.execute(
         select(Checkpoint.district, func.count())
-        .where(Checkpoint.show_as_place == True)
+        .where(Checkpoint.show_as_place == True, Checkpoint.is_published == True)
         .group_by(Checkpoint.district)
     ).all())
     route_counts = dict(db.execute(
-        select(Trail.district, func.count()).group_by(Trail.district)
+        select(Trail.district, func.count())
+        .where(Trail.is_published == True)
+        .group_by(Trail.district)
     ).all())
 
     items = []
