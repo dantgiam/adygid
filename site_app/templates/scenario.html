@@ -17,7 +17,7 @@
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    {% if scenario.cover_url %}<div class="detail-hero"><img class="hero-img" src="{{ scenario.cover_url }}" alt="{{ scenario.title }}" fetchpriority="high" decoding="async"></div>{% endif %}
+    {% if scenario.cover_url %}<div class="detail-hero"><img class="hero-img" style="{{ scenario.cover_style }}" src="{{ scenario.cover_url }}" alt="{{ scenario.title }}" fetchpriority="high" decoding="async"></div>{% endif %}
     <p class="eyebrow"><a href="/kuda" style="color:inherit">Куда поехать</a></p>
     <h1 class="page-title">{{ scenario.title }}</h1>
 

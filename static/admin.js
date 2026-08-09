@@ -709,8 +709,23 @@ function setupCoverPreview(fileId, urlId, previewId, focusId, kind) {
   const focusEl = focusId ? document.getElementById(focusId) : null;
   const frames = COVER_FRAMES[kind || 'cover'] || COVER_FRAMES.cover;
 
-  // Рамки строим здесь, а не в разметке: их состав зависит от того, где
-  // обложка будет показана, и держать это в трёх местах шаблона незачем.
+  // Кадрирование хранится одной строкой: «50% 30%» — точка фокуса,
+  // «50% 30% 1.4» — она же плюс приближение. Разбираем и собираем здесь,
+  // на сайте её так же читает _crop_style в site_app/router.py.
+  const readCrop = () => {
+    const parts = ((focusEl && focusEl.value) || '').split(/\s+/).filter(Boolean);
+    return {
+      x: parseFloat(parts[0]) || 50,
+      y: parseFloat(parts[1]) || 50,
+      zoom: parts.length > 2 ? (parseFloat(parts[2]) || 1) : 1,
+    };
+  };
+  const writeCrop = (c) => {
+    if (!focusEl) return;
+    const base = `${Math.round(c.x)}% ${Math.round(c.y)}%`;
+    focusEl.value = c.zoom > 1.001 ? `${base} ${c.zoom.toFixed(2)}` : base;
+  };
+
   if (boxEl.dataset.framesBuilt !== previewId) {
     boxEl.dataset.framesBuilt = previewId;
     boxEl.classList.add('cover-frames');
@@ -718,13 +733,30 @@ function setupCoverPreview(fileId, urlId, previewId, focusId, kind) {
       <figure class="cover-frame-wrap" style="width:${f.width}px">
         <div class="cover-frame" style="aspect-ratio:${f.ratio}"><img alt=""></div>
         <figcaption>${f.label}</figcaption>
-      </figure>`).join('');
+      </figure>`).join('') + (focusEl ? `
+      <div class="cover-zoom">
+        <label>Приближение</label>
+        <input type="range" class="cover-zoom-range" min="100" max="300" step="5" value="100">
+        <span class="cover-zoom-value">100%</span>
+        <button type="button" class="btn btn-ghost btn-sm cover-zoom-reset">Сбросить</button>
+      </div>` : '');
   }
   const imgs = Array.from(boxEl.querySelectorAll('.cover-frame img'));
+  const rangeEl = boxEl.querySelector('.cover-zoom-range');
+  const valueEl = boxEl.querySelector('.cover-zoom-value');
 
-  function applyFocus() {
-    const pos = (focusEl && focusEl.value) || '50% 50%';
-    imgs.forEach(im => { im.style.objectPosition = pos; });
+  function applyCrop() {
+    const c = readCrop();
+    const pos = `${c.x}% ${c.y}%`;
+    imgs.forEach(im => {
+      im.style.objectPosition = pos;
+      // Приближаем от той же точки, что выбрана фокусом, — иначе зум тянул бы
+      // кадр к центру рамки и уводил от выбранного места.
+      im.style.transform = c.zoom > 1.001 ? `scale(${c.zoom})` : '';
+      im.style.transformOrigin = pos;
+    });
+    if (rangeEl) rangeEl.value = String(Math.round(c.zoom * 100));
+    if (valueEl) valueEl.textContent = Math.round(c.zoom * 100) + '%';
   }
 
   if (focusEl && !boxEl.dataset.dragBound) {
@@ -734,10 +766,11 @@ function setupCoverPreview(fileId, urlId, previewId, focusId, kind) {
     const setFrom = (e) => {
       if (!dragging) return;
       const r = dragging.getBoundingClientRect();
-      const x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
-      const y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
-      focusEl.value = `${Math.round(x)}% ${Math.round(y)}%`;
-      applyFocus();
+      const c = readCrop();
+      c.x = Math.min(100, Math.max(0, ((e.clientX - r.left) / r.width) * 100));
+      c.y = Math.min(100, Math.max(0, ((e.clientY - r.top) / r.height) * 100));
+      writeCrop(c);
+      applyCrop();
     };
     boxEl.addEventListener('pointerdown', (e) => {
       const frame = e.target.closest('.cover-frame');
@@ -754,6 +787,31 @@ function setupCoverPreview(fileId, urlId, previewId, focusId, kind) {
       }
       dragging = null;
     });
+    if (rangeEl) {
+      rangeEl.addEventListener('input', () => {
+        const c = readCrop();
+        c.zoom = Number(rangeEl.value) / 100;
+        writeCrop(c);
+        applyCrop();
+      });
+    }
+    const resetEl = boxEl.querySelector('.cover-zoom-reset');
+    if (resetEl) {
+      resetEl.addEventListener('click', () => {
+        writeCrop({ x: 50, y: 50, zoom: 1 });
+        applyCrop();
+      });
+    }
+    // Колесо над рамкой — привычный способ приблизить, без него люди ищут
+    // ползунок глазами каждый раз.
+    boxEl.addEventListener('wheel', (e) => {
+      if (!e.target.closest('.cover-frame')) return;
+      e.preventDefault();
+      const c = readCrop();
+      c.zoom = Math.min(3, Math.max(1, c.zoom + (e.deltaY < 0 ? 0.1 : -0.1)));
+      writeCrop(c);
+      applyCrop();
+    }, { passive: false });
   }
 
   const update = () => {
@@ -762,7 +820,7 @@ function setupCoverPreview(fileId, urlId, previewId, focusId, kind) {
     else if (urlEl.value.trim()) src = urlEl.value.trim();
     boxEl.hidden = !src;
     imgs.forEach(im => { if (src) im.src = src; else im.removeAttribute('src'); });
-    applyFocus();
+    applyCrop();
   };
   if (!fileEl.dataset.previewBound) {
     fileEl.addEventListener('change', update);
@@ -1299,6 +1357,7 @@ function openRouteForm(id) {
   document.getElementById('rt-name').value = v.name || '';
   document.getElementById('rt-category').innerHTML = categoryOptionsHtml('trail', v.category_id);
   document.getElementById('rt-duration').value = v.duration_minutes || '';
+  document.getElementById('rt-yandex-url').value = v.yandex_url || '';
   document.getElementById('rt-desc-slot').innerHTML = descEditorHtml('Описание');
   document.getElementById('rt-criteria-slot').innerHTML = criteriaHtml(v);
   document.getElementById('rt-map-hint').style.display = t ? '' : 'none';
@@ -1330,6 +1389,7 @@ async function saveRoute() {
     name,
     category_id: parseInt(document.getElementById('rt-category').value, 10) || null,
     duration_minutes: parseInt(document.getElementById('rt-duration').value, 10) || null,
+    yandex_url: document.getElementById('rt-yandex-url').value.trim(),
     description: readDescEditor(),
   }, readCriteria());
 
@@ -1897,6 +1957,7 @@ function openPointForm(id, creating) {
   document.getElementById('pl-name').value = v.name || '';
   document.getElementById('pl-category').innerHTML = categoryOptionsHtml('checkpoint', v.category_id);
   document.getElementById('pl-duration').value = v.duration_minutes || '';
+  document.getElementById('pl-yandex-url').value = v.yandex_url || '';
   document.getElementById('pl-trail').innerHTML =
     `<option value="">— отдельное место —</option>` +
     trails.map(t => `<option value="${t.id}" ${t.id === trailId ? 'selected' : ''}>${escHtml(t.name)}</option>`).join('');
@@ -2028,6 +2089,7 @@ async function savePlace() {
     name: document.getElementById('pl-name').value.trim(),
     category_id: parseInt(document.getElementById('pl-category').value, 10) || null,
     duration_minutes: parseInt(document.getElementById('pl-duration').value, 10) || null,
+    yandex_url: document.getElementById('pl-yandex-url').value.trim(),
     description: readDescEditor(),
   }, readCriteria());
 

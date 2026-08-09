@@ -13,7 +13,7 @@
     <div class="grid">
       {% for d in districts_list %}
       <a class="card district-card" href="{{ d.url }}">
-        {% if d.cover %}<div class="cover"><img class="cover-img" style="object-position: {{ d.cover_focus }}" src="{{ d.cover }}" alt="" loading="lazy" decoding="async"></div>{% endif %}
+        {% if d.cover %}<div class="cover"><img class="cover-img" style="{{ d.cover_style }}" src="{{ d.cover }}" alt="" loading="lazy" decoding="async"></div>{% endif %}
         <div class="body">
           <h3>{{ d.label }}</h3>
           <p class="excerpt">{{ d.lead }}</p>

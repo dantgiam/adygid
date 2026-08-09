@@ -419,10 +419,32 @@ def _cover_of(photos) -> Optional[str]:
     return photos[0].url if photos else None
 
 
+# Кадрирование хранится одной строкой: «50% 30%» — только точка фокуса,
+# «50% 30% 1.4» — она же плюс приближение. Два токена вместо трёх остались от
+# записей, сделанных до появления зума, и читаются как масштаб 1.
+def _crop_style(value: Optional[str]) -> str:
+    """Готовый inline-стиль кадрирования для картинки внутри обрезающего блока.
+
+    Приближаем от той же точки, что выбрана фокусом (transform-origin), — иначе
+    зум тянул бы кадр к центру блока и уводил от того, что автор выбрал."""
+    parts = (value or "").split()
+    if len(parts) < 2:
+        return ""
+    position = f"{parts[0]} {parts[1]}"
+    style = f"object-position: {position}"
+    if len(parts) > 2:
+        try:
+            zoom = float(parts[2])
+        except ValueError:
+            zoom = 1.0
+        if zoom > 1.001:
+            style += f"; transform: scale({zoom:.2f}); transform-origin: {position}"
+    return style
+
+
 def _focus_of(photos) -> str:
-    """object-position первой фотографии: чем обрезать кадр под формат карточки
-    решает автор в админке, по умолчанию центр."""
-    return (photos[0].focus if photos else None) or "50% 50%"
+    """Кадрирование первой фотографии — она и есть обложка карточки."""
+    return _crop_style(photos[0].focus if photos else None)
 
 
 def _thumb_of(photos) -> Optional[str]:
@@ -464,11 +486,16 @@ def _price_label(is_paid: bool, price_note: Optional[str]) -> str:
 
 
 def _yandex_point_url(cp: Checkpoint) -> str:
+    # Ручная ссылка из админки — приоритетнее автосборки (см. Checkpoint.yandex_url).
+    if cp.yandex_url:
+        return cp.yandex_url
     shp = to_shape(cp.geom)
     return f"https://yandex.ru/maps/?rtext=~{shp.y:.6f},{shp.x:.6f}&rtt=auto"
 
 
 def _yandex_route_url(trail: Trail) -> Optional[str]:
+    if trail.yandex_url:
+        return trail.yandex_url
     ordered = sorted(trail.checkpoints, key=lambda c: c.order_index)
     pts = []
     for cp in ordered:
@@ -702,7 +729,7 @@ def _place_card_dict(cp: Checkpoint) -> dict:
         "name": cp.name,
         "excerpt": _excerpt(cp.description),
         "cover": _thumb_of(cp.photos),
-        "cover_focus": _focus_of(cp.photos),
+        "cover_style": _focus_of(cp.photos),
         "popularity": cp.popularity,
         "district_label": _DISTRICT_LABELS.get(cp.district),
         "category": _category_lite(cp.category),
@@ -718,7 +745,7 @@ def _route_card_dict(t: Trail) -> dict:
         "name": t.name,
         "excerpt": _excerpt(t.description),
         "cover": _thumb_of(t.photos),
-        "cover_focus": _focus_of(t.photos),
+        "cover_style": _focus_of(t.photos),
         "popularity": t.popularity,
         "district_label": _DISTRICT_LABELS.get(t.district),
         "category": _category_lite(t.category),
@@ -734,7 +761,7 @@ def _article_card_dict(a: Article) -> dict:
         "title": a.title,
         "excerpt": a.excerpt,
         "cover": a.cover_thumb_url or a.cover_url,
-        "cover_focus": a.cover_focus or "50% 50%",
+        "cover_style": _crop_style(a.cover_focus),
         "district_label": _DISTRICT_LABELS.get(a.district),
     }
 
@@ -780,7 +807,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "excerpt": _excerpt(cp.description, 200),
         "description_html": description_html,
         "cover": _cover_of(cp.photos),
-        "cover_focus": _focus_of(cp.photos),
+        "cover_style": _focus_of(cp.photos),
         "photos": [p.url for p in cp.photos],
         "gallery": _gallery_of(cp.photos),
         "district_label": _DISTRICT_LABELS.get(cp.district),
@@ -816,7 +843,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         "excerpt": _excerpt(t.description, 200),
         "description_html": description_html,
         "cover": _cover_of(t.photos),
-        "cover_focus": _focus_of(t.photos),
+        "cover_style": _focus_of(t.photos),
         "gallery": _gallery_of(t.photos),
         "district_label": _DISTRICT_LABELS.get(t.district),
         "category": _category_lite(t.category),
@@ -889,7 +916,7 @@ def _districts(db: Session) -> list:
         {
             "slug": d.slug, "label": d.name, "lead": d.lead or "", "facts": d.facts or [],
             "cover": d.cover_url, "cover_thumb": d.cover_thumb_url or d.cover_url,
-            "cover_focus": d.cover_focus or "50% 50%",
+            "cover_style": _crop_style(d.cover_focus),
             "published": d.is_published,
         }
         for d in rows
@@ -1392,6 +1419,7 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "title": sc.title,
         "door": sc.door,
         "cover_url": sc.cover_url,
+        "cover_style": _crop_style(sc.cover_focus),
         "lead": lead_html,
         "toc": toc if sum(1 for i in toc if i["level"] == 2) >= 3 else [],
         # Вопросы из вставленных наборов раньше собирались и молча терялись:
@@ -1483,6 +1511,7 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "lead": page["lead"],
         "facts": page.get("facts", []),
         "cover": page["cover"],
+        "cover_style": page["cover_style"],
         "places": places,
         "routes": routes,
         "articles": articles,
@@ -1560,6 +1589,7 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "excerpt": a.excerpt or _excerpt(a.body, 200),
         "district_label": _DISTRICT_LABELS.get(a.district),
         "cover_url": a.cover_url,
+        "cover_style": _crop_style(a.cover_focus),
         "body_html": body_html,
         "toc": toc if sum(1 for i in toc if i["level"] == 2) >= 3 else [],
         "faq": faq,

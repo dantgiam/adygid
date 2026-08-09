@@ -30,7 +30,7 @@
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    {% if article.cover_url %}<div class="detail-hero"><img class="hero-img" style="object-position: {{ article.cover_focus or '50% 50%' }}" src="{{ article.cover_url }}" alt="{{ article.title }}" fetchpriority="high" decoding="async"></div>{% endif %}
+    {% if article.cover_url %}<div class="detail-hero"><img class="hero-img" style="{{ article.cover_style }}" src="{{ article.cover_url }}" alt="{{ article.title }}" fetchpriority="high" decoding="async"></div>{% endif %}
     <p class="eyebrow">Статья{% if article.district_label %} · {{ article.district_label }}{% endif %}</p>
     <h1 class="article-title">{{ article.title }}</h1>
 

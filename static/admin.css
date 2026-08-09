@@ -123,7 +123,7 @@ a { color: var(--accent); }
 /* ── Формы ────────────────────────────────────────────────────── */
 .field { margin-bottom: 14px; }
 .field > label { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
-.field input[type=text], .field input[type=number], .field input:not([type]), .field select, .field textarea {
+.field input[type=text], .field input[type=number], .field input[type=url], .field input:not([type]), .field select, .field textarea {
   width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px;
   background: var(--card); outline: none; transition: border-color .15s;
 }
@@ -519,9 +519,15 @@ a { color: var(--accent); }
    видел готовый результат, а не подряд идущие картинки без подписей.
    Блок нередактируемый (contenteditable=false) — правка через переливку. */
 .ql-editor .gallery-embed { margin: 22px 0; user-select: none; }
+/* width:0 + min-width:100% — лента не участвует в расчёте «сколько места мне
+   нужно», а просто занимает ширину колонки и прокручивается внутри себя.
+   Без этого кадры произвольной ширины растягивали сам редактор: блок коллажа
+   становился шире страницы, и прокрутка не появлялась. */
 .ql-editor .editor-gallery-track {
   display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; margin: 0 -2px;
+  width: 0; min-width: 100%;
 }
+.ql-editor .gallery-embed { max-width: 100%; }
 /* Кадры держат свои пропорции при общей высоте — ровно так же, как на сайте
    (site.css: .article-gallery-item). Раньше редактор резал всё под 3:4, и
    автор видел не тот коллаж, который получится у гостя. */
@@ -709,3 +715,10 @@ a { color: var(--accent); }
 
 /* Кнопка кадрирования — только у первого фото, оно и есть обложка */
 .photo .photo-crop { width: 100%; margin-top: 6px; }
+
+/* Приближение кадра — ползунок под рамками предпросмотра */
+.cover-zoom { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 4px; }
+.cover-zoom label { font-size: 12px; color: var(--muted); flex: none; margin: 0; }
+.cover-zoom-range { flex: 1; max-width: 220px; }
+.cover-zoom-value { font-size: 12px; color: var(--muted); min-width: 40px; font-variant-numeric: tabular-nums; }
+.cover-frames-draggable .cover-frame img { transition: transform .08s linear; }

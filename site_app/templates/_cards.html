@@ -14,15 +14,15 @@
    Фоновые картинки браузер грузит все сразу, как только доходит до элемента:
    на главной это 20+ файлов ещё до того, как человек начал скроллить.
    Обычная картинка с lazy грузится, только когда подъезжает к экрану. #}
-{% macro cover_img(src, focus) %}
+{% macro cover_img(src, style) %}
 {% if src %}<img class="cover-img" src="{{ src }}" alt="" loading="lazy" decoding="async"
-  {%- if focus and focus != '50% 50%' %} style="object-position: {{ focus }}"{% endif %}>{% endif %}
+  {%- if style %} style="{{ style }}"{% endif %}>{% endif %}
 {% endmacro %}
 
 {% macro place_card(item) %}
 <a class="card" href="{{ item.url }}">
   <div class="cover">
-    {{ cover_img(item.cover, item.cover_focus) }}
+    {{ cover_img(item.cover, item.cover_style) }}
     {% if item.popularity == 'top' %}<span class="top-badge">ТОП</span>{% endif %}
     <button type="button" class="fav-btn fav-btn-card" data-type="place" data-id="{{ item.id }}" aria-label="Добавить в избранное" onclick="event.preventDefault()">{{ fav_icon() }}</button>
   </div>
@@ -44,7 +44,7 @@
 {% macro route_card(item) %}
 <a class="card" href="{{ item.url }}">
   <div class="cover">
-    {{ cover_img(item.cover, item.cover_focus) }}
+    {{ cover_img(item.cover, item.cover_style) }}
     {% if item.popularity == 'top' %}<span class="top-badge">ТОП</span>{% endif %}
     <button type="button" class="fav-btn fav-btn-card" data-type="route" data-id="{{ item.id }}" aria-label="Добавить в избранное" onclick="event.preventDefault()">{{ fav_icon() }}</button>
   </div>
@@ -92,7 +92,7 @@
 
 {% macro article_card(item) %}
 <a class="card article-card" href="{{ item.url }}">
-  <div class="cover">{{ cover_img(item.cover, item.cover_focus) }}</div>
+  <div class="cover">{{ cover_img(item.cover, item.cover_style) }}</div>
   <div class="body">
     {% if item.district_label %}<span class="kicker">{{ item.district_label }}</span>{% endif %}
     <h3>{{ item.title }}</h3>
