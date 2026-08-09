@@ -59,6 +59,7 @@ let scenarios = [];
 let magnets = [];
 let faqSets = [];
 let sitePages = [];
+let difficultyLevels = [];
 
 let activeTrail = null;      // маршрут, открытый в редакторе карты
 let map = null, placeMap = null;
@@ -2699,6 +2700,51 @@ function renderSitePages() {
     </div>`).join('');
 }
 
+function renderDifficultyList() {
+  const el = document.getElementById('difficulty-list');
+  if (!el) return;
+  el.innerHTML = difficultyLevels.map(d => `
+    <div class="row">
+      <div class="row-main">
+        <div class="row-title">
+          <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${escAttr(d.color)};margin-right:8px"></span>
+          ${escHtml(d.title)}
+        </div>
+        <div class="row-meta"><span>${escHtml(d.text)}</span></div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openDifficultyForm('${d.code}')">Редактировать</button>
+      </div>
+    </div>`).join('');
+}
+
+function openDifficultyForm(code) {
+  const d = difficultyLevels.find(x => x.code === code);
+  if (!d) return;
+  showModal(`Сложность: ${d.title}`, `
+    <div class="field"><label>Подпись</label>
+      <input id="df-title" value="${escAttr(d.title)}"></div>
+    <div class="field"><label>Пояснение</label>
+      <textarea id="df-text" rows="4">${escHtml(d.text)}</textarea>
+      <div class="hint">Текст в подсказке «что означают уровни сложности».</div></div>
+    <div class="field"><label>Цвет</label>
+      <input id="df-color" type="color" value="${escAttr(d.color)}" style="width:70px;height:38px;padding:2px">
+      <div class="hint">Им красятся точки-индикатор и сама подпись уровня.</div></div>
+  `, async () => {
+    const payload = {
+      title: document.getElementById('df-title').value.trim(),
+      text: document.getElementById('df-text').value.trim(),
+      color: document.getElementById('df-color').value,
+    };
+    if (!payload.title || !payload.text) { toast('Подпись и пояснение обязательны', true); return; }
+    const saved = await api('PATCH', `/difficulty-levels/${code}`, payload);
+    Object.assign(d, saved);
+    renderDifficultyList();
+    closeModal();
+    toast('Сохранено');
+  });
+}
+
 function openSitePageForm(slug) {
   const p = sitePages.find(x => x.slug === slug) || {};
   const hasButton = slug === 'club';
@@ -2964,7 +3010,7 @@ async function deleteFaqSet(id) {
 // ═══════════════════════════════════════════════════════════════
 
 async function loadAll() {
-  const [cats, tr, cps, arts, tags, scs, mgs, fqs, pgs] = await Promise.all([
+  const [cats, tr, cps, arts, tags, scs, mgs, fqs, pgs, diffs] = await Promise.all([
     api('GET', '/categories'),
     api('GET', '/trails'),
     api('GET', '/checkpoints'),
@@ -2974,6 +3020,7 @@ async function loadAll() {
     api('GET', '/magnets'),
     api('GET', '/faq-sets'),
     api('GET', '/site-pages'),
+    api('GET', '/difficulty-levels'),
   ]);
   categories = cats || [];
   trails = tr || [];
@@ -2984,6 +3031,7 @@ async function loadAll() {
   magnets = mgs || [];
   faqSets = fqs || [];
   sitePages = pgs || [];
+  difficultyLevels = diffs || [];
 
   renderArticles();
   renderRoutes();
@@ -2991,6 +3039,7 @@ async function loadAll() {
   renderScenarios();
   renderBlocks();
   renderSitePages();
+  renderDifficultyList();
 }
 
 loadAll();

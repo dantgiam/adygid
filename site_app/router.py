@@ -15,7 +15,7 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import SessionLocal, get_db
-from app.models import Article, Category, Checkpoint, FaqSet, Like, Magnet, Scenario, SitePage, Trail
+from app.models import Article, Category, Checkpoint, DifficultyLevel, FaqSet, Like, Magnet, Scenario, SitePage, Trail
 from site_app.content import (
     ACCESS_LABELS,
     CLUB_URL,
@@ -448,14 +448,14 @@ def _weather_url(lat: float, lon: float) -> str:
     return f"https://yandex.ru/pogoda/?lat={lat:.6f}&lon={lon:.6f}"
 
 
-def _difficulty_info(code: Optional[str]) -> dict:
+def _difficulty_info(code: Optional[str], levels: Optional[dict] = None) -> dict:
     """Точки-индикатор + текст подсказки для текущего уровня сложности —
     вся шкала уходит в шаблон отдельно (DIFFICULTY_INFO), чтобы попап
     показывал все 4 уровня сразу, а не только выбранный."""
-    info = DIFFICULTY_INFO.get(code, {})
+    info = (levels or DIFFICULTY_INFO).get(code, {})
     return {
         "code": code,
-        "label": DIFFICULTY_LABELS.get(code, code),
+        "label": info.get("title") or DIFFICULTY_LABELS.get(code, code),
         "dots": info.get("dots", 0),
     }
 
@@ -476,6 +476,48 @@ def _nearby_places(db: Session, lat: float, lon: float, exclude_id: Optional[int
         card["distance_label"] = f"{distance_m / 1000:.1f} км"
         result.append(card)
     return result
+
+
+def _similar_places(db: Session, cp: Checkpoint, exclude_ids: set, limit: int = 4) -> list:
+    """«Похожие места» — это то же самое по сути: водопад к водопаду, пещера к
+    пещере. Раньше условие было «тот же округ ИЛИ та же категория», и к
+    Хаджохской теснине в похожие попадал монастырь — просто потому, что стоит
+    в том же округе. Теперь совпадение категории обязательно, а округ только
+    поднимает объект выше в списке.
+
+    exclude_ids — то, что уже показано выше блоком «Места рядом»: два блока
+    подряд с одними и теми же карточками выглядели как ошибка вёрстки."""
+    if not cp.category_id:
+        return []
+    same_district = case((Checkpoint.district == cp.district, 0), else_=1)
+    q = _with_place_relations(select(Checkpoint)).where(
+        Checkpoint.id != cp.id,
+        Checkpoint.show_as_place == True,
+        Checkpoint.category_id == cp.category_id,
+    )
+    if exclude_ids:
+        q = q.where(Checkpoint.id.notin_(exclude_ids))
+    rows = db.execute(
+        q.order_by(same_district, _POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(limit)
+    ).scalars().all()
+    return [_place_card_dict(r) for r in rows]
+
+
+def _similar_routes(db: Session, t: Trail, exclude_ids: set, limit: int = 4) -> list:
+    """То же правило для маршрутов: похожий — значит того же типа (пеший к
+    пешему, сплав к сплаву), а не «просто из этого же округа»."""
+    if not t.category_id:
+        return []
+    same_district = case((Trail.district == t.district, 0), else_=1)
+    q = _with_route_relations(select(Trail)).where(
+        Trail.id != t.id, Trail.category_id == t.category_id
+    )
+    if exclude_ids:
+        q = q.where(Trail.id.notin_(exclude_ids))
+    rows = db.execute(
+        q.order_by(same_district, _POPULARITY_ORDER_TRAIL, Trail.created_at.desc()).limit(limit)
+    ).scalars().all()
+    return [_route_card_dict(r) for r in rows]
 
 
 def _routes_for_place(db: Session, cp: Checkpoint, radius_km: float = 12.0, limit: int = 4) -> list:
@@ -705,7 +747,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "district_label": DISTRICTS.get(cp.district),
         "category": _category_lite(cp.category),
         "difficulty_label": DIFFICULTY_LABELS.get(cp.difficulty, cp.difficulty),
-        "difficulty_info": _difficulty_info(cp.difficulty),
+        "difficulty_info": _difficulty_info(cp.difficulty, _difficulty_levels(db)),
         "season_label": SEASON_LABELS.get(cp.seasonality, cp.seasonality),
         "access_label": ACCESS_LABELS.get(cp.access_type, cp.access_type),
         "price_label": _price_label(cp.is_paid, cp.price_note),
@@ -739,7 +781,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         "district_label": DISTRICTS.get(t.district),
         "category": _category_lite(t.category),
         "difficulty_label": DIFFICULTY_LABELS.get(t.difficulty, t.difficulty),
-        "difficulty_info": _difficulty_info(t.difficulty),
+        "difficulty_info": _difficulty_info(t.difficulty, _difficulty_levels(db)),
         "duration_label": _duration_label(t.duration_minutes),
         "season_label": SEASON_LABELS.get(t.seasonality, t.seasonality),
         "access_label": ACCESS_LABELS.get(t.access_type, t.access_type),
@@ -789,6 +831,24 @@ def _footer_stats(db: Session) -> dict:
     return _FOOTER_CACHE["value"]
 
 
+_DIFFICULTY_CACHE: dict = {"value": None, "at": 0.0}
+
+
+def _difficulty_levels(db: Session) -> dict:
+    """Шкала сложности из админки в том же виде, в каком её ждёт шаблон:
+    код → {dots, title, text, color}. Меняется раз в год, а читается на каждой
+    странице места и маршрута — держим в памяти, сбрасывается вместе с главной
+    при любой правке в админке."""
+    now = time.monotonic()
+    if _DIFFICULTY_CACHE["value"] is not None and now - _DIFFICULTY_CACHE["at"] < 300:
+        return _DIFFICULTY_CACHE["value"]
+    rows = db.execute(select(DifficultyLevel).order_by(DifficultyLevel.order_index)).scalars().all()
+    value = {d.code: {"dots": d.dots, "title": d.title, "text": d.text, "color": d.color} for d in rows}
+    _DIFFICULTY_CACHE["value"] = value or DIFFICULTY_INFO
+    _DIFFICULTY_CACHE["at"] = now
+    return _DIFFICULTY_CACHE["value"]
+
+
 def _ctx(request: Request, db: Session, **extra) -> dict:
     base = {
         "request": request,
@@ -798,7 +858,7 @@ def _ctx(request: Request, db: Session, **extra) -> dict:
         "canonical_url": SITE_URL + request.url.path,
         "yandex_metrika_id": YANDEX_METRIKA_ID,
         "club_url": CLUB_URL,
-        "difficulty_levels": DIFFICULTY_INFO,
+        "difficulty_levels": _difficulty_levels(db),
         "asset_version": ASSET_VERSION,
     }
     base.update(extra)
@@ -908,6 +968,7 @@ _HOME_TTL_S = 60
 def invalidate_home_cache() -> None:
     _HOME_CACHE["body"] = None
     _FOOTER_CACHE["value"] = None
+    _DIFFICULTY_CACHE["value"] = None
 
 
 @router.get("/")
@@ -1036,22 +1097,13 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
         raise HTTPException(404, "Место не найдено")
 
     place = _place_detail_dict(db, cp)
-    conditions = [c for c in [
-        Checkpoint.district == cp.district if cp.district else None,
-        Checkpoint.category_id == cp.category_id if cp.category_id else None,
-    ] if c is not None]
-    similar = []
-    if conditions:
-        rows = db.execute(
-            _with_place_relations(select(Checkpoint)).where(
-                Checkpoint.id != cp.id, Checkpoint.show_as_place == True, or_(*conditions)
-            ).limit(4)
-        ).scalars().all()
-        similar = [_place_card_dict(r) for r in rows]
 
+    # Порядок важен: сначала считаем «рядом», потом исключаем эти карточки из
+    # «похожих» — иначе оба блока показывают одно и то же.
     shp = to_shape(cp.geom)
     nearby = [p for p in _nearby_places(db, shp.y, shp.x, exclude_id=cp.id, limit=5) if p["id"] != cp.id][:4]
     related_routes = _routes_for_place(db, cp)
+    similar = _similar_places(db, cp, {p["id"] for p in nearby} | {cp.id})
 
     return templates.TemplateResponse(
         "place_detail.html",
@@ -1114,17 +1166,6 @@ def route_detail(request: Request, route_id: int, db: Session = Depends(get_db))
         raise HTTPException(404, "Маршрут не найден")
 
     route = _route_detail_dict(db, t)
-    conditions = [c for c in [
-        Trail.district == t.district if t.district else None,
-        Trail.category_id == t.category_id if t.category_id else None,
-    ] if c is not None]
-    similar = []
-    if conditions:
-        rows = db.execute(
-            _with_route_relations(select(Trail)).where(Trail.id != t.id, or_(*conditions)).limit(4)
-        ).scalars().all()
-        similar = [_route_card_dict(r) for r in rows]
-
     # «Рядом» считаем от стартовой точки маршрута — по ней ориентируются,
     # что ещё посмотреть, добравшись до начала тропы.
     nearby = []
@@ -1133,6 +1174,10 @@ def route_detail(request: Request, route_id: int, db: Session = Depends(get_db))
         shp = to_shape(ordered_cps[0].geom)
         own_ids = {c.id for c in ordered_cps}
         nearby = [p for p in _nearby_places(db, shp.y, shp.x, limit=4 + len(own_ids)) if p["id"] not in own_ids][:4]
+
+    # «Рядом» здесь про места, а «похожие» про маршруты — пересечься они не
+    # могут, но правило отбора то же: совпадение типа обязательно.
+    similar = _similar_routes(db, t, {t.id})
 
     return templates.TemplateResponse(
         "route_detail.html",
@@ -1527,7 +1572,7 @@ def render_not_found(request: Request) -> Response:
             "districts": DISTRICTS, "site_url": SITE_URL,
             "canonical_url": SITE_URL + request.url.path,
             "yandex_metrika_id": YANDEX_METRIKA_ID, "club_url": CLUB_URL,
-            "difficulty_levels": DIFFICULTY_INFO, "asset_version": ASSET_VERSION,
+            "difficulty_levels": _difficulty_levels(db), "asset_version": ASSET_VERSION,
             "active_nav": None,
         }
     finally:

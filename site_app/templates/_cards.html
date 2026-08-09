@@ -26,10 +26,10 @@
     <button type="button" class="fav-btn fav-btn-card" data-type="place" data-id="{{ item.id }}" aria-label="Добавить в избранное" onclick="event.preventDefault()">{{ fav_icon() }}</button>
   </div>
   <div class="body">
+    {% if item.district_label %}<span class="kicker">{{ item.district_label }}</span>{% endif %}
     <h3>{{ item.name }}</h3>
     {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
     <div class="tags">
-      {% if item.district_label %}<span class="tag">{{ item.district_label }}</span>{% endif %}
       {% if item.category and item.category.name %}<span class="tag tag-cat">{{ item.category.icon_svg | safe }}{{ item.category.name }}</span>{% endif %}
       {% if item.is_paid %}<span class="tag">Платно</span>{% endif %}
       {% if item.kid_friendly %}<span class="tag">Для детей</span>{% endif %}
@@ -48,11 +48,11 @@
     <button type="button" class="fav-btn fav-btn-card" data-type="route" data-id="{{ item.id }}" aria-label="Добавить в избранное" onclick="event.preventDefault()">{{ fav_icon() }}</button>
   </div>
   <div class="body">
+    {% if item.district_label %}<span class="kicker">{{ item.district_label }}</span>{% endif %}
     <h3>{{ item.name }}</h3>
     {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
     {% if item.relation %}<p class="card-relation">{{ item.relation }}</p>{% endif %}
     <div class="tags">
-      {% if item.district_label %}<span class="tag">{{ item.district_label }}</span>{% endif %}
       {% if item.category and item.category.name %}<span class="tag tag-cat">{{ item.category.icon_svg | safe }}{{ item.category.name }}</span>{% endif %}
       {% if item.difficulty_label %}<span class="tag">{{ item.difficulty_label }}</span>{% endif %}
       {% if item.duration_label %}<span class="tag">{{ item.duration_label }}</span>{% endif %}

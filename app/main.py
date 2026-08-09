@@ -22,9 +22,12 @@ from pydantic import BaseModel
 from PIL import Image, ImageOps
 
 from app.database import Base, engine, get_db
-from app.models import Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like, Scenario, Magnet, FaqSet, SitePage
+from app.models import (
+    Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like, Scenario,
+    Magnet, FaqSet, SitePage, DifficultyLevel,
+)
 from app.slugs import slugify as _slugify, unique_slug as _unique_slug
-from site_app.content import consider_embed_html
+from site_app.content import DIFFICULTY_INFO as _DIFFICULTY_SEED, consider_embed_html
 from site_app.router import router as site_router
 
 app = FastAPI(title="АдыГид API v2")
@@ -194,6 +197,20 @@ with Session(engine) as _seed_db:
     _service_names = [name for name, _, _, is_public in _DEFAULT_CATEGORIES if not is_public]
     for _c in _seed_db.execute(select(Category).where(Category.name.in_(_service_names))).scalars():
         _c.is_public = False
+    _seed_db.commit()
+
+# Шкала сложности — засевается один раз из прежней константы DIFFICULTY_INFO.
+# Дальше источник истины — таблица, её правят в админке, и повторный старт
+# уже заведённые уровни не трогает.
+with Session(engine) as _seed_db:
+    _have = {row[0] for row in _seed_db.execute(select(DifficultyLevel.code)).all()}
+    for _i, (_code, _info) in enumerate(_DIFFICULTY_SEED.items()):
+        if _code in _have:
+            continue
+        _seed_db.add(DifficultyLevel(
+            code=_code, title=_info["title"], text=_info["text"],
+            color=_info["color"], dots=_info["dots"], order_index=_i,
+        ))
     _seed_db.commit()
 
 # Сценарии — засеваются один раз, если таблица пустая (первый деплой после
@@ -1433,6 +1450,34 @@ def delete_faq_set(set_id: int, db: Session = Depends(get_db), _: bool = Depends
 class PreviewIn(BaseModel):
     kind: str = "article"          # article | description
     html: str = ""
+
+
+class DifficultyIn(BaseModel):
+    title: Optional[str] = None
+    text: Optional[str] = None
+    color: Optional[str] = None
+
+
+def _difficulty_out(d: DifficultyLevel) -> dict:
+    return {"code": d.code, "title": d.title, "text": d.text, "color": d.color, "dots": d.dots}
+
+
+@app.get("/api/difficulty-levels")
+def list_difficulty_levels(db: Session = Depends(get_db)):
+    rows = db.execute(select(DifficultyLevel).order_by(DifficultyLevel.order_index)).scalars().all()
+    return [_difficulty_out(d) for d in rows]
+
+
+@app.patch("/api/difficulty-levels/{code}")
+def update_difficulty_level(code: str, body: DifficultyIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    d = db.execute(select(DifficultyLevel).where(DifficultyLevel.code == code)).scalars().first()
+    if not d:
+        raise HTTPException(404, "Уровень не найден")
+    if body.title is not None: d.title = body.title.strip() or d.title
+    if body.text is not None: d.text = body.text.strip() or d.text
+    if body.color is not None: d.color = body.color.strip() or d.color
+    db.commit()
+    return _difficulty_out(d)
 
 
 @app.post("/api/preview")

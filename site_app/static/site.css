@@ -324,7 +324,10 @@ h1.article-title {
 
 /* ── Article card variant ────────────────────────*/
 .article-card .cover { height: 130px; }
-.article-card .kicker { font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; color: var(--accent); letter-spacing: .04em; text-transform: uppercase; }
+/* Округ над заголовком карточки — общий стиль для мест, маршрутов и статей:
+   раньше у мест и маршрутов округ был обычным серым тегом внизу и терялся
+   среди «Платно» и «Для детей». */
+.card .kicker { font-family: var(--font-mono); font-size: 12.5px; font-weight: 700; color: var(--accent); letter-spacing: .04em; text-transform: uppercase; }
 
 /* На телефоне minmax(260px,1fr) оставлял ровно одну карточку на экран —
    лента превращалась в полноэкранный список без обзора. Два столбца плотнее
@@ -675,6 +678,12 @@ h1.article-title {
   padding: 14px 16px;
 }
 .diff-popover.open { display: block; }
+/* Наведение на всю подпись, а не только на «?»: попасть курсором в кружок
+   14 px тяжело, а узнать, что значит уровень, хочется мимоходом. На тач-
+   устройствах hover не срабатывает — там остаётся клик по «?». */
+@media (hover: hover) {
+  .diff-widget:hover .diff-popover { display: block; }
+}
 .diff-popover ul { list-style: none; margin: 0; padding: 0; }
 .diff-popover li { font-size: 13px; line-height: 1.45; color: var(--text-muted); margin-bottom: 10px; }
 .diff-popover li:last-child { margin-bottom: 0; }

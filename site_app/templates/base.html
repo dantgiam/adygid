@@ -50,10 +50,19 @@
 {% if yandex_metrika_id %}
 <!-- Yandex.Metrika counter -->
 <script type="text/javascript">
+   /* Очередь ym() заводим сразу — цели из site.js могут выстрелить раньше,
+      чем счётчик догрузится, и не должны потеряться. А сам tag.js (91 КБ)
+      подключаем только после события load: он ходит на mc.yandex.ru, откуда
+      ответ иногда идёт по двадцать секунд, и всё это время страница считалась
+      грузящейся, хотя показывать её было уже нечего. */
    (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
    m[i].l=1*new Date();
-   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   var load=function(){
+     for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+     k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a);
+   };
+   if (document.readyState === 'complete') load(); else m.addEventListener('load', load);
+   })
    (window, document,'script','https://mc.yandex.ru/metrika/tag.js?id={{ yandex_metrika_id }}', 'ym');
 
    ym({{ yandex_metrika_id }}, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});

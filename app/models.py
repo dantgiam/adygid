@@ -299,3 +299,20 @@ class SitePage(Base):
     lead_extra  = Column(Text, nullable=True)
     button_text = Column(String(120), nullable=True)
     updated_at  = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class DifficultyLevel(Base):
+    """Шкала сложности — четыре уровня с подписью, пояснением и цветом.
+    Раньше жила константой DIFFICULTY_INFO в site_app/content.py и правилась
+    только деплоем. Уровни засеваются один раз при первом старте, новые через
+    админку не заводятся: их ровно четыре, и код каждого зашит в данные мест
+    и маршрутов."""
+    __tablename__ = "difficulty_levels"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    code        = Column(String(20), nullable=False, unique=True, index=True)  # easy|medium|hard|extreme
+    title       = Column(String(60), nullable=False)
+    text        = Column(Text, nullable=False)
+    color       = Column(String(20), nullable=False)
+    dots        = Column(Integer, nullable=False, default=1)
+    order_index = Column(Integer, nullable=False, default=0)
