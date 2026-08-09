@@ -61,6 +61,12 @@ class Trail(Base):
     district    = Column(String(30), nullable=True)                          # maikop / khadzhokh / dakhovskaya / lagonaki / guzeripl
     popularity  = Column(String(20), nullable=False, default="normal")       # normal / popular / top
 
+    # Ссылка «Открыть в Яндекс Навигаторе». Пусто — строится автоматически из
+    # координат точек маршрута (см. site_app/router.py, _yandex_route_url);
+    # заполнено вручную — используется как есть (например, готовый маршрут
+    # с точками привязки, который автогенерация не соберёт один в один).
+    yandex_url  = Column(String(500), nullable=True)
+
     category    = relationship("Category")
     segments    = relationship("TrailSegment",  back_populates="trail", cascade="all, delete-orphan", order_by="TrailSegment.order_index")
     checkpoints = relationship("Checkpoint",    back_populates="trail", cascade="all, delete-orphan", order_by="Checkpoint.order_index")
@@ -124,6 +130,9 @@ class Checkpoint(Base):
     # точки маршрута (развилки, привалы) нужны только внутри маршрута — для них
     # флаг снят, и своей страницы у них нет.
     show_as_place = Column(Boolean, nullable=False, default=True)
+
+    # Ссылка «Открыть в Яндекс Навигаторе» — см. Trail.yandex_url.
+    yandex_url = Column(String(500), nullable=True)
 
     category = relationship("Category")
     trail    = relationship("Trail", back_populates="checkpoints")

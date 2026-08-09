@@ -189,6 +189,10 @@
             <input id="rt-duration" type="number" min="0" placeholder="150" oninput="scheduleRouteAutosave()">
           </div>
         </div>
+        <div class="field"><label>Ссылка на Яндекс Навигатор</label>
+          <input id="rt-yandex-url" type="url" placeholder="https://yandex.ru/maps/?rtext=…" oninput="scheduleRouteAutosave()">
+          <div class="hint">Пусто — соберётся автоматически по точкам маршрута.</div>
+        </div>
         <div id="rt-criteria-slot"></div>
         <div class="hint" id="rt-map-hint" style="margin-top:4px">Тропу и точки по пути редактируйте кнопкой «Карта и точки» в списке маршрутов.</div>
       </aside>
@@ -324,6 +328,10 @@
         </div>
         <div class="field"><label>Входит в маршрут</label>
           <select id="pl-trail" onchange="onPlaceTrailChange()"></select>
+        </div>
+        <div class="field"><label>Ссылка на Яндекс Навигатор</label>
+          <input id="pl-yandex-url" type="url" placeholder="https://yandex.ru/maps/?rtext=…" oninput="schedulePlaceAutosave()">
+          <div class="hint">Пусто — соберётся автоматически по координатам места.</div>
         </div>
         <div id="pl-criteria-slot"></div>
       </aside>

@@ -148,6 +148,10 @@ with engine.begin() as _conn:
     _conn.execute(text("ALTER TABLE districts ADD COLUMN IF NOT EXISTS cover_focus VARCHAR(20)"))
     _conn.execute(text("ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS cover_focus VARCHAR(20)"))
     _conn.execute(text("ALTER TABLE scenarios ADD COLUMN IF NOT EXISTS tile_cover_focus VARCHAR(20)"))
+    # Ручная ссылка на Яндекс Навигатор — пусто по умолчанию, тогда используется
+    # автосборка из координат (см. site_app/router.py, _yandex_point_url/_yandex_route_url).
+    for _t in ("trails", "checkpoints"):
+        _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS yandex_url VARCHAR(500)"))
 
 # scenarios.tips (отдельный список коротких советов) заменён на локальный
 # блок «Что учесть», вставляемый прямо в текст lead — см. site_app.content.
@@ -611,6 +615,7 @@ class TrailIn(ExtraCriteriaIn):
     duration_minutes: Optional[int] = None
     checked_at: Optional[datetime] = None
     is_published: bool = True
+    yandex_url: Optional[str] = None
 
 class TrailUpdate(ExtraCriteriaIn):
     name: Optional[str] = None
@@ -619,6 +624,7 @@ class TrailUpdate(ExtraCriteriaIn):
     duration_minutes: Optional[int] = None
     checked_at: Optional[datetime] = None
     is_published: Optional[bool] = None
+    yandex_url: Optional[str] = None
 
 class SegmentIn(BaseModel):
     difficulty: str = "easy"      # easy | medium | hard
@@ -640,6 +646,7 @@ class CheckpointIn(ExtraCriteriaIn):
     show_as_place: Optional[bool] = None
     checked_at: Optional[datetime] = None
     is_published: bool = True
+    yandex_url: Optional[str] = None
     lon: float
     lat: float
 
@@ -655,6 +662,7 @@ class CheckpointUpdate(ExtraCriteriaIn):
     show_as_place: Optional[bool] = None
     checked_at: Optional[datetime] = None
     is_published: Optional[bool] = None
+    yandex_url: Optional[str] = None
     lon: Optional[float] = None
     lat: Optional[float] = None
 
@@ -836,6 +844,7 @@ def create_trail(body: TrailIn, db: Session = Depends(get_db), _: bool = Depends
         duration_minutes=body.duration_minutes,
         checked_at=body.checked_at,
         is_published=body.is_published,
+        yandex_url=body.yandex_url or None,
         **_extra_criteria_kwargs(body),
     )
     db.add(t); db.commit(); db.refresh(t)
@@ -851,6 +860,7 @@ def update_trail(trail_id: int, body: TrailUpdate, db: Session = Depends(get_db)
     if body.duration_minutes is not None:  t.duration_minutes = body.duration_minutes
     if body.checked_at is not None:        t.checked_at = body.checked_at
     if body.is_published is not None:      t.is_published = body.is_published
+    if body.yandex_url is not None:        t.yandex_url = body.yandex_url or None
     _apply_extra_criteria(t, body)
     db.commit(); db.refresh(t)
     return _trail_out(t)
@@ -901,6 +911,7 @@ def _trail_out(t: Trail):
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,
         "checked_at": t.checked_at.isoformat() if t.checked_at else None,
         "is_published": t.is_published,
+        "yandex_url": t.yandex_url,
         "segments": [_seg_out(s) for s in t.segments],
         "checkpoints": [_cp_out(c) for c in t.checkpoints],
         "photos": [_photo_out(p) for p in t.photos],
@@ -1008,6 +1019,7 @@ def create_checkpoint(body: CheckpointIn, db: Session = Depends(get_db), _: bool
         show_as_place=show_as_place,
         checked_at=body.checked_at,
         is_published=body.is_published,
+        yandex_url=body.yandex_url or None,
         geom=f"SRID=4326;POINT({body.lon} {body.lat})",
         **_extra_criteria_kwargs(body),
     )
@@ -1040,6 +1052,7 @@ def update_checkpoint(cp_id: int, body: CheckpointUpdate, db: Session = Depends(
     if body.show_as_place is not None: cp.show_as_place = body.show_as_place
     if body.checked_at is not None:  cp.checked_at = body.checked_at
     if body.is_published is not None: cp.is_published = body.is_published
+    if body.yandex_url is not None:  cp.yandex_url = body.yandex_url or None
     if body.lon is not None and body.lat is not None:
         cp.geom = f"SRID=4326;POINT({body.lon} {body.lat})"
     _apply_extra_criteria(cp, body)
@@ -1117,6 +1130,7 @@ def _cp_out(c: Checkpoint):
         "updated_at": c.updated_at.isoformat() if c.updated_at else None,
         "checked_at": c.checked_at.isoformat() if c.checked_at else None,
         "is_published": c.is_published,
+        "yandex_url": c.yandex_url,
         "lon": shp.x,
         "lat": shp.y,
         "photos": [_photo_out(p) for p in c.photos],
