@@ -308,9 +308,26 @@ class SitePage(Base):
     eyebrow     = Column(String(100), nullable=True)
     title       = Column(String(255), nullable=True)
     lead        = Column(Text, nullable=True)
-    # Главная: подпись у колоды карточек справа. Клуб: второй абзац под lead.
+    # Главная: подпись на фото автора. Клуб: второй абзац под lead.
     lead_extra  = Column(Text, nullable=True)
     button_text = Column(String(120), nullable=True)
+
+    # Фото рядом с текстом шапки: на главной — портрет автора (он же
+    # доказательство «прошёл сам»), на клубе — тот же кадр в квадрате.
+    # Кадрирование хранится строкой «50% 30%» / «50% 30% 1.4», как у обложек.
+    cover_url       = Column(String(500), nullable=True)
+    cover_thumb_url = Column(String(500), nullable=True)
+    cover_focus     = Column(String(20), nullable=True)
+
+    # Список карточек страницы: на клубе это «О чём спрашивают» —
+    # [{"topic": "Погода", "question": "…"}]. Порядок в списке = порядок на странице.
+    items = Column(JSONB, nullable=False, server_default="[]")
+
+    # Куда ведут кнопки клуба. Пусто — берётся константа CLUB_URL
+    # (site_app/content.py), чтобы страница работала до первой правки в админке.
+    telegram_url = Column(String(500), nullable=True)
+    max_url      = Column(String(500), nullable=True)
+
     updated_at  = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 

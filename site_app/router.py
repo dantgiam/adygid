@@ -8,7 +8,7 @@ from html import escape, unescape
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from geoalchemy2.shape import to_shape
 from sqlalchemy import case, func, or_, select
@@ -77,6 +77,10 @@ def _count_label(n: int, one: str, few: str, many: str) -> str:
 
 templates.env.globals["places_label"] = lambda n: _count_label(n, "место", "места", "мест")
 templates.env.globals["routes_label"] = lambda n: _count_label(n, "маршрут", "маршрута", "маршрутов")
+# То же без числа — счётчик в шапке главной набирает цифру крупнее слова,
+# поэтому склеить их в одну строку там нельзя.
+templates.env.globals["places_word"] = lambda n: _ru_plural(n, "место", "места", "мест")
+templates.env.globals["routes_word"] = lambda n: _ru_plural(n, "маршрут", "маршрута", "маршрутов")
 
 _POPULARITY_ORDER = case((Checkpoint.popularity == "top", 0), (Checkpoint.popularity == "popular", 1), else_=2)
 _POPULARITY_ORDER_TRAIL = case((Trail.popularity == "top", 0), (Trail.popularity == "popular", 1), else_=2)
@@ -138,15 +142,28 @@ def _updated_label(dt) -> Optional[str]:
     return f"Актуально на {dt.day} {_MONTHS_RU[dt.month - 1]} {dt.year}"
 
 
+_EMPTY_SITE_PAGE = {
+    "eyebrow": "", "title": "", "lead": "", "lead_extra": "", "button_text": "",
+    "cover": None, "cover_style": "", "items": [], "telegram_url": "", "max_url": "",
+}
+
+
 def _site_page(db: Session, slug: str) -> dict:
     """Текст шапки главной / страницы клуба — правится в админке (SitePage),
     засеян дефолтом при первом старте, поэтому строка есть всегда."""
     p = db.execute(select(SitePage).where(SitePage.slug == slug)).scalars().first()
     if not p:
-        return {"eyebrow": "", "title": "", "lead": "", "lead_extra": "", "button_text": ""}
+        return dict(_EMPTY_SITE_PAGE)
     return {
         "eyebrow": p.eyebrow or "", "title": p.title or "", "lead": p.lead or "",
         "lead_extra": p.lead_extra or "", "button_text": p.button_text or "",
+        # Фото автора показывается крупно, поэтому берём оригинал, а не миниатюру:
+        # thumb рассчитан на карточку в 150 px и в шапке заметно мылит.
+        "cover": p.cover_url or None,
+        "cover_style": _crop_style(p.cover_focus),
+        "items": p.items or [],
+        "telegram_url": p.telegram_url or "",
+        "max_url": p.max_url or "",
     }
 
 
@@ -898,6 +915,24 @@ def _footer_stats(db: Session) -> dict:
     return _FOOTER_CACHE["value"]
 
 
+_CLUB_URL_CACHE: dict = {"value": None, "at": 0.0}
+
+
+def _club_url(db: Session) -> str:
+    """Адрес клуба для кнопок «Открыть клуб» — они стоят на каждой странице
+    (_club_cta.html), поэтому источник у них должен быть один: то, что задано
+    в админке. Пока ссылку туда не завели, возвращаем зашитую CLUB_URL, как
+    было раньше. Кэшируем на общий TTL — иначе это лишний запрос на каждый
+    просмотр любой страницы сайта."""
+    now = time.monotonic()
+    if _CLUB_URL_CACHE["value"] is not None and now - _CLUB_URL_CACHE["at"] < _FOOTER_TTL_S:
+        return _CLUB_URL_CACHE["value"]
+    stored = db.execute(select(SitePage.max_url).where(SitePage.slug == "club")).scalar()
+    _CLUB_URL_CACHE["value"] = stored or CLUB_URL
+    _CLUB_URL_CACHE["at"] = now
+    return _CLUB_URL_CACHE["value"]
+
+
 _DISTRICT_CACHE: dict = {"value": None, "at": 0.0}
 # Подписи округов для карточек: _place_card_dict и соседи вызываются без
 # сессии, поэтому берут готовый словарь, а не ходят в базу сами.
@@ -959,7 +994,7 @@ def _ctx(request: Request, db: Session, **extra) -> dict:
         "site_url": SITE_URL,
         "canonical_url": SITE_URL + request.url.path,
         "yandex_metrika_id": YANDEX_METRIKA_ID,
-        "club_url": CLUB_URL,
+        "club_url": _club_url(db),
         "difficulty_levels": _difficulty_levels(db),
         "difficulty_intro": _site_page(db, "difficulty"),
         "asset_version": ASSET_VERSION,
@@ -1013,6 +1048,17 @@ def _pick_highlight(db: Session) -> dict:
 @router.get("/api/site/random")
 def api_random(db: Session = Depends(get_db)):
     return _pick_highlight(db)
+
+
+@router.get("/naugad")
+def naugad(db: Session = Depends(get_db)):
+    """«Ткнуть наугад» — сразу перекидывает на случайное место или маршрут.
+    Раньше жеребьёвка занимала половину первого экрана колодой карточек, но
+    гостю, который ещё ничего не смотрел, случайность не помогает выбрать;
+    теперь это обычная ссылка рядом с «Куда вы едете?», и работает она без JS.
+    Ответ не кэшируем — иначе все переходы за минуту приведут в одно место."""
+    target = _pick_highlight(db).get("url") or "/mesta"
+    return RedirectResponse(target, status_code=302, headers={"Cache-Control": "no-store"})
 
 
 @router.get("/api/site/favorites")
@@ -1073,6 +1119,7 @@ def invalidate_home_cache() -> None:
     _FOOTER_CACHE["value"] = None
     _DIFFICULTY_CACHE["value"] = None
     _DISTRICT_CACHE["value"] = None
+    _CLUB_URL_CACHE["value"] = None
 
 
 @router.get("/")
@@ -1081,7 +1128,6 @@ def home(request: Request, db: Session = Depends(get_db)):
     if cached is not None and time.monotonic() - _HOME_CACHE["at"] < _HOME_TTL_S:
         return Response(cached, media_type="text/html; charset=utf-8")
 
-    highlight = _pick_highlight(db)
     # Тот же расчёт, что у мест и маршрутов: пять карточек плюс плитка «ещё N».
     articles_total = db.execute(
         select(func.count()).select_from(Article).where(Article.is_published == True)
@@ -1128,7 +1174,7 @@ def home(request: Request, db: Session = Depends(get_db)):
     response = templates.TemplateResponse(
         "home.html",
         _ctx(
-            request, db, active_nav="home", highlight=highlight, articles=articles, places=places, routes=routes,
+            request, db, active_nav="home", articles=articles, places=places, routes=routes,
             places_remaining=places_remaining, places_remaining_word=places_remaining_word,
             routes_remaining=routes_remaining, routes_remaining_word=routes_remaining_word,
             articles_remaining=articles_remaining, articles_remaining_word=articles_remaining_word,
@@ -1651,7 +1697,7 @@ def faq_page(request: Request, db: Session = Depends(get_db)):
 
 
 # ─────────────────────────────────────────────
-#  Клуб (заглушка)
+#  Клуб
 # ─────────────────────────────────────────────
 
 @router.get("/klub")

@@ -4,15 +4,56 @@
 {% block meta_description %}Живые впечатления, отзывы и вопросы о поездке в Адыгею — в чате клуба АдыГид в MAX. Спросить про погоду, дорогу и цены у тех, кто уже съездил.{% endblock %}
 
 {% block content %}
-<section class="section" style="padding-top:48px">
-  <div class="wrap">
-    <p class="eyebrow">{{ page.eyebrow }}</p>
-    <h1 class="page-title">{{ page.title }}</h1>
-    {% if page.lead %}<p class="about-text">{{ page.lead }}</p>{% endif %}
-    {% if page.lead_extra %}<p class="about-text">{{ page.lead_extra }}</p>{% endif %}
-    <p style="margin-top:28px">
-      <a class="btn btn-primary" href="{{ club_url }}" target="_blank" rel="noopener">{{ page.button_text }}</a>
-    </p>
+{# Шапка построена как на главной: тот же автор слева-справа, чтобы клуб не
+   выглядел забытой страницей с одним абзацем. Ссылки берём из админки, а если
+   их там ещё не завели — падаем на константу CLUB_URL, как было раньше. #}
+{% set max_href = page.max_url or club_url %}
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="eyebrow">{{ page.eyebrow }}</p>
+      <h1 class="page-title">{{ page.title }}</h1>
+      {% if page.lead %}<p class="about-text">{{ page.lead }}</p>{% endif %}
+      {% if page.lead_extra %}<p class="about-text">{{ page.lead_extra }}</p>{% endif %}
+
+      <div class="hero-ctas">
+        {% if page.telegram_url %}
+        <a class="btn btn-messenger" href="{{ page.telegram_url }}" target="_blank" rel="noopener">
+          <span class="msg-mark msg-tg" aria-hidden="true"></span>Открыть в Telegram
+        </a>
+        {% endif %}
+        {% if max_href %}
+        <a class="btn btn-messenger" href="{{ max_href }}" target="_blank" rel="noopener">
+          <span class="msg-mark msg-max" aria-hidden="true"></span>{{ page.button_text or 'Открыть в MAX' }}
+        </a>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if page.cover %}
+    <figure class="hero-photo hero-photo-square">
+      <img src="{{ page.cover }}" alt="Автор клуба АдыГид" style="{{ page.cover_style }}" width="800" height="800">
+    </figure>
+    {% endif %}
   </div>
 </section>
+
+{# Абстрактное «общение с теми, кто был» ничего не обещает — конкретные вопросы
+   показывают, что там реально спрашивают, и работают приглашением лучше кнопки.
+   Список правится в админке (SitePage.items), пустой блок не выводится. #}
+{% if page['items'] %}
+<section class="section club-questions">
+  <div class="wrap">
+    <div class="section-head"><h2>О чём спрашивают в клубе</h2></div>
+    <div class="qgrid">
+      {% for q in page['items'] %}
+      <div class="qcard">
+        {% if q.topic %}<b>{{ q.topic }}</b>{% endif %}
+        {{ q.question }}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
 {% endblock %}

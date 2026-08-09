@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import secrets
 import uuid
@@ -117,6 +118,15 @@ _EXTRA_CRITERIA_DDL = [
     "district VARCHAR(30)",
     "popularity VARCHAR(20) NOT NULL DEFAULT 'normal'",
 ]
+# Примеры для блока «О чём спрашивают» на странице клуба — подставляются один
+# раз при появлении колонки, дальше список живёт в админке.
+_DEFAULT_CLUB_QUESTIONS = [
+    {"topic": "Погода", "question": "Какая погода на плато в конце мая — есть смысл ехать или ещё снег?"},
+    {"topic": "Дорога", "question": "До Гузерипля можно доехать на легковой или нужен высокий клиренс?"},
+    {"topic": "Цены", "question": "Сколько сейчас стоит вход в Хаджохскую теснину?"},
+    {"topic": "С детьми", "question": "Стоит ли идти к водопадам Руфабго с ребёнком 6 лет?"},
+]
+
 with engine.begin() as _conn:
     for _table in ("trails", "checkpoints"):
         for _col_ddl in _EXTRA_CRITERIA_DDL:
@@ -152,6 +162,25 @@ with engine.begin() as _conn:
     # автосборка из координат (см. site_app/router.py, _yandex_point_url/_yandex_route_url).
     for _t in ("trails", "checkpoints"):
         _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS yandex_url VARCHAR(500)"))
+    # Шапка главной и клуба: фото автора рядом с текстом и две ссылки на клуб.
+    _conn.execute(text("ALTER TABLE site_pages ADD COLUMN IF NOT EXISTS cover_url VARCHAR(500)"))
+    _conn.execute(text("ALTER TABLE site_pages ADD COLUMN IF NOT EXISTS cover_thumb_url VARCHAR(500)"))
+    _conn.execute(text("ALTER TABLE site_pages ADD COLUMN IF NOT EXISTS cover_focus VARCHAR(20)"))
+    _conn.execute(text("ALTER TABLE site_pages ADD COLUMN IF NOT EXISTS telegram_url VARCHAR(500)"))
+    _conn.execute(text("ALTER TABLE site_pages ADD COLUMN IF NOT EXISTS max_url VARCHAR(500)"))
+
+    # site_pages.items — карточки страницы; на клубе это блок «О чём спрашивают».
+    # Колонка добавляется без DEFAULT, чтобы по NULL отличить «только что
+    # появилась» от «автор сам очистил список»: примеры вопросов подставляются
+    # ровно один раз, и удалённые в админке обратно не воскресают.
+    _conn.execute(text("ALTER TABLE site_pages ADD COLUMN IF NOT EXISTS items JSONB"))
+    _conn.execute(
+        text("UPDATE site_pages SET items = CAST(:v AS JSONB) WHERE slug = 'club' AND items IS NULL"),
+        {"v": json.dumps(_DEFAULT_CLUB_QUESTIONS, ensure_ascii=False)},
+    )
+    _conn.execute(text("UPDATE site_pages SET items = '[]'::jsonb WHERE items IS NULL"))
+    _conn.execute(text("ALTER TABLE site_pages ALTER COLUMN items SET DEFAULT '[]'::jsonb"))
+    _conn.execute(text("ALTER TABLE site_pages ALTER COLUMN items SET NOT NULL"))
 
 # scenarios.tips (отдельный список коротких советов) заменён на локальный
 # блок «Что учесть», вставляемый прямо в текст lead — см. site_app.content.
@@ -370,6 +399,10 @@ _DEFAULT_SITE_PAGES = [
         lead="Отзывы, живые впечатления и общение с теми, кто уже был в Адыгее или только планирует поездку. Здесь можно спросить про погоду на плато на конкретной неделе, состояние дороги, актуальные цены на входы — то, что быстро устаревает в любых описаниях.",
         lead_extra="Вступление свободное, ничего платить не нужно.",
         button_text="Вступить в клуб в MAX →",
+        # На чистой базе колонка items создаётся сразу с дефолтом '[]', и
+        # разовый UPDATE из блока миграций до этой строки не доберётся —
+        # поэтому примеры вопросов подставляем и здесь.
+        items=_DEFAULT_CLUB_QUESTIONS,
     ),
 ]
 with Session(engine) as _seed_db:
@@ -1341,6 +1374,12 @@ class SitePageUpdate(BaseModel):
     lead: Optional[str] = None
     lead_extra: Optional[str] = None
     button_text: Optional[str] = None
+    cover_url: Optional[str] = None
+    cover_thumb_url: Optional[str] = None
+    cover_focus: Optional[str] = None
+    items: Optional[List[dict]] = None
+    telegram_url: Optional[str] = None
+    max_url: Optional[str] = None
 
 
 def _site_page_out(p: SitePage) -> dict:
@@ -1351,6 +1390,12 @@ def _site_page_out(p: SitePage) -> dict:
         "lead": p.lead,
         "lead_extra": p.lead_extra,
         "button_text": p.button_text,
+        "cover_url": p.cover_url,
+        "cover_thumb_url": p.cover_thumb_url,
+        "cover_focus": p.cover_focus,
+        "items": p.items or [],
+        "telegram_url": p.telegram_url,
+        "max_url": p.max_url,
     }
 
 
@@ -1370,6 +1415,15 @@ def update_site_page(slug: str, body: SitePageUpdate, db: Session = Depends(get_
     p.lead = body.lead
     p.lead_extra = body.lead_extra
     p.button_text = body.button_text
+    # Форма всегда присылает эти поля целиком, но None здесь — «не прислали»
+    # (например, запрос из старой вкладки), а не «очистить»: затирать
+    # загруженное фото или список вопросов молча нельзя.
+    if body.cover_url is not None:       p.cover_url = body.cover_url or None
+    if body.cover_thumb_url is not None: p.cover_thumb_url = body.cover_thumb_url or None
+    if body.cover_focus is not None:     p.cover_focus = body.cover_focus or None
+    if body.items is not None:           p.items = body.items
+    if body.telegram_url is not None:    p.telegram_url = body.telegram_url or None
+    if body.max_url is not None:         p.max_url = body.max_url or None
     db.commit()
     db.refresh(p)
     return _site_page_out(p)

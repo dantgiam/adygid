@@ -161,6 +161,15 @@ nav.main-nav a.active { color: var(--accent-dark); background: var(--accent-soft
 .btn:active { transform: scale(0.97); }
 .btn[disabled] { opacity: .6; cursor: default; transform: none; }
 
+/* Кнопки клуба: две подряд, и обе одинаково важны — ни одну нельзя красить
+   акцентным зелёным, иначе вторая читается как запасная. Различает их значок
+   мессенджера в его собственном цвете, сама кнопка остаётся нейтральной. */
+.btn-messenger { background: var(--bg-card); color: var(--text); border-color: var(--border); }
+.btn-messenger:hover { border-color: var(--accent); }
+.msg-mark { flex: none; width: 20px; height: 20px; border-radius: 6px; display: block; }
+.msg-tg { background: linear-gradient(180deg, #37AEE2, #1E96C8); }
+.msg-max { background: linear-gradient(135deg, #7C5CE0, #A855F7); }
+
 /* ── Hero / about ──────────────────────────────── */
 .hero { padding: 48px 0 40px; }
 .hero-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 40px; align-items: start; }
@@ -184,84 +193,57 @@ h1.article-title {
 .about-text { font-size: 17.5px; color: var(--text-muted); max-width: 56ch; margin: 0 0 12px; }
 .about-text:last-of-type { margin-bottom: 0; }
 
-/* ── Random highlight card ────────────────────────
-   Колода: две подложки позади верхней карточки. Смещение и лёгкий поворот
-   держим минимальными — сильный наклон читается как декорация, а нам нужен
-   ровно один сигнал: «под этой карточкой есть ещё». ── */
-/* Запас снизу — чтобы выглядывающие подложки не налезали на подсказку */
-.hl-deck { position: relative; padding-bottom: 26px; }
-.hl-stack {
-  position: absolute; left: 0; right: 0; top: 0; bottom: 26px;
-  border-radius: var(--radius);
-  background: var(--bg-card); border: 1px solid #CBDDC9;
-  box-shadow: 0 2px 10px rgba(30, 110, 48, .07);
-  transform-origin: 50% 100%;
+/* ── Шапка главной: счётчик пройденного и фото автора ──
+   Раньше правую половину занимала колода со случайной карточкой. Гостю, который
+   ещё ничего не открывал, случайность выбрать не помогает, поэтому место отдано
+   автору: цифры под текстом и его фото — то самое «я прошёл это сам», ради
+   которого сюда и приходят вместо десятка одинаковых сайтов про Адыгею. ── */
+.hero-stats {
+  display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: baseline;
+  margin: 20px 0 22px; padding-top: 16px; border-top: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 13.5px; color: var(--text-muted);
 }
-.hl-stack:nth-child(1) { transform: translateY(24px) scale(.93) rotate(-1.6deg); }
-.hl-stack:nth-child(2) { transform: translateY(12px) scale(.965) rotate(1.1deg); }
+.hero-stats b {
+  font-family: var(--font-display); font-weight: 400; font-size: 23px;
+  color: var(--accent-dark); margin-right: 2px; font-variant-numeric: tabular-nums;
+}
+.hero-stats-note { font-style: italic; }
+.hero-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
 
-.highlight-card {
-  position: relative;
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--shadow); overflow: hidden; display: flex; flex-direction: column;
-  touch-action: pan-y; cursor: grab;
+.hero-photo {
+  position: relative; margin: 0; overflow: hidden;
+  border-radius: var(--radius); border: 1px solid var(--border);
+  box-shadow: var(--shadow); aspect-ratio: 4 / 5;
+  background: linear-gradient(135deg, var(--accent-soft), var(--gold-soft));
 }
-.highlight-card.dragging { cursor: grabbing; transition: none; }
-.highlight-card.settling { transition: transform .22s ease, opacity .22s ease; }
+/* На клубе тот же кадр стоит рядом с более коротким текстом — вертикальный
+   портрет там вытягивал шапку вдвое выше самого текста. */
+.hero-photo-square { aspect-ratio: 1 / 1; }
+.hero-photo img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.hero-photo-badge {
+  position: absolute; left: 14px; right: 14px; bottom: 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 10px 9px 14px; border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-card) 94%, transparent);
+  backdrop-filter: blur(6px);
+  font-size: 14px; font-weight: 600; line-height: 1.3;
+  box-shadow: 0 2px 12px rgba(20, 30, 15, .18);
+}
+.hero-photo-mark { flex: none; width: 22px; height: 22px; border-radius: 5px; display: block; }
 
-/* Уход верхней карточки: направление задаётся через --dir (1 вправо, -1 влево) */
-@keyframes hl-toss {
-  to { transform: translateX(calc(var(--dir, 1) * 130%)) rotate(calc(var(--dir, 1) * 12deg)); opacity: 0; }
-}
-@keyframes hl-deal {
-  from { transform: translateY(10px) scale(.97); opacity: .4; }
-  to   { transform: none; opacity: 1; }
-}
-.highlight-card.tossing { animation: hl-toss .26s ease-in forwards; }
-.highlight-card.dealing { animation: hl-deal .26s ease-out; }
-
-/* Подсказка про свайп: на тач-устройствах «смахните», на десктопе «листайте» */
-.hl-hint {
-  margin: 12px 0 0; font-size: 13px; color: var(--text-muted); text-align: center;
-  display: flex; align-items: center; justify-content: center; gap: 5px;
-}
-.hl-hint::before { content: '⇠'; opacity: .6; }
-.hl-hint::after { content: '⇢'; opacity: .6; }
-.hl-hint-swipe { display: none; }
-@media (hover: none) and (pointer: coarse) {
-  .hl-hint-swipe { display: inline; }
-  .hl-hint-click { display: none; }
+/* «Ткнуть наугад» — то, что осталось от колоды: ссылка рядом с заголовком
+   «Куда вы едете?», ведёт на /naugad и оттуда редиректом в случайное место. */
+/* В одну колонку вертикальный портрет во всю ширину экрана занял бы почти
+   весь первый скролл — ограничиваем, чтобы под ним сразу читались двери. */
+@media (max-width: 860px) {
+  .hero-photo { max-width: 320px; }
 }
 
-/* Однократное покачивание при первом показе — намёк, что карточку можно тянуть */
-@keyframes hl-nudge {
-  0%, 100% { transform: none; }
-  35% { transform: translateX(-9px) rotate(-1.2deg); }
-  70% { transform: translateX(5px) rotate(.7deg); }
+.dice-link {
+  font-size: 14px; font-weight: 700; color: var(--accent); white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
 }
-.highlight-card.nudge { animation: hl-nudge 1s ease-in-out .8s 1; }
-
-@media (prefers-reduced-motion: reduce) {
-  .highlight-card.tossing, .highlight-card.dealing, .highlight-card.nudge { animation: none; }
-  .highlight-card.settling { transition: none; }
-}
-.highlight-card .hl-cover {
-  height: 200px; background: linear-gradient(135deg, var(--accent-soft), var(--gold-soft));
-  background-size: cover; background-position: center;
-  display: flex; align-items: flex-end; padding: 14px;
-}
-.highlight-card .hl-tag {
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
-  background: rgba(20, 23, 15, .55); color: #fff; padding: 4px 10px; border-radius: 999px;
-}
-.highlight-card .hl-body { padding: 18px 20px 20px; }
-.highlight-card h3 { font-family: var(--font-display); font-weight: 400; font-size: 21px; margin: 0 0 8px; }
-.highlight-card p { color: var(--text-muted); font-size: 14px; margin: 0 0 14px; }
-.highlight-card .hl-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.hl-label {
-  font-family: var(--font-mono); font-size: 14px; font-weight: 700; color: var(--accent); letter-spacing: .04em;
-  text-transform: uppercase; margin-bottom: 8px;
-}
+.dice-link::before { content: '🎲'; font-size: 15px; }
 
 /* ── Section headings ─────────────────────────────*/
 .section { padding: 48px 0; }
@@ -607,6 +589,27 @@ h1.article-title {
 .club-cta-text { font-size: 15.5px; color: var(--text); max-width: 62ch; }
 .club-cta-text b { display: block; font-size: 18px; margin-bottom: 4px; }
 .club-cta .btn { flex: none; }
+
+/* ── «О чём спрашивают в клубе» ────────────────────
+   Реплики из чата, а не рекламные тезисы: карточка — это одна живая фраза
+   с пометкой темы. Кавычки рисуем псевдоэлементом, чтобы автор в админке
+   набирал только сам вопрос и не думал про пунктуацию вокруг него. */
+.club-questions { padding-top: 8px; }
+.qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.qcard {
+  position: relative; padding: 18px 20px 18px 22px;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 15px; color: var(--text);
+}
+.qcard::before {
+  content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px;
+  border-radius: 0 3px 3px 0; background: var(--accent); opacity: .45;
+}
+.qcard b {
+  display: block; margin-bottom: 6px; font-weight: 700;
+  font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .05em;
+  text-transform: uppercase; color: var(--accent-dark);
+}
 
 /* ── Округа ───────────────────────────────────────*/
 .district-card .body { padding: 20px; }

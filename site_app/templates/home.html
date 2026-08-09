@@ -6,6 +6,11 @@
 {% block meta_description %}Места и маршруты Адыгеи, пройденные лично: Хаджохская теснина, водопады Руфабго, плато Лаго-Наки. Честные расстояния, актуальные цены и готовые планы поездки на 2-3 дня, 4-5 дней и неделю.{% endblock %}
 
 {% block content %}
+{# Первым экраном — автор, а не жеребьёвка. Случайная карточка стояла здесь
+   и была самым случайным, что есть на сайте: гостю, который ещё ничего не
+   открывал, она не помогает выбрать. Теперь слева обещание и счётчик
+   пройденного, справа фото автора — оно и есть доказательство «прошёл сам»,
+   а рандом уехал ссылкой «Ткнуть наугад» к блоку «Куда вы едете?». #}
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
@@ -13,39 +18,33 @@
       <h1 class="page-title">{{ page.title }}</h1>
       {% if page.lead %}<p class="about-text">{{ page.lead }}</p>{% endif %}
 
+      <p class="hero-stats">
+        <span><b>{{ footer_stats.places }}</b> {{ places_word(footer_stats.places) }}</span>
+        <span><b>{{ footer_stats.trails }}</b> {{ routes_word(footer_stats.trails) }}</span>
+        <span class="hero-stats-note">пройдены лично</span>
+      </p>
+
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="#kuda">Куда вы едете?</a>
+        <a class="btn btn-ghost" href="/mesta">Все места</a>
+      </div>
     </div>
 
-    <div>
-      <p class="hl-label">{{ page.lead_extra }}</p>
-      <!-- Колода: две подложки создают ощущение стопки, верхняя карточка
-           смахивается свайпом или кнопкой «Ещё». -->
-      <div class="hl-deck" id="hl-deck">
-        <div class="hl-stack" aria-hidden="true"></div>
-        <div class="hl-stack" aria-hidden="true"></div>
-        <div class="highlight-card" id="highlight-card">
-          <div class="hl-cover" style="{% if highlight.cover %}background-image:url('{{ highlight.cover }}'){% endif %}">
-            <span class="hl-tag">{{ highlight.tag_label }}</span>
-          </div>
-          <div class="hl-body">
-            <h3>{{ highlight.name }}</h3>
-            <p>{{ highlight.excerpt or '' }}</p>
-            <div class="hl-actions">
-              <a class="btn btn-primary hl-open" href="{{ highlight.url }}">Смотреть</a>
-              <button class="btn btn-ghost" id="regenerate-btn" type="button">Ещё</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <p class="hl-hint" id="hl-hint">
-        <span class="hl-hint-swipe">Смахните карточку</span>
-        <span class="hl-hint-click">Листайте колоду</span>
-        или нажмите «Ещё»
-      </p>
-    </div>
+    {% if page.cover %}
+    <figure class="hero-photo">
+      <img src="{{ page.cover }}" alt="{{ page.lead_extra or 'Автор сайта' }}" style="{{ page.cover_style }}" width="800" height="1000">
+      {% if page.lead_extra %}
+      <figcaption class="hero-photo-badge">
+        {{ page.lead_extra }}
+        <img class="hero-photo-mark" src="/assets/favicon-32x32.png" alt="" width="22" height="22">
+      </figcaption>
+      {% endif %}
+    </figure>
+    {% endif %}
   </div>
 </section>
 
-{{ doors_ui.doors_grid(doors, 'Куда вы едете?', 'Выберите свою ситуацию — соберём места и маршруты под неё.') }}
+{{ doors_ui.doors_grid(doors, 'Куда вы едете?', 'Выберите свою ситуацию — соберём места и маршруты под неё.', anchor='kuda', random_url='/naugad') }}
 
 <section class="section" id="favorites-section" style="display:none">
   <div class="wrap">

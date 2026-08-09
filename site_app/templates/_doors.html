@@ -1,7 +1,13 @@
-{% macro doors_grid(doors, title, note) %}
-<section class="section doors-section">
+{# anchor — куда ведёт кнопка из шапки главной; random_url — «Ткнуть наугад»,
+   бывшая колода со случайной карточкой из первого экрана. Оба необязательные:
+   на других страницах блок дверей выводится как раньше. #}
+{% macro doors_grid(doors, title, note, anchor=None, random_url=None) %}
+<section class="section doors-section"{% if anchor %} id="{{ anchor }}"{% endif %}>
   <div class="wrap">
-    <div class="section-head"><h2>{{ title }}</h2></div>
+    <div class="section-head">
+      <h2>{{ title }}</h2>
+      {% if random_url %}<a class="dice-link" href="{{ random_url }}" rel="nofollow">Ткнуть наугад</a>{% endif %}
+    </div>
     {% if note %}<p class="section-note">{{ note }}</p>{% endif %}
     <div class="doors">
       {% for d in doors %}

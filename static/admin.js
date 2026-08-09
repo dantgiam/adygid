@@ -699,6 +699,10 @@ const COVER_FRAMES = {
     { label: 'В карточке', ratio: '3 / 2', width: 190 },
     { label: 'В шапке страницы', ratio: '12 / 5', width: 270 },
   ],
+  // Фото автора в шапке: на главной кадр вертикальный, на клубе квадратный —
+  // рамка показывается только та, что реально используется этой страницей.
+  'author-home': [{ label: 'В шапке главной', ratio: '4 / 5', width: 160 }],
+  'author-club': [{ label: 'В шапке клуба', ratio: '1 / 1', width: 180 }],
 };
 
 function setupCoverPreview(fileId, urlId, previewId, focusId, kind) {
@@ -3044,9 +3048,30 @@ function openDifficultyForm(code) {
   });
 }
 
+/** Одна строка блока «О чём спрашивают в клубе»: тема + сама реплика. */
+function clubQuestionRow(item) {
+  item = item || {};
+  return `<div class="tip-row">
+    <input class="cq-topic" value="${escAttr(item.topic || '')}" placeholder="Тема" style="flex:0 0 140px">
+    <input class="cq-question" value="${escAttr(item.question || '')}" placeholder="Вопрос, который задают в чате" style="flex:1">
+    <button type="button" class="btn btn-ghost btn-sm" onclick="this.parentElement.remove()">×</button>
+  </div>`;
+}
+
+function addClubQuestion() {
+  document.getElementById('sp-questions').insertAdjacentHTML('beforeend', clubQuestionRow());
+}
+
 function openSitePageForm(slug) {
   const p = sitePages.find(x => x.slug === slug) || {};
-  const hasButton = slug === 'club';
+  const isClub = slug === 'club';
+  const isHome = slug === 'home';
+  // Фото автора нужно только там, где есть шапка с картинкой; у подсказки
+  // «Сложность» её нет — она показывается попапом внутри карточки.
+  const hasCover = isClub || isHome;
+  const leadExtraLabel = isClub ? 'Второй абзац'
+    : isHome ? 'Подпись на фото' : 'Дополнительный текст';
+
   showModal(SITE_PAGE_LABELS[slug] || slug, `
     <div class="field"><label>Надпись над заголовком</label>
       <input id="sp-eyebrow" value="${escAttr(p.eyebrow || '')}" placeholder="Привет">
@@ -3057,23 +3082,67 @@ function openSitePageForm(slug) {
     <div class="field"><label>Текст под заголовком</label>
       <textarea id="sp-lead">${escHtml(p.lead || '')}</textarea>
     </div>
-    <div class="field"><label>${slug === 'club' ? 'Второй абзац' : 'Подпись у карточки-подборки справа'}</label>
+    <div class="field"><label>${leadExtraLabel}</label>
       <textarea id="sp-lead-extra">${escHtml(p.lead_extra || '')}</textarea>
+      ${isHome ? '<div class="hint">Плашка в углу фото — например «Данила, автор АдыГид». Пусто — плашки нет.</div>' : ''}
     </div>
-    ${hasButton ? `<div class="field" style="margin-bottom:0"><label>Текст на кнопке</label>
-      <input id="sp-button" value="${escAttr(p.button_text || '')}">
+    ${hasCover ? `<div class="field"><label>Фото в шапке</label>
+      <input type="file" id="sp-cover-file" accept="image/*">
+      <input type="hidden" id="sp-cover-url" value="${escAttr(p.cover_url || '')}">
+      <input type="hidden" id="sp-cover-focus" value="${escAttr(p.cover_focus || '')}">
+      <div id="sp-cover-preview" class="cover-preview" hidden></div>
+      <div class="hint">Потяните по картинке, чтобы выбрать видимую часть кадра. Без фото шапка показывается только текстом.</div>
+    </div>` : ''}
+    ${isClub ? `<div class="field"><label>Ссылка на клуб в Telegram</label>
+      <input id="sp-telegram" type="url" value="${escAttr(p.telegram_url || '')}" placeholder="https://t.me/…">
+      <div class="hint">Пусто — кнопка Telegram не показывается.</div>
+    </div>
+    <div class="field"><label>Ссылка на клуб в MAX</label>
+      <input id="sp-max" type="url" value="${escAttr(p.max_url || '')}" placeholder="https://max.ru/join/…">
+      <div class="hint">Пусто — берётся адрес, зашитый в коде (CLUB_URL).</div>
+    </div>
+    <div class="field"><label>Текст на кнопке MAX</label>
+      <input id="sp-button" value="${escAttr(p.button_text || '')}" placeholder="Открыть в MAX">
+    </div>
+    <div class="field" style="margin-bottom:0"><label>О чём спрашивают в клубе</label>
+      <div id="sp-questions">${(p.items || []).map(clubQuestionRow).join('')}</div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addClubQuestion()">+ Вопрос</button>
+      <div class="hint">Живые реплики из чата — они показывают, зачем вступать, лучше любой кнопки. Пустой список прячет блок со страницы.</div>
     </div>` : ''}
   `, async () => {
+    let coverUrl = hasCover ? (document.getElementById('sp-cover-url').value || null) : (p.cover_url || null);
+    let coverThumb = p.cover_thumb_url || null;
+    if (hasCover) {
+      const fileEl = document.getElementById('sp-cover-file');
+      if (fileEl.files.length) {
+        const up = await uploadFile(fileEl.files[0]);
+        if (up) { coverUrl = up.url; coverThumb = up.thumb_url; }
+      }
+    }
     const payload = {
       eyebrow: document.getElementById('sp-eyebrow').value.trim() || null,
       title: document.getElementById('sp-title').value.trim() || null,
       lead: document.getElementById('sp-lead').value.trim() || null,
       lead_extra: document.getElementById('sp-lead-extra').value.trim() || null,
-      button_text: hasButton ? (document.getElementById('sp-button').value.trim() || null) : (p.button_text || null),
+      button_text: isClub ? (document.getElementById('sp-button').value.trim() || null) : (p.button_text || null),
+      cover_url: coverUrl,
+      cover_thumb_url: coverThumb,
+      cover_focus: hasCover ? (document.getElementById('sp-cover-focus').value || null) : (p.cover_focus || null),
     };
+    if (isClub) {
+      payload.telegram_url = document.getElementById('sp-telegram').value.trim() || null;
+      payload.max_url = document.getElementById('sp-max').value.trim() || null;
+      payload.items = Array.from(document.querySelectorAll('#sp-questions .tip-row')).map(row => ({
+        topic: row.querySelector('.cq-topic').value.trim(),
+        question: row.querySelector('.cq-question').value.trim(),
+      })).filter(q => q.question);
+    }
     const saved = await api('PATCH', `/site-pages/${slug}`, payload);
     if (saved) { await loadAll(); closeModal(); toast('Сохранено'); }
   }, { wide: true });
+  if (hasCover) {
+    setupCoverPreview('sp-cover-file', 'sp-cover-url', 'sp-cover-preview', 'sp-cover-focus', 'author-' + slug);
+  }
 }
 
 function renderBlocks() {
