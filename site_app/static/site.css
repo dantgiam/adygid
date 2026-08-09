@@ -219,15 +219,14 @@ h1.article-title {
 .hero-stats-note { font-style: italic; }
 .hero-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
 
+/* Квадрат, а не портрет: фото стоит рядом с колонкой текста и вертикальным
+   кадром вылезало за неё почти на треть. */
 .hero-photo {
   position: relative; margin: 0; overflow: hidden;
   border-radius: var(--radius); border: 1px solid var(--border);
-  box-shadow: var(--shadow); aspect-ratio: 4 / 5;
+  box-shadow: var(--shadow); aspect-ratio: 1 / 1;
   background: linear-gradient(135deg, var(--accent-soft), var(--gold-soft));
 }
-/* На клубе тот же кадр стоит рядом с более коротким текстом — вертикальный
-   портрет там вытягивал шапку вдвое выше самого текста. */
-.hero-photo-square { aspect-ratio: 1 / 1; }
 /* Только прямой ребёнок: иконка внутри плашки — тоже <img> и тоже лежит
    внутри .hero-photo, а «.hero-photo img» специфичнее «.hero-photo-mark»
    и растягивал её на весь кадр. */
@@ -319,20 +318,38 @@ h1.article-title {
 .more-tile-label { font-size: 14px; color: var(--text-muted); }
 .more-tile-cta { margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--accent); }
 
-/* «Ткнуть наугад» — соседняя клетка той же сетки. От «ещё N» отличается
-   золотом вместо зелени: это не продолжение подборки, а прыжок в сторону. */
-.dice-tile {
-  align-items: center; justify-content: center; text-align: center;
-  gap: 6px; padding: 24px 18px;
-  background: var(--gold-soft); border-style: dashed; border-color: var(--gold);
+/* Случайное место — клетка сетки, а не колода в шапке, как было раньше.
+   Карточка обычная, но помечена золотом: соседи в ряду выбраны по популярности,
+   а эта выпала жребием, и это должно быть видно до клика. */
+/* Через .card.random-card, а не просто .random-card: у «.card:hover» тот же
+   вес, и порядок в файле решал бы, каким станет цвет рамки на наведении. */
+.card.random-card { position: relative; border-color: var(--gold); }
+.card.random-card:hover { border-color: var(--gold-dark); }
+.random-card-link { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.random-tag {
+  position: absolute; top: 10px; left: 10px;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .05em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 999px; background: rgba(20, 23, 15, .55); color: #fff;
 }
-.dice-tile:hover { background: #F7E9C4; border-color: var(--gold-dark); }
-.dice-tile-face { font-size: 34px; line-height: 1; transition: transform .2s ease; }
-.dice-tile:hover .dice-tile-face { transform: rotate(-14deg); }
-.dice-tile-title { font-family: var(--font-display); font-size: 19px; color: var(--text); }
-.dice-tile-note { font-size: 14px; color: var(--text-muted); }
+/* Кнопка поверх карточки, а не внутри ссылки: вложенные <a> браузер разрывает
+   в разметке, и «Ещё» вываливался бы из карточки. */
+.random-again {
+  position: absolute; right: 12px; bottom: 12px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 999px;
+  background: var(--gold); color: #2A2205; font-size: 13.5px; font-weight: 700;
+  box-shadow: 0 2px 10px rgba(40, 30, 0, .18);
+  transition: background .15s ease, transform .12s ease;
+}
+.random-again:hover { background: var(--gold-dark); color: #fff; }
+.random-again:active { transform: scale(.96); }
+/* Место под кнопкой, чтобы она не легла на текст описания */
+.card.random-card .body { padding-bottom: 52px; }
+/* Пока идёт перетасовка — карточка притухает, но не прыгает: она стоит в сетке,
+   и любой сдвиг размера дёргал бы соседние клетки. */
+.random-card.rolling .random-card-link { opacity: .35; transition: opacity .15s ease; }
 @media (prefers-reduced-motion: reduce) {
-  .dice-tile:hover .dice-tile-face { transform: none; }
+  .random-card.rolling .random-card-link { transition: none; }
 }
 
 /* Округ над заголовком карточки — общий стиль для мест, маршрутов и статей:

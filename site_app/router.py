@@ -1128,6 +1128,7 @@ def home(request: Request, db: Session = Depends(get_db)):
     if cached is not None and time.monotonic() - _HOME_CACHE["at"] < _HOME_TTL_S:
         return Response(cached, media_type="text/html; charset=utf-8")
 
+    highlight = _pick_highlight(db)
     # Тот же расчёт, что у мест и маршрутов: пять карточек плюс плитка «ещё N».
     articles_total = db.execute(
         select(func.count()).select_from(Article).where(Article.is_published == True)
@@ -1175,7 +1176,7 @@ def home(request: Request, db: Session = Depends(get_db)):
     response = templates.TemplateResponse(
         "home.html",
         _ctx(
-            request, db, active_nav="home", articles=articles, places=places, routes=routes,
+            request, db, active_nav="home", highlight=highlight, articles=articles, places=places, routes=routes,
             places_remaining=places_remaining, places_remaining_word=places_remaining_word,
             routes_remaining=routes_remaining, routes_remaining_word=routes_remaining_word,
             articles_remaining=articles_remaining, articles_remaining_word=articles_remaining_word,

@@ -10,15 +10,26 @@
 </a>
 {% endmacro %}
 
-{# Всё, что осталось от колоды со случайной карточкой из шапки: обычная клетка
-   сетки среди мест. Ведёт на /naugad, тот редиректом отправляет в случайное
-   место или маршрут — без JS. #}
-{% macro dice_tile() %}
-<a class="card dice-tile" href="/naugad" rel="nofollow">
-  <span class="dice-tile-face" aria-hidden="true">🎲</span>
-  <span class="dice-tile-title">Ткнуть наугад</span>
-  <span class="dice-tile-note">Случайное место или маршрут</span>
-</a>
+{# Случайное место — то же, что раньше висело колодой в шапке, только теперь
+   клеткой общей сетки. Карточка настоящая: обложка, название, описание. Кнопка
+   «Ещё» перетасовывает её через /api/site/random, а без JS остаётся ссылкой на
+   /naugad — тот редиректом уводит на случайное место сам. #}
+{% macro random_card(item) %}
+<div class="card random-card" id="random-card">
+  <a class="random-card-link" href="{{ item.url }}">
+    <div class="cover">
+      {{ cover_img(item.cover, item.cover_style) }}
+      <span class="random-tag">{{ item.tag_label }}</span>
+    </div>
+    <div class="body">
+      <h3>{{ item.name }}</h3>
+      {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
+    </div>
+  </a>
+  <a class="random-again" href="/naugad" rel="nofollow" id="random-again">
+    <span aria-hidden="true">🎲</span>Ещё
+  </a>
+</div>
 {% endmacro %}
 
 {# Обложка карточки — <img loading="lazy">, а не background-image в стиле.

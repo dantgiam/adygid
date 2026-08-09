@@ -44,7 +44,7 @@
   </div>
 </section>
 
-{{ doors_ui.doors_grid(doors, 'Куда вы едете?', 'Выберите свою ситуацию — соберём места и маршруты под неё.', anchor='kuda') }}
+{{ doors_ui.doors_grid(doors, 'Подборки маршрутов', 'на любой случай и ситуацию', anchor='kuda') }}
 
 <section class="section" id="favorites-section" style="display:none">
   <div class="wrap">
@@ -62,10 +62,13 @@
 {% if articles %}
 <section class="section">
   <div class="wrap">
+    {# Заголовок в две строки, как у подборок выше: сам вопрос и уточнение
+       под ним — «Все статьи →» осталось справа от первой строки. #}
     <div class="section-head">
-      <h2>С чего начать</h2>
+      <h2>С чего начать?</h2>
       <a class="see-all" href="/stati">Все статьи →</a>
     </div>
+    <p class="section-note">Статьи для знакомства с Адыгеей</p>
     <div class="grid">
       {% for a in articles %}{{ cards.article_card(a) }}{% endfor %}
       {% if articles_remaining %}{{ cards.more_tile(articles_remaining, articles_remaining_word, '/stati') }}{% endif %}
@@ -81,11 +84,11 @@
       <h2>Подборка мест</h2>
       <a class="see-all" href="/mesta">Все места →</a>
     </div>
-    {# Четыре места, пятой клеткой «Ткнуть наугад», шестой — «ещё N мест»:
-       сетка по три в ряд закрывается ровно двумя рядами. #}
+    {# Четыре места, пятой клеткой случайное, шестой — «ещё N мест»: сетка по
+       три в ряд закрывается ровно двумя рядами. #}
     <div class="grid">
       {% for p in places %}{{ cards.place_card(p) }}{% endfor %}
-      {{ cards.dice_tile() }}
+      {{ cards.random_card(highlight) }}
       {% if places_remaining %}{{ cards.more_tile(places_remaining, places_remaining_word, '/mesta') }}{% endif %}
     </div>
   </div>

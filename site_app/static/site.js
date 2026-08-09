@@ -1,3 +1,65 @@
+// ── Случайное место: кнопка «Ещё» ────────────────────────────────────────
+// Карточка приходит уже отрисованной с сервера, здесь только перетасовка на
+// месте. Без скрипта «Ещё» остаётся обычной ссылкой на /naugad — тот сам
+// редиректит на случайное место, поэтому кнопка не мёртвая ни в каком случае.
+(() => {
+  const card = document.getElementById("random-card");
+  const again = document.getElementById("random-again");
+  if (!card || !again) return;
+
+  const link = card.querySelector(".random-card-link");
+  const cover = card.querySelector(".cover");
+  let busy = false;
+  let next = null;   // следующая карточка, взятая заранее — клик срабатывает сразу
+
+  async function prefetch() {
+    try {
+      const res = await fetch("/api/site/random");
+      next = res.ok ? await res.json() : null;
+    } catch (e) { next = null; }
+  }
+
+  function paint(data) {
+    card.querySelector(".random-tag").textContent = data.tag_label || "";
+    card.querySelector("h3").textContent = data.name || "";
+    const excerpt = card.querySelector(".excerpt");
+    if (excerpt) excerpt.textContent = data.excerpt || "";
+    link.href = data.url || "/";
+
+    // Обложку пересобираем, а не правим у существующей: у выпавшей карточки
+    // фото может не быть вовсе, и тогда остаётся градиент-заглушка .cover.
+    const old = cover.querySelector(".cover-img");
+    if (old) old.remove();
+    if (data.cover) {
+      const img = document.createElement("img");
+      img.className = "cover-img";
+      img.alt = "";
+      img.decoding = "async";
+      if (data.cover_style) img.style.cssText = data.cover_style;
+      img.src = data.cover;
+      cover.prepend(img);
+    }
+  }
+
+  again.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    busy = true;
+    card.classList.add("rolling");
+
+    if (!next) await prefetch();
+    const data = next;
+    next = null;
+    prefetch();
+
+    if (data) paint(data);
+    card.classList.remove("rolling");
+    busy = false;
+  });
+
+  prefetch();
+})();
+
 // ── Фоновые стикеры ──────────────────────────────────────────────────────
 // Раскладываем скриптом, а не руками в шаблоне: только здесь известны реальная
 // высота страницы и реальная ширина боковых полей, поэтому стикеры равномерно
