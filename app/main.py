@@ -9,7 +9,8 @@ from typing import Optional, List
 import httpx
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -36,6 +37,13 @@ app.add_middleware(
 )
 
 
+# Иконки, которые браузеры и поисковые роботы запрашивают из корня домена, —
+# такая же неизменная статика, как содержимое /assets, и кэшируется наравне.
+_ROOT_ICON_PATHS = frozenset({
+    "/favicon.ico", "/apple-touch-icon.png", "/apple-touch-icon-precomposed.png",
+})
+
+
 @app.middleware("http")
 async def _cache_policy(request, call_next):
     """HTML не кэшируем — проект активно меняется, и правки должны быть видны
@@ -47,7 +55,8 @@ async def _cache_policy(request, call_next):
     # Стили и скрипты сайта подключаются с ?v=<версия>, фото загружаются под
     # уникальными именами — их можно смело кэшировать надолго. Файлы админки
     # сюда не попадают: она правится часто, а открывает её один человек.
-    if path.startswith("/assets/") or path.startswith("/static/uploads/"):
+    if path.startswith("/assets/") or path.startswith("/static/uploads/") \
+            or path in _ROOT_ICON_PATHS:
         response.headers["Cache-Control"] = "public, max-age=604800"
     else:
         response.headers["Cache-Control"] = "no-store"
@@ -56,6 +65,20 @@ async def _cache_policy(request, call_next):
 
 # Текст страниц сжимается — HTML со списками карточек ужимается в несколько раз
 app.add_middleware(GZipMiddleware, minimum_size=800)
+
+
+# Служебные ветки, которым нужен машинный ответ: админка ходит в /api и разбирает
+# JSON, статика отдаётся файловым мидлварём. Всё остальное запрашивает человек
+# браузером — ему показываем нормальную страницу, а не {"detail": "..."}.
+_JSON_ERROR_PREFIXES = ("/api/", "/static/", "/assets/")
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _not_found_page(request, exc: StarletteHTTPException):
+    if exc.status_code == 404 and not request.url.path.startswith(_JSON_ERROR_PREFIXES):
+        from site_app.router import render_not_found
+        return render_not_found(request)
+    return JSONResponse({"detail": exc.detail}, status_code=exc.status_code, headers=exc.headers)
 
 Base.metadata.create_all(bind=engine)
 
@@ -1411,6 +1434,21 @@ def render_preview(body: PreviewIn, db: Session = Depends(get_db), _: bool = Dep
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/assets", StaticFiles(directory="site_app/static"), name="site_static")
 app.include_router(site_router)
+
+
+# Иконки сайта лежат в /assets, но и поисковики, и браузеры первым делом
+# спрашивают их в корне домена — без этих двух маршрутов /favicon.ico отдавал
+# 404, и в выдаче рядом с сайтом рисовался серый глобус вместо кота.
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon_root():
+    return FileResponse("site_app/static/favicon.ico", media_type="image/x-icon")
+
+
+@app.get("/apple-touch-icon.png", include_in_schema=False)
+@app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
+def apple_touch_icon_root():
+    return FileResponse("site_app/static/apple-touch-icon.png", media_type="image/png")
+
 
 @app.get("/map")
 def public_map():

@@ -4,7 +4,7 @@
 
 {% block title %}{{ scenario.title }} — АдыГид{% endblock %}
 {% block meta_description %}{{ scenario.seo_description }}{% endblock %}
-{% block og_image %}{% if scenario.cover_url %}<meta property="og:image" content="{{ scenario.cover_url }}">{% endif %}{% endblock %}
+{% block og_image %}{% if scenario.cover_url %}<meta property="og:image" content="{{ scenario.cover_url|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 
 {% block extra_ld %}
 {% if scenario.faq_ld %}

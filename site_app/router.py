@@ -14,7 +14,7 @@ from geoalchemy2.shape import to_shape
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.database import get_db
+from app.database import SessionLocal, get_db
 from app.models import Article, Category, Checkpoint, FaqSet, Like, Magnet, Scenario, SitePage, Trail
 from site_app.content import (
     ACCESS_LABELS,
@@ -54,6 +54,21 @@ def _asset_version() -> str:
 
 
 ASSET_VERSION = _asset_version()
+
+
+def _abs_url(url: Optional[str]) -> str:
+    """og:image обязан быть абсолютным — относительный путь мессенджеры и
+    поисковики просто игнорируют, и ссылка разворачивается без картинки.
+    Обложки, залитые в Supabase, уже приходят полным https-адресом; у старых,
+    сохранённых локальным путём, дописываем адрес сайта."""
+    if not url:
+        return ""
+    if url.startswith(("http://", "https://", "//")):
+        return url
+    return SITE_URL + url
+
+
+templates.env.filters["abs_url"] = _abs_url
 
 _POPULARITY_ORDER = case((Checkpoint.popularity == "top", 0), (Checkpoint.popularity == "popular", 1), else_=2)
 _POPULARITY_ORDER_TRAIL = case((Trail.popularity == "top", 0), (Trail.popularity == "popular", 1), else_=2)
@@ -1457,6 +1472,30 @@ def club(request: Request, db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────
 #  robots.txt / sitemap.xml — чтобы поисковики знали, что обходить
 # ─────────────────────────────────────────────
+
+def render_not_found(request: Request) -> Response:
+    """Человеческая 404 вместо {"detail": "..."} от FastAPI.
+
+    Вызывается из обработчика исключений в app/main.py, а туда запрос приходит
+    уже без зависимостей — сессию открываем сами (в подвале нужен счётчик мест
+    и маршрутов). Если и база недоступна, отдаём тот же шаблон с нулями:
+    страница ошибки не имеет права падать со второй ошибкой."""
+    db = SessionLocal()
+    try:
+        ctx = _ctx(request, db, active_nav=None)
+    except Exception:
+        ctx = {
+            "request": request, "footer_stats": {"places": 0, "trails": 0},
+            "districts": DISTRICTS, "site_url": SITE_URL,
+            "canonical_url": SITE_URL + request.url.path,
+            "yandex_metrika_id": YANDEX_METRIKA_ID, "club_url": CLUB_URL,
+            "difficulty_levels": DIFFICULTY_INFO, "asset_version": ASSET_VERSION,
+            "active_nav": None,
+        }
+    finally:
+        db.close()
+    return templates.TemplateResponse("404.html", ctx, status_code=404)
+
 
 @router.get("/robots.txt", response_class=PlainTextResponse)
 def robots_txt():

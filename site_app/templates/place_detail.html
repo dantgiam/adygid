@@ -4,7 +4,7 @@
 
 {% block title %}{{ place.name }}{% if place.district_label %}, {{ place.district_label }}{% endif %} — как добраться и что посмотреть{% endblock %}
 {% block meta_description %}{{ place.excerpt or place.name }}{% endblock %}
-{% block og_image %}{% if place.cover %}<meta property="og:image" content="{{ place.cover }}">{% endif %}{% endblock %}
+{% block og_image %}{% if place.cover %}<meta property="og:image" content="{{ place.cover|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 
 {% block extra_ld %}
 <script type="application/ld+json">

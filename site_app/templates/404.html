@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Страница не найдена — АдыГид{% endblock %}
+{% block meta_description %}Такой страницы на сайте нет. Вернитесь на главную — оттуда открываются места, маршруты и планы поездки по Адыгее.{% endblock %}
+
+{# Ошибочные адреса в индексе не нужны — они плодят дубли одной и той же
+   страницы под сотней разных URL. Перекрываем общий index, follow из base. #}
+{% block robots %}noindex, follow{% endblock %}
+
+{% block content %}
+<section class="section notfound">
+  <div class="wrap notfound-inner">
+    <picture>
+      <source srcset="/assets/cat-404.webp?v={{ asset_version }}" type="image/webp">
+      <img class="notfound-cat" src="/assets/cat-404.jpg?v={{ asset_version }}" width="640" height="640"
+           alt="Кот в папахе — маскот АдыГида" fetchpriority="high">
+    </picture>
+
+    <p class="eyebrow">Ошибка 404</p>
+    <h1 class="page-title">Кажется, вы опечатались</h1>
+    <p class="notfound-text">
+      Такой страницы на сайте нет — возможно, адрес набран с ошибкой или страницу уже убрали.
+      Проходите на главную, оттуда найдётся всё остальное.
+    </p>
+
+    <p class="notfound-actions">
+      <a class="btn btn-primary" href="/">На главную</a>
+      <a class="btn btn-ghost" href="/kuda">Куда поехать</a>
+    </p>
+
+    {# Тупик разворачиваем в навигацию: человек попал сюда по битой ссылке и
+       уходить не должен — четыре основных раздела прямо под кнопками. #}
+    <nav class="notfound-links" aria-label="Разделы сайта">
+      <a href="/mesta">Места</a>
+      <a href="/marshruty">Маршруты</a>
+      <a href="/stati">Статьи</a>
+      <a href="/voprosy">Частые вопросы</a>
+    </nav>
+  </div>
+</section>
+{% endblock %}

@@ -6,7 +6,7 @@
 <title>{% block title %}АдыГид — личный гид по Адыгее{% endblock %}</title>
 <meta name="description" content="{% block meta_description %}Личный гид по Адыгее: места, маршруты и статьи для тех, кто планирует поездку в горы.{% endblock %}">
 <link rel="canonical" href="{{ canonical_url }}">
-<meta name="robots" content="index, follow">
+<meta name="robots" content="{% block robots %}index, follow{% endblock %}">
 
 <link rel="icon" href="/assets/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
@@ -20,7 +20,13 @@
 <meta property="og:url" content="{{ canonical_url }}">
 <meta property="og:title" content="{% block og_title %}{{ self.title() }}{% endblock %}">
 <meta property="og:description" content="{% block og_description %}{{ self.meta_description() }}{% endblock %}">
-{% block og_image %}{% endblock %}
+{# Без картинки ссылка на сайт разворачивается в мессенджере пустой карточкой,
+   поэтому у страниц без своей обложки (главная, списки, вопросы, клуб) стоит
+   общая — кот в папахе на зелёном, тот же, что в иконке вкладки. Страницы
+   места/маршрута/статьи/сценария перекрывают блок своим фото. #}
+{% block og_image %}<meta property="og:image" content="{{ site_url }}/assets/og-default.jpg?v={{ asset_version }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">{% endblock %}
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ self.og_title() }}">

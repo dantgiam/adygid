@@ -4,7 +4,7 @@
 
 {% block title %}{{ route.name }}{% if route.duration_label %} — {{ route.duration_label }}{% endif %}, маршрут по Адыгее{% endblock %}
 {% block meta_description %}{{ route.excerpt or route.name }}{% endblock %}
-{% block og_image %}{% if route.cover %}<meta property="og:image" content="{{ route.cover }}">{% endif %}{% endblock %}
+{% block og_image %}{% if route.cover %}<meta property="og:image" content="{{ route.cover|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 
 {% block extra_ld %}
 <script type="application/ld+json">

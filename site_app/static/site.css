@@ -807,3 +807,35 @@ h1.article-title {
 @media (hover: none) and (pointer: coarse) {
   .diff-info-btn { width: 28px; height: 28px; font-size: 13px; }
 }
+
+/* ── Страница 404 ─────────────────────────────────
+   Битая ссылка раньше отдавала голый JSON от FastAPI. Теперь это обычная
+   страница сайта: маскот во всю ширину колонки, короткое объяснение и
+   выходы в основные разделы, чтобы человек не закрыл вкладку. */
+.notfound { padding-top: 56px; }
+.notfound-inner { max-width: 620px; text-align: center; }
+/* display:block + auto-поля, а не text-align от родителя: <picture> — строчный
+   элемент, и на узком экране картинка прижималась к левому краю. */
+.notfound-cat {
+  display: block; width: 100%; max-width: 260px; height: auto;
+  border-radius: 24px; box-shadow: var(--shadow); margin: 0 auto 26px;
+}
+.notfound .page-title { margin: 6px 0 14px; }
+.notfound-text { color: var(--text-muted); font-size: 17px; margin: 0 auto; max-width: 46ch; }
+.notfound-actions {
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 28px 0 0;
+}
+.notfound-links {
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 22px;
+  margin-top: 30px; padding-top: 22px; border-top: 1px solid var(--border);
+}
+.notfound-links a { color: var(--text-muted); font-size: 15px; text-decoration: none; }
+.notfound-links a:hover { color: var(--accent); text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .notfound { padding-top: 32px; }
+  .notfound-cat { max-width: 200px; margin-bottom: 20px; }
+  .notfound-links { gap: 8px 16px; }
+  .notfound-text { font-size: 16px; }
+  .notfound-actions .btn { flex: 1 1 100%; }
+}
