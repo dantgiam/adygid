@@ -18,13 +18,13 @@
 
       <div class="hero-ctas">
         {% if page.telegram_url %}
-        <a class="btn btn-messenger" href="{{ page.telegram_url }}" target="_blank" rel="noopener">
-          <span class="msg-mark msg-tg" aria-hidden="true"></span>Открыть в Telegram
+        <a class="btn btn-messenger btn-tg" href="{{ page.telegram_url }}" target="_blank" rel="noopener">
+          <img src="/assets/magnet-tg.png?v={{ asset_version }}" alt="" width="26" height="26">Открыть в Telegram
         </a>
         {% endif %}
         {% if max_href %}
-        <a class="btn btn-messenger" href="{{ max_href }}" target="_blank" rel="noopener">
-          <span class="msg-mark msg-max" aria-hidden="true"></span>{{ page.button_text or 'Открыть в MAX' }}
+        <a class="btn btn-messenger btn-max" href="{{ max_href }}" target="_blank" rel="noopener">
+          <img src="/assets/magnet-max.png?v={{ asset_version }}" alt="" width="26" height="26">{{ page.button_text or 'Открыть в MAX' }}
         </a>
         {% endif %}
       </div>

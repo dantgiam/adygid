@@ -161,14 +161,23 @@ nav.main-nav a.active { color: var(--accent-dark); background: var(--accent-soft
 .btn:active { transform: scale(0.97); }
 .btn[disabled] { opacity: .6; cursor: default; transform: none; }
 
-/* Кнопки клуба: две подряд, и обе одинаково важны — ни одну нельзя красить
-   акцентным зелёным, иначе вторая читается как запасная. Различает их значок
-   мессенджера в его собственном цвете, сама кнопка остаётся нейтральной. */
-.btn-messenger { background: var(--bg-card); color: var(--text); border-color: var(--border); }
-.btn-messenger:hover { border-color: var(--accent); }
-.msg-mark { flex: none; width: 20px; height: 20px; border-radius: 6px; display: block; }
-.msg-tg { background: linear-gradient(180deg, #37AEE2, #1E96C8); }
-.msg-max { background: linear-gradient(135deg, #7C5CE0, #A855F7); }
+/* Кнопки клуба: те же фирменные пилюли, что в лид-магнитах (.magnet-pill) —
+   голубая у Telegram, с градиентной каймой у MAX. Зелёным их красить нельзя:
+   кнопки две, и акцент на одной делал бы вторую запасной. */
+.btn-messenger {
+  padding: 11px 22px 11px 12px; border-radius: 999px; border-width: 2px;
+  color: #14170F; font-weight: 700;
+}
+.btn-messenger:hover { color: #14170F; box-shadow: 0 4px 12px rgba(28, 35, 28, .16); }
+.btn-messenger img { width: 26px; height: 26px; border-radius: 50%; flex: none; object-fit: cover; }
+.btn-tg { background: #E7F4FC; border-color: #6EC3EE; }
+/* Каёмка-градиент: два фона — сплошной по padding-box и градиент по border-box,
+   как в .magnet-pill-max. Иначе градиент в border не задать. */
+.btn-max {
+  background-image: linear-gradient(#F6EFFE, #F6EFFE), linear-gradient(120deg, #6E7BF2, #B36EF2, #4FA9F5);
+  background-origin: border-box; background-clip: padding-box, border-box;
+  border-color: transparent;
+}
 
 /* ── Hero / about ──────────────────────────────── */
 .hero { padding: 48px 0 40px; }
@@ -219,31 +228,30 @@ h1.article-title {
 /* На клубе тот же кадр стоит рядом с более коротким текстом — вертикальный
    портрет там вытягивал шапку вдвое выше самого текста. */
 .hero-photo-square { aspect-ratio: 1 / 1; }
-.hero-photo img { width: 100%; height: 100%; display: block; object-fit: cover; }
+/* Только прямой ребёнок: иконка внутри плашки — тоже <img> и тоже лежит
+   внутри .hero-photo, а «.hero-photo img» специфичнее «.hero-photo-mark»
+   и растягивал её на весь кадр. */
+.hero-photo > img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .hero-photo-badge {
-  position: absolute; left: 14px; right: 14px; bottom: 14px;
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 9px 10px 9px 14px; border-radius: 10px;
+  position: absolute; left: 14px; bottom: 14px;
+  max-width: calc(100% - 28px);
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border-radius: 10px;
   background: color-mix(in srgb, var(--bg-card) 94%, transparent);
   backdrop-filter: blur(6px);
-  font-size: 14px; font-weight: 600; line-height: 1.3;
+  font-size: 13.5px; font-weight: 600; line-height: 1.35; text-wrap: balance;
   box-shadow: 0 2px 12px rgba(20, 30, 15, .18);
 }
-.hero-photo-mark { flex: none; width: 22px; height: 22px; border-radius: 5px; display: block; }
+.hero-photo-badge .hero-photo-mark {
+  flex: none; width: 22px; height: 22px; border-radius: 5px; display: block;
+  object-fit: cover;
+}
 
-/* «Ткнуть наугад» — то, что осталось от колоды: ссылка рядом с заголовком
-   «Куда вы едете?», ведёт на /naugad и оттуда редиректом в случайное место. */
 /* В одну колонку вертикальный портрет во всю ширину экрана занял бы почти
    весь первый скролл — ограничиваем, чтобы под ним сразу читались двери. */
 @media (max-width: 860px) {
   .hero-photo { max-width: 320px; }
 }
-
-.dice-link {
-  font-size: 14px; font-weight: 700; color: var(--accent); white-space: nowrap;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.dice-link::before { content: '🎲'; font-size: 15px; }
 
 /* ── Section headings ─────────────────────────────*/
 .section { padding: 48px 0; }
@@ -310,6 +318,22 @@ h1.article-title {
 .more-tile-count { font-family: var(--font-display); font-size: 34px; color: var(--accent-dark); line-height: 1; }
 .more-tile-label { font-size: 14px; color: var(--text-muted); }
 .more-tile-cta { margin-top: 4px; font-size: 14px; font-weight: 700; color: var(--accent); }
+
+/* «Ткнуть наугад» — соседняя клетка той же сетки. От «ещё N» отличается
+   золотом вместо зелени: это не продолжение подборки, а прыжок в сторону. */
+.dice-tile {
+  align-items: center; justify-content: center; text-align: center;
+  gap: 6px; padding: 24px 18px;
+  background: var(--gold-soft); border-style: dashed; border-color: var(--gold);
+}
+.dice-tile:hover { background: #F7E9C4; border-color: var(--gold-dark); }
+.dice-tile-face { font-size: 34px; line-height: 1; transition: transform .2s ease; }
+.dice-tile:hover .dice-tile-face { transform: rotate(-14deg); }
+.dice-tile-title { font-family: var(--font-display); font-size: 19px; color: var(--text); }
+.dice-tile-note { font-size: 14px; color: var(--text-muted); }
+@media (prefers-reduced-motion: reduce) {
+  .dice-tile:hover .dice-tile-face { transform: none; }
+}
 
 /* Округ над заголовком карточки — общий стиль для мест, маршрутов и статей:
    раньше у мест и маршрутов округ был обычным серым тегом внизу и терялся

@@ -1138,11 +1138,12 @@ def home(request: Request, db: Session = Depends(get_db)):
             select(Article).where(Article.is_published == True).order_by(Article.created_at.desc()).limit(5)
         ).scalars().all()
     ]
-    # В ряду три карточки, поэтому берём пять: шестой ячейкой встаёт плитка
-    # «ещё N», и сетка закрывается ровно двумя рядами без повисшего хвоста.
+    # В ряду три карточки, а сетка должна закрыться ровно двумя рядами. У мест
+    # две последние клетки заняты «Ткнуть наугад» и «ещё N», поэтому самих мест
+    # берём четыре — у маршрутов и статей плитка одна, там по-прежнему пять.
     place_rows = db.execute(
         _with_place_relations(select(Checkpoint)).where(Checkpoint.show_as_place == True)
-        .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(5)
+        .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc()).limit(4)
     ).scalars().all()
     places = [_place_card_dict(cp) for cp in place_rows]
     place_likes = _like_counts_map(db, "checkpoint", [cp.id for cp in place_rows])
