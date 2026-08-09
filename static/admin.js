@@ -440,6 +440,7 @@ function clearDescDraft(scope) {
 }
 
 function initDescEditor(html, scope) {
+  installQuillFocusGuard();
   registerEmbedBlots();
   descDraftScope = scope || null;
   descQuill = new Quill('#desc-editor', {
@@ -454,7 +455,6 @@ function initDescEditor(html, scope) {
     },
   });
   registerGalleryMatcher(descQuill);
-  preserveScrollOnPaste(descQuill);
   descQuill.setContents([], 'silent');
   if (html) descQuill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
 
@@ -713,6 +713,7 @@ function setArticleBody(html) {
 
 function initArticleQuill() {
   if (articleQuill) return;
+  installQuillFocusGuard();
   registerEmbedBlots();
   articleQuill = new Quill('#article-editor', {
     theme: 'bubble',
@@ -727,7 +728,6 @@ function initArticleQuill() {
     },
   });
   registerGalleryMatcher(articleQuill);
-  preserveScrollOnPaste(articleQuill);
   articleQuill.on('text-change', scheduleAutosave);
   // Кнопка «+» должна стоять напротив той строки, где сейчас курсор
   articleQuill.on('editor-change', positionInsertPlus);
@@ -2495,31 +2495,38 @@ function registerGalleryMatcher(quill) {
   });
 }
 
-// Quill после вставки из буфера зовёт root.focus() — а focus() без
-// preventScroll браузер сам трактует как «прокрути к этому элементу», и
-// секунду спустя страницу (или скроллящийся родитель модалки) уносит к
-// началу редактора, будто вставилось не туда. Запоминаем, что было
-// проскроллено до вставки, и на следующих двух кадрах возвращаем как было —
-// два кадра, потому что сам скролл-прыжок Quill происходит не мгновенно, а
-// уже после re-layout после paste.
-function preserveScrollOnPaste(quill) {
-  quill.root.addEventListener('paste', () => {
-    const scrollers = [];
-    let node = quill.root.parentElement;
-    while (node) {
-      const style = getComputedStyle(node);
-      if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight) {
-        scrollers.push([node, node.scrollTop]);
-      }
-      node = node.parentElement;
+// Quill возвращает фокус в редактор вызовом focus() без preventScroll, а такой
+// вызов браузер понимает как «прокрути к этому элементу». Лист статьи — это
+// один элемент высотой в несколько тысяч пикселей, целиком в окно он не
+// помещается, поэтому браузер показывает его начало: текст уезжает в самый
+// верх, хотя курсор остался в середине.
+//
+// Мест, откуда это прилетает, больше двух, и они разные:
+//   • root.focus() — после клика по тулбару (заголовок, список, цитата);
+//   • clipboard.container.focus() — при вставке из буфера: Quill на кадр
+//     перекидывает фокус в скрытый .ql-clipboard, у которого left:-100000px;
+//   • textbox.focus() у всплывающей подсказки — при вставке ссылки.
+// Патчить их поимённо оказалось ненадёжно: следующий такой вызов внутри Quill
+// снова проходит мимо. Поэтому подменяем focus один раз на прототипе и
+// включаем preventScroll для всего, что лежит внутри редактора, — какой бы
+// элемент Quill ни сфокусировал, скролл останется на месте.
+//
+// Патч намеренно узкий: за пределами .ql-container фокус работает как обычно,
+// и переход к полю в длинной форме по-прежнему к нему прокручивает.
+let quillFocusGuardInstalled = false;
+
+function installQuillFocusGuard() {
+  if (quillFocusGuardInstalled) return;
+  quillFocusGuardInstalled = true;
+  const nativeFocus = HTMLElement.prototype.focus;
+  HTMLElement.prototype.focus = function (options) {
+    if (this.closest && this.closest('.ql-container')) {
+      // Явно переданный preventScroll уважаем — наш здесь только значение
+      // по умолчанию, которого Quill не задаёт.
+      return nativeFocus.call(this, Object.assign({ preventScroll: true }, options));
     }
-    const windowY = window.scrollY;
-    const restore = () => {
-      if (window.scrollY !== windowY) window.scrollTo(window.scrollX, windowY);
-      scrollers.forEach(([el, top]) => { if (el.scrollTop !== top) el.scrollTop = top; });
-    };
-    requestAnimationFrame(() => requestAnimationFrame(restore));
-  });
+    return nativeFocus.call(this, options);
+  };
 }
 
 // ── «Что учесть» — локальный блок: вставка и правка через второе,
