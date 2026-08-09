@@ -20,6 +20,7 @@
 {% block content %}
 <section class="section" style="padding-top:40px">
   <div class="wrap">
+    {% if district.cover %}<div class="detail-hero"><img class="hero-img" src="{{ district.cover }}" alt="{{ district.label }}" fetchpriority="high" decoding="async"></div>{% endif %}
     <p class="eyebrow"><a href="/okrugi" style="color:inherit">Округа</a></p>
     <h1 class="page-title">{{ district.label }}</h1>
     <p class="lede district-lead">{{ district.lead }}</p>

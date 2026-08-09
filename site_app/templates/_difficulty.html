@@ -1,4 +1,4 @@
-{% macro badge(info, levels) %}
+{% macro badge(info, levels, intro) %}
 {% if info and info.code %}
 <div class="diff-widget">
   <span class="diff-dots" aria-hidden="true">
@@ -7,6 +7,8 @@
   <span class="diff-label" style="color: {{ levels[info.code].color }}">{{ info.label }}</span>
   <button type="button" class="diff-info-btn" aria-label="Что означают уровни сложности">?</button>
   <div class="diff-popover">
+    {% if intro and intro.title %}<p class="diff-popover-title">{{ intro.title }}</p>{% endif %}
+    {% if intro and intro.lead %}<p class="diff-popover-intro">{{ intro.lead }}</p>{% endif %}
     <ul>
       {% for code, item in levels.items() %}
       <li class="{{ 'current' if code == info.code else '' }}">

@@ -24,10 +24,15 @@ from PIL import Image, ImageOps
 from app.database import Base, engine, get_db
 from app.models import (
     Trail, TrailSegment, Checkpoint, Photo, Category, Article, Like, Scenario,
-    Magnet, FaqSet, SitePage, DifficultyLevel,
+    Magnet, FaqSet, SitePage, DifficultyLevel, District,
 )
 from app.slugs import slugify as _slugify, unique_slug as _unique_slug
-from site_app.content import DIFFICULTY_INFO as _DIFFICULTY_SEED, consider_embed_html
+from site_app.content import (
+    DIFFICULTY_INFO as _DIFFICULTY_SEED,
+    DISTRICTS as _DISTRICT_NAMES_SEED,
+    DISTRICT_PAGES as _DISTRICT_PAGES_SEED,
+    consider_embed_html,
+)
 from site_app.router import router as site_router
 
 app = FastAPI(title="АдыГид API v2")
@@ -213,6 +218,20 @@ with Session(engine) as _seed_db:
         ))
     _seed_db.commit()
 
+# Округа — переносим из констант content.py один раз. Дальше источник истины
+# таблица: там же правятся название, вступление, факты и обложка.
+with Session(engine) as _seed_db:
+    _have = {row[0] for row in _seed_db.execute(select(District.slug)).all()}
+    for _i, (_slug, _name) in enumerate(_DISTRICT_NAMES_SEED.items()):
+        if _slug in _have:
+            continue
+        _page = _DISTRICT_PAGES_SEED.get(_slug, {})
+        _seed_db.add(District(
+            slug=_slug, name=_name, lead=_page.get("lead"),
+            facts=_page.get("facts", []), order_index=_i,
+        ))
+    _seed_db.commit()
+
 # Сценарии — засеваются один раз, если таблица пустая (первый деплой после
 # появления фичи). Дальше редактируются только через админку, этот список
 # больше не источник истины — не трогаем существующие строки при повторных
@@ -329,6 +348,10 @@ _DEFAULT_SITE_PAGES = [
         slug="home", eyebrow="Привет", title="Адыгея? АдыГид!",
         lead="Здесь вы найдёте ответы на главные вопросы поездки — что посетить, сколько времени закладывать, где заночевать и что успеть увидеть за день-два. Все места и маршруты я прошёл сам и описал их для вас максимально подробно.",
         lead_extra="Ни один вариант не подошёл?",
+    ),
+    dict(
+        slug="difficulty", title="Что означают уровни сложности",
+        lead="Сложность — это про физическую нагрузку и рельеф, а не про опасность. Ориентируйтесь на неё, когда решаете, брать ли с собой детей и какую обувь надеть.",
     ),
     dict(
         slug="club", eyebrow="Сообщество", title="Клуб АдыГид в MAX",
@@ -1450,6 +1473,75 @@ def delete_faq_set(set_id: int, db: Session = Depends(get_db), _: bool = Depends
 class PreviewIn(BaseModel):
     kind: str = "article"          # article | description
     html: str = ""
+
+
+class DistrictIn(BaseModel):
+    slug: Optional[str] = None
+    name: Optional[str] = None
+    lead: Optional[str] = None
+    facts: Optional[List[str]] = None
+    cover_url: Optional[str] = None
+    cover_thumb_url: Optional[str] = None
+    order_index: Optional[int] = None
+    is_published: Optional[bool] = None
+
+
+def _district_out(d: District) -> dict:
+    return {
+        "id": d.id, "slug": d.slug, "name": d.name, "lead": d.lead or "",
+        "facts": d.facts or [], "cover_url": d.cover_url, "cover_thumb_url": d.cover_thumb_url,
+        "order_index": d.order_index, "is_published": d.is_published,
+    }
+
+
+@app.get("/api/districts")
+def list_districts(db: Session = Depends(get_db)):
+    rows = db.execute(select(District).order_by(District.order_index, District.id)).scalars().all()
+    return [_district_out(d) for d in rows]
+
+
+@app.post("/api/districts", status_code=201)
+def create_district(body: DistrictIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    slug = (body.slug or _slugify(body.name or "")).strip()
+    if not slug or not body.name:
+        raise HTTPException(400, "Нужны название и адрес округа")
+    if db.execute(select(District).where(District.slug == slug)).scalars().first():
+        raise HTTPException(400, "Округ с таким адресом уже есть")
+    d = District(
+        slug=slug, name=body.name, lead=body.lead, facts=body.facts or [],
+        cover_url=body.cover_url, cover_thumb_url=body.cover_thumb_url,
+        order_index=body.order_index or 0,
+        is_published=True if body.is_published is None else body.is_published,
+    )
+    db.add(d); db.commit(); db.refresh(d)
+    return _district_out(d)
+
+
+@app.patch("/api/districts/{district_id}")
+def update_district(district_id: int, body: DistrictIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    d = _get_or_404(db, District, district_id)
+    # slug намеренно не меняем: он записан в district у мест, маршрутов и статей,
+    # и правка здесь молча оторвала бы их все от округа.
+    if body.name is not None: d.name = body.name
+    if body.lead is not None: d.lead = body.lead
+    if body.facts is not None: d.facts = body.facts
+    if body.cover_url is not None: d.cover_url = body.cover_url or None
+    if body.cover_thumb_url is not None: d.cover_thumb_url = body.cover_thumb_url or None
+    if body.order_index is not None: d.order_index = body.order_index
+    if body.is_published is not None: d.is_published = body.is_published
+    db.commit()
+    return _district_out(d)
+
+
+@app.delete("/api/districts/{district_id}", status_code=204)
+def delete_district(district_id: int, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    d = _get_or_404(db, District, district_id)
+    used = db.execute(
+        select(func.count()).select_from(Checkpoint).where(Checkpoint.district == d.slug)
+    ).scalar() or 0
+    if used:
+        raise HTTPException(400, f"К округу привязано мест: {used}. Сначала перенесите их в другой округ.")
+    db.delete(d); db.commit()
 
 
 class DifficultyIn(BaseModel):

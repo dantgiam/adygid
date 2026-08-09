@@ -15,13 +15,12 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import SessionLocal, get_db
-from app.models import Article, Category, Checkpoint, DifficultyLevel, FaqSet, Like, Magnet, Scenario, SitePage, Trail
+from app.models import Article, Category, Checkpoint, DifficultyLevel, District, FaqSet, Like, Magnet, Scenario, SitePage, Trail
 from site_app.content import (
     ACCESS_LABELS,
     CLUB_URL,
     DIFFICULTY_INFO,
     DIFFICULTY_LABELS,
-    DISTRICT_PAGES,
     DISTRICTS,
     POPULARITY_WEIGHT,
     SEASON_LABELS,
@@ -668,7 +667,7 @@ def _place_card_dict(cp: Checkpoint) -> dict:
         "excerpt": _excerpt(cp.description),
         "cover": _thumb_of(cp.photos),
         "popularity": cp.popularity,
-        "district_label": DISTRICTS.get(cp.district),
+        "district_label": _DISTRICT_LABELS.get(cp.district),
         "category": _category_lite(cp.category),
         "is_paid": cp.is_paid,
         "kid_friendly": cp.kid_friendly,
@@ -683,7 +682,7 @@ def _route_card_dict(t: Trail) -> dict:
         "excerpt": _excerpt(t.description),
         "cover": _thumb_of(t.photos),
         "popularity": t.popularity,
-        "district_label": DISTRICTS.get(t.district),
+        "district_label": _DISTRICT_LABELS.get(t.district),
         "category": _category_lite(t.category),
         "difficulty_label": DIFFICULTY_LABELS.get(t.difficulty, t.difficulty),
         "duration_label": _duration_label(t.duration_minutes),
@@ -697,7 +696,7 @@ def _article_card_dict(a: Article) -> dict:
         "title": a.title,
         "excerpt": a.excerpt,
         "cover": a.cover_thumb_url or a.cover_url,
-        "district_label": DISTRICTS.get(a.district),
+        "district_label": _DISTRICT_LABELS.get(a.district),
     }
 
 
@@ -744,7 +743,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "cover": _cover_of(cp.photos),
         "photos": [p.url for p in cp.photos],
         "gallery": _gallery_of(cp.photos),
-        "district_label": DISTRICTS.get(cp.district),
+        "district_label": _DISTRICT_LABELS.get(cp.district),
         "category": _category_lite(cp.category),
         "difficulty_label": DIFFICULTY_LABELS.get(cp.difficulty, cp.difficulty),
         "difficulty_info": _difficulty_info(cp.difficulty, _difficulty_levels(db)),
@@ -756,7 +755,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "yandex_url": _yandex_point_url(cp),
         "weather_url": _weather_url(to_shape(cp.geom).y, to_shape(cp.geom).x),
         "trail": {"name": cp.trail.name, "url": f"/marshruty/{cp.trail.id}"} if cp.trail else None,
-        "district_url": f"/okrugi/{cp.district}" if cp.district in DISTRICT_PAGES else None,
+        "district_url": f"/okrugi/{cp.district}" if cp.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(cp.checked_at),
     }
 
@@ -778,7 +777,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         "description_html": description_html,
         "cover": _cover_of(t.photos),
         "gallery": _gallery_of(t.photos),
-        "district_label": DISTRICTS.get(t.district),
+        "district_label": _DISTRICT_LABELS.get(t.district),
         "category": _category_lite(t.category),
         "difficulty_label": DIFFICULTY_LABELS.get(t.difficulty, t.difficulty),
         "difficulty_info": _difficulty_info(t.difficulty, _difficulty_levels(db)),
@@ -791,7 +790,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         "yandex_url": _yandex_route_url(t),
         "weather_url": weather_url,
         "gpx_url": f"/marshruty/{t.id}/track.gpx" if t.segments else None,
-        "district_url": f"/okrugi/{t.district}" if t.district in DISTRICT_PAGES else None,
+        "district_url": f"/okrugi/{t.district}" if t.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(t.checked_at),
         "checkpoints": [
             {
@@ -831,6 +830,40 @@ def _footer_stats(db: Session) -> dict:
     return _FOOTER_CACHE["value"]
 
 
+_DISTRICT_CACHE: dict = {"value": None, "at": 0.0}
+# Подписи округов для карточек: _place_card_dict и соседи вызываются без
+# сессии, поэтому берут готовый словарь, а не ходят в базу сами.
+_DISTRICT_LABELS: dict = dict(DISTRICTS)
+
+
+def _districts(db: Session) -> list:
+    """Округа из админки. Нужны и в карточках (подпись округа), и в фильтрах,
+    и на самих страницах округов — читаем одним запросом и держим в памяти,
+    сбрасывая вместе с главной при любой правке."""
+    now = time.monotonic()
+    if _DISTRICT_CACHE["value"] is not None and now - _DISTRICT_CACHE["at"] < 300:
+        return _DISTRICT_CACHE["value"]
+    rows = db.execute(select(District).order_by(District.order_index, District.id)).scalars().all()
+    _DISTRICT_CACHE["value"] = [
+        {
+            "slug": d.slug, "label": d.name, "lead": d.lead or "", "facts": d.facts or [],
+            "cover": d.cover_url, "cover_thumb": d.cover_thumb_url or d.cover_url,
+            "published": d.is_published,
+        }
+        for d in rows
+    ]
+    _DISTRICT_CACHE["at"] = now
+    _DISTRICT_LABELS.clear()
+    _DISTRICT_LABELS.update({d["slug"]: d["label"] for d in _DISTRICT_CACHE["value"]})
+    return _DISTRICT_CACHE["value"]
+
+
+def _district_labels(db: Session) -> dict:
+    """slug → название, в том же виде, в каком раньше лежал словарь DISTRICTS."""
+    _districts(db)
+    return dict(_DISTRICT_LABELS)
+
+
 _DIFFICULTY_CACHE: dict = {"value": None, "at": 0.0}
 
 
@@ -853,12 +886,13 @@ def _ctx(request: Request, db: Session, **extra) -> dict:
     base = {
         "request": request,
         "footer_stats": _footer_stats(db),
-        "districts": DISTRICTS,
+        "districts": _district_labels(db),
         "site_url": SITE_URL,
         "canonical_url": SITE_URL + request.url.path,
         "yandex_metrika_id": YANDEX_METRIKA_ID,
         "club_url": CLUB_URL,
         "difficulty_levels": _difficulty_levels(db),
+        "difficulty_intro": _site_page(db, "difficulty"),
         "asset_version": ASSET_VERSION,
     }
     base.update(extra)
@@ -969,6 +1003,7 @@ def invalidate_home_cache() -> None:
     _HOME_CACHE["body"] = None
     _FOOTER_CACHE["value"] = None
     _DIFFICULTY_CACHE["value"] = None
+    _DISTRICT_CACHE["value"] = None
 
 
 @router.get("/")
@@ -1356,18 +1391,17 @@ def districts_index(request: Request, db: Session = Depends(get_db)):
     ).all())
 
     items = []
-    for slug, label in DISTRICTS.items():
-        if slug not in DISTRICT_PAGES:
+    for d in _districts(db):
+        if not d["published"]:
             continue
-        places = place_counts.get(slug, 0)
-        routes = route_counts.get(slug, 0)
         items.append({
-            "slug": slug,
-            "label": label,
-            "url": f"/okrugi/{slug}",
-            "lead": DISTRICT_PAGES[slug]["lead"],
-            "places": places,
-            "routes": routes,
+            "slug": d["slug"],
+            "label": d["label"],
+            "url": f"/okrugi/{d['slug']}",
+            "lead": d["lead"],
+            "cover": d["cover_thumb"],
+            "places": place_counts.get(d["slug"], 0),
+            "routes": route_counts.get(d["slug"], 0),
         })
     return templates.TemplateResponse(
         "districts_list.html", _ctx(request, db, active_nav="districts", districts_list=items)
@@ -1376,7 +1410,7 @@ def districts_index(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/okrugi/{slug}")
 def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
-    page = DISTRICT_PAGES.get(slug)
+    page = next((d for d in _districts(db) if d["slug"] == slug and d["published"]), None)
     if not page:
         raise HTTPException(404, "Округ не найден")
 
@@ -1403,9 +1437,10 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
 
     district = {
         "slug": slug,
-        "label": DISTRICTS.get(slug, slug),
+        "label": page["label"],
         "lead": page["lead"],
         "facts": page.get("facts", []),
+        "cover": page["cover"],
         "places": places,
         "routes": routes,
         "articles": articles,
@@ -1481,7 +1516,7 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     article = {
         "title": a.title,
         "excerpt": a.excerpt or _excerpt(a.body, 200),
-        "district_label": DISTRICTS.get(a.district),
+        "district_label": _DISTRICT_LABELS.get(a.district),
         "cover_url": a.cover_url,
         "body_html": body_html,
         "toc": toc if len(toc) >= 3 else [],
@@ -1569,10 +1604,11 @@ def render_not_found(request: Request) -> Response:
     except Exception:
         ctx = {
             "request": request, "footer_stats": {"places": 0, "trails": 0},
-            "districts": DISTRICTS, "site_url": SITE_URL,
+            "districts": _district_labels(db), "site_url": SITE_URL,
             "canonical_url": SITE_URL + request.url.path,
             "yandex_metrika_id": YANDEX_METRIKA_ID, "club_url": CLUB_URL,
-            "difficulty_levels": _difficulty_levels(db), "asset_version": ASSET_VERSION,
+            "difficulty_levels": _difficulty_levels(db),
+        "difficulty_intro": _site_page(db, "difficulty"), "asset_version": ASSET_VERSION,
             "active_nav": None,
         }
     finally:
@@ -1609,8 +1645,9 @@ def sitemap_xml(db: Session = Depends(get_db)):
     ]
     for row in db.execute(select(Scenario.slug).where(Scenario.is_published == True)).scalars().all():
         urls.append((f"/kuda/{row}", None, "weekly"))
-    for slug in DISTRICT_PAGES:
-        urls.append((f"/okrugi/{slug}", None, "monthly"))
+    for d in _districts(db):
+        if d["published"]:
+            urls.append((f"/okrugi/{d['slug']}", None, "monthly"))
 
     for cp in db.execute(
         select(Checkpoint.id, Checkpoint.created_at)

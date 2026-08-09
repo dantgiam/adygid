@@ -20,7 +20,8 @@
     <button class="tab" data-tab="places">Места</button>
     <button class="tab" data-tab="scenarios">Сценарии</button>
     <button class="tab" data-tab="blocks">Блоки</button>
-    <button class="tab" data-tab="pages">Страницы</button>
+    <button class="tab" data-tab="districts">Округа</button>
+      <button class="tab" data-tab="pages">Страницы</button>
   </nav>
   <div class="topbar-actions">
     <button class="btn btn-ghost btn-sm" onclick="openCategories()">Категории</button>
@@ -448,6 +449,19 @@
 </section>
 
 <!-- ══════════════ СТРАНИЦЫ САЙТА ══════════════ -->
+<section class="view" id="view-districts">
+  <div class="page">
+    <div class="page-head">
+      <div>
+        <h1>Округа</h1>
+        <div class="sub">География сайта: название, вступление, факты и обложка. Адрес округа задаётся один раз при создании — к нему привязаны места, маршруты и статьи.</div>
+      </div>
+      <button class="btn btn-primary" onclick="openDistrictForm()">+ Новый округ</button>
+    </div>
+    <div class="list" id="districts-list"></div>
+  </div>
+</section>
+
 <section class="view" id="view-pages">
   <div class="page">
     <div class="page-head">

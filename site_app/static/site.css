@@ -684,6 +684,8 @@ h1.article-title {
 @media (hover: hover) {
   .diff-widget:hover .diff-popover { display: block; }
 }
+.diff-popover-title { font-weight: 700; font-size: 13.5px; margin: 0 0 6px; color: var(--text); }
+.diff-popover-intro { font-size: 13px; line-height: 1.45; color: var(--text-muted); margin: 0 0 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .diff-popover ul { list-style: none; margin: 0; padding: 0; }
 .diff-popover li { font-size: 13px; line-height: 1.45; color: var(--text-muted); margin-bottom: 10px; }
 .diff-popover li:last-child { margin-bottom: 0; }

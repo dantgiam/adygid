@@ -35,13 +35,10 @@ const ACCESS_OPTS = [
   { code: 'high_clearance', label: 'Грунтовка, нужен клиренс' },
   { code: 'foot_only',      label: 'Только пешком от трассы' },
 ];
-const DISTRICT_OPTS = [
-  { code: 'maikop',      label: 'Округ Майкопа' },
-  { code: 'khadzhokh',   label: 'Округ Хаджоха' },
-  { code: 'dakhovskaya', label: 'Округ Даховской' },
-  { code: 'lagonaki',    label: 'Плато Лагонаки' },
-  { code: 'guzeripl',    label: 'Округ Гузерипля' },
-];
+// Заполняется из /api/districts при загрузке — список округов правится
+// в админке, и выпадашки мест, маршрутов и статей должны следовать за ним.
+let DISTRICT_OPTS = [];
+let districts = [];
 const POPULARITY_OPTS = [
   { code: 'normal',  label: 'Обычное' },
   { code: 'popular', label: 'Популярное' },
@@ -268,6 +265,7 @@ const TAB_OF_VIEW = {
   'route-editor': 'routes',
   'route-map': 'routes',
   'place-editor': 'places',
+  'districts': 'districts',
   'scenario-editor': 'scenarios',
 };
 
@@ -2683,7 +2681,7 @@ function pickEmbed(title, items, labelFn, onPick) {
 //  существуют (засеяны на старте), поэтому здесь только редактирование.
 // ═══════════════════════════════════════════════════════════════
 
-const SITE_PAGE_LABELS = { home: 'Главная страница', club: 'Страница клуба' };
+const SITE_PAGE_LABELS = { home: 'Главная страница', club: 'Страница клуба', difficulty: 'Подсказка «Сложность»' };
 
 function renderSitePages() {
   const el = document.getElementById('site-pages-list');
@@ -2698,6 +2696,104 @@ function renderSitePages() {
         <button class="btn btn-ghost btn-sm" onclick="openSitePageForm('${p.slug}')">Редактировать</button>
       </div>
     </div>`).join('');
+}
+
+function renderDistricts() {
+  const el = document.getElementById('districts-list');
+  if (!el) return;
+  el.innerHTML = districts.map(d => `
+    <div class="row">
+      <div class="row-thumb" style="${d.cover_thumb_url || d.cover_url ? `background-image:url('${escAttr(d.cover_thumb_url || d.cover_url)}')` : ''}"></div>
+      <div class="row-main">
+        <div class="row-title">${escHtml(d.name)}${d.is_published === false ? ' <span class="badge">скрыт</span>' : ''}</div>
+        <div class="row-meta"><span>/okrugi/${escHtml(d.slug)}</span><span>${(d.facts || []).length} фактов</span></div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openDistrictForm(${d.id})">Редактировать</button>
+        <button class="btn btn-ghost btn-sm" onclick="removeDistrict(${d.id})">Удалить</button>
+      </div>
+    </div>`).join('');
+}
+
+function districtFactRow(v) {
+  return `<div class="tip-row"><input class="dist-fact" value="${escAttr(v || '')}" placeholder="Короткий факт об округе">
+    <button type="button" class="btn btn-ghost btn-sm" onclick="this.parentElement.remove()">×</button></div>`;
+}
+
+function addDistrictFact() {
+  document.getElementById('dist-facts').insertAdjacentHTML('beforeend', districtFactRow(''));
+}
+
+function openDistrictForm(id) {
+  const d = districts.find(x => x.id === id) || {};
+  const isNew = !d.id;
+  showModal(isNew ? 'Новый округ' : `Округ: ${d.name}`, `
+    <div class="field"><label>Название</label>
+      <input id="dist-name" value="${escAttr(d.name || '')}" placeholder="Округ Хаджоха"></div>
+    <div class="field"><label>Адрес страницы</label>
+      <input id="dist-slug" value="${escAttr(d.slug || '')}" placeholder="khadzhokh" ${isNew ? '' : 'disabled'}>
+      <div class="hint">${isNew ? 'Латиницей. Потом не меняется: к нему привязаны места, маршруты и статьи.' : 'Адрес не меняется — к нему привязаны места, маршруты и статьи.'}</div></div>
+    <div class="field"><label>Вступление</label>
+      <textarea id="dist-lead" rows="4" placeholder="Чем этот округ полезен в поездке">${escHtml(d.lead || '')}</textarea></div>
+    <div class="field"><label>Факты</label>
+      <div id="dist-facts">${((d.facts && d.facts.length) ? d.facts : ['']).map(districtFactRow).join('')}</div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="addDistrictFact()">+ Факт</button>
+      <div class="hint">Показываются списком на странице округа.</div></div>
+    <div class="field"><label>Обложка</label>
+      <input type="file" id="dist-cover-file" accept="image/*">
+      <input type="hidden" id="dist-cover-url" value="${escAttr(d.cover_url || '')}">
+      <div id="dist-cover-preview" class="cover-preview" hidden><img alt=""></div></div>
+    <div class="field"><label class="check"><input type="checkbox" id="dist-published" ${d.is_published === false ? '' : 'checked'}> Показывать на сайте</label></div>
+  `, async () => {
+    const name = document.getElementById('dist-name').value.trim();
+    if (!name) { toast('Название обязательно', true); return; }
+    let coverUrl = document.getElementById('dist-cover-url').value || null;
+    let coverThumb = d.cover_thumb_url || null;
+    const fileEl = document.getElementById('dist-cover-file');
+    if (fileEl.files.length) {
+      const up = await uploadFile(fileEl.files[0]);
+      if (up) { coverUrl = up.url; coverThumb = up.thumb_url; }
+    }
+    const payload = {
+      name,
+      lead: document.getElementById('dist-lead').value.trim(),
+      facts: Array.from(document.querySelectorAll('#dist-facts .dist-fact')).map(e => e.value.trim()).filter(Boolean),
+      cover_url: coverUrl,
+      cover_thumb_url: coverThumb,
+      is_published: document.getElementById('dist-published').checked,
+    };
+    if (isNew) {
+      payload.slug = document.getElementById('dist-slug').value.trim();
+      if (!payload.slug) { toast('Нужен адрес страницы', true); return; }
+      payload.order_index = districts.length;
+      districts.push(await api('POST', '/districts', payload));
+    } else {
+      Object.assign(d, await api('PATCH', `/districts/${d.id}`, payload));
+    }
+    refreshDistrictOpts();
+    renderDistricts();
+    closeModal();
+    toast('Сохранено');
+  });
+  setupCoverPreview('dist-cover-file', 'dist-cover-url', 'dist-cover-preview');
+}
+
+async function removeDistrict(id) {
+  const d = districts.find(x => x.id === id);
+  if (!d || !confirm(`Удалить округ «${d.name}»?`)) return;
+  try {
+    await api('DELETE', `/districts/${id}`);
+    districts = districts.filter(x => x.id !== id);
+    refreshDistrictOpts();
+    renderDistricts();
+    toast('Удалено');
+  } catch (e) {
+    toast(e.message || 'Не удалось удалить', true);
+  }
+}
+
+function refreshDistrictOpts() {
+  DISTRICT_OPTS = districts.map(d => ({ code: d.slug, label: d.name }));
 }
 
 function renderDifficultyList() {
@@ -3010,7 +3106,7 @@ async function deleteFaqSet(id) {
 // ═══════════════════════════════════════════════════════════════
 
 async function loadAll() {
-  const [cats, tr, cps, arts, tags, scs, mgs, fqs, pgs, diffs] = await Promise.all([
+  const [cats, tr, cps, arts, tags, scs, mgs, fqs, pgs, diffs, dsts] = await Promise.all([
     api('GET', '/categories'),
     api('GET', '/trails'),
     api('GET', '/checkpoints'),
@@ -3021,6 +3117,7 @@ async function loadAll() {
     api('GET', '/faq-sets'),
     api('GET', '/site-pages'),
     api('GET', '/difficulty-levels'),
+    api('GET', '/districts'),
   ]);
   categories = cats || [];
   trails = tr || [];
@@ -3032,6 +3129,8 @@ async function loadAll() {
   faqSets = fqs || [];
   sitePages = pgs || [];
   difficultyLevels = diffs || [];
+  districts = dsts || [];
+  refreshDistrictOpts();
 
   renderArticles();
   renderRoutes();
@@ -3040,6 +3139,7 @@ async function loadAll() {
   renderBlocks();
   renderSitePages();
   renderDifficultyList();
+  renderDistricts();
 }
 
 loadAll();

@@ -316,3 +316,21 @@ class DifficultyLevel(Base):
     color       = Column(String(20), nullable=False)
     dots        = Column(Integer, nullable=False, default=1)
     order_index = Column(Integer, nullable=False, default=0)
+
+
+class District(Base):
+    """Округ — теперь полноценная сущность, а не константа в content.py.
+    Правится в админке: название, вступление, факты списком, обложка.
+    slug остаётся ключом — он записан в district у мест, маршрутов и статей,
+    поэтому его не меняют после создания."""
+    __tablename__ = "districts"
+
+    id              = Column(Integer, primary_key=True, index=True)
+    slug            = Column(String(50), nullable=False, unique=True, index=True)
+    name            = Column(String(120), nullable=False)
+    lead            = Column(Text, nullable=True)
+    facts           = Column(JSONB, nullable=False, server_default="[]")
+    cover_url       = Column(String(500), nullable=True)
+    cover_thumb_url = Column(String(500), nullable=True)
+    order_index     = Column(Integer, nullable=False, default=0)
+    is_published    = Column(Boolean, nullable=False, default=True)

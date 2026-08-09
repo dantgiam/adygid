@@ -380,7 +380,12 @@ document.querySelectorAll(".like-btn").forEach((btn) => {
       if (!res.ok) throw new Error("bad response");
       const data = await res.json();
       btn.classList.toggle("liked", data.liked);
-      btn.querySelector(".like-count").textContent = data.count;
+      // Раньше менялся только класс и число, а подпись оставалась прежней —
+      // человек нажимал и не видел, что голос засчитан.
+      btn.querySelector(".like-text").textContent = data.liked ? "Вам понравилось" : "Понравилось";
+      const count = btn.querySelector(".like-count");
+      count.textContent = data.count;
+      count.hidden = !data.count;
     } catch (e) {
       // тихо игнорируем — счётчик просто не обновится
     } finally {
