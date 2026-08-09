@@ -455,6 +455,7 @@ function initDescEditor(html, scope) {
     },
   });
   registerGalleryMatcher(descQuill);
+  disableQuillAutoScroll(descQuill);
   descQuill.setContents([], 'silent');
   if (html) descQuill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
 
@@ -728,6 +729,7 @@ function initArticleQuill() {
     },
   });
   registerGalleryMatcher(articleQuill);
+  disableQuillAutoScroll(articleQuill);
   articleQuill.on('text-change', scheduleAutosave);
   // Кнопка «+» должна стоять напротив той строки, где сейчас курсор
   articleQuill.on('editor-change', positionInsertPlus);
@@ -2513,11 +2515,24 @@ function registerGalleryMatcher(quill) {
 //
 // Патч намеренно узкий: за пределами .ql-container фокус работает как обычно,
 // и переход к полю в длинной форме по-прежнему к нему прокручивает.
+//
+// Но одного focus мало. Второй источник — сам Quill: setSelection() в конце
+// зовёт selection.scrollIntoView(), которая прямым присваиванием scrollTop
+// подтягивает курсор к краю. Это не focus и preventScroll её не касается —
+// именно она уводила текст вниз при вставке. Её глушим на каждом редакторе.
+//
+// Третьим слоем идёт страховка: перед любым действием, которое не является
+// набором текста (клик по тулбару, вставка из буфера, вставка блока через
+// модалку), запоминаем прокрутку окна и всех скроллящихся родителей и
+// возвращаем её на ближайших кадрах, если что-то всё-таки сдвинуло. Так
+// положение не меняется, даже если внутри Quill появится ещё один источник
+// прокрутки, о котором мы не знаем.
 let quillFocusGuardInstalled = false;
 
 function installQuillFocusGuard() {
   if (quillFocusGuardInstalled) return;
   quillFocusGuardInstalled = true;
+
   const nativeFocus = HTMLElement.prototype.focus;
   HTMLElement.prototype.focus = function (options) {
     if (this.closest && this.closest('.ql-container')) {
@@ -2527,6 +2542,49 @@ function installQuillFocusGuard() {
     }
     return nativeFocus.call(this, options);
   };
+
+  // Клик по тулбару, всплывающей подсказке, плавающему «+», панели вставки и
+  // кнопкам модалки. Набор текста сюда не попадает: печать идёт без mousedown,
+  // и родное подтягивание каретки к краю экрана продолжает работать.
+  const ARMS = '.ql-toolbar, .ql-tooltip, .insert-plus, .insert-menu, .insert-bar, .modal-backdrop';
+  document.addEventListener('mousedown', (e) => {
+    if (e.target.closest && e.target.closest(ARMS)) holdScroll();
+  }, true);
+  document.addEventListener('paste', (e) => {
+    if (e.target.closest && e.target.closest('.ql-container')) holdScroll();
+  }, true);
+}
+
+// Глушилка собственной прокрутки Quill — по одной на редактор.
+function disableQuillAutoScroll(quill) {
+  if (quill && quill.selection) quill.selection.scrollIntoView = function () {};
+}
+
+// Держит прокрутку неизменной несколько кадров: вставка блока через модалку
+// доезжает не мгновенно, а через два-три кадра после клика по «Вставить».
+function holdScroll(ms = 700) {
+  const marks = [[window, window.scrollX, window.scrollY]];
+  document.querySelectorAll('.modal-body, .editor-shell, .ql-container').forEach((el) => {
+    if (el.scrollHeight > el.clientHeight) marks.push([el, el.scrollLeft, el.scrollTop]);
+  });
+
+  const restore = () => {
+    marks.forEach(([el, x, y]) => {
+      if (el === window) {
+        if (window.scrollY !== y || window.scrollX !== x) window.scrollTo(x, y);
+      } else if (el.scrollTop !== y || el.scrollLeft !== x) {
+        el.scrollTop = y;
+        el.scrollLeft = x;
+      }
+    });
+  };
+
+  const until = performance.now() + ms;
+  const tick = () => {
+    restore();
+    if (performance.now() < until) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
 // ── «Что учесть» — локальный блок: вставка и правка через второе,
