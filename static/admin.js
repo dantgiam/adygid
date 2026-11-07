@@ -595,7 +595,7 @@ function criteriaHtml(v, opts) {
         <label>Стоимость</label>
         ${paidCostSelectHtml(v.is_paid)}
         <div class="hint" style="font-size:11.5px;color:var(--muted);margin-top:4px">
-          «Не проверено» — на сайте нет подписи «Платно» или «Бесплатно». Пустое поле не значит, что вход бесплатный.
+          «Не проверено» — гость видит «уточняем, скоро появится :)». Это не «бесплатно» и не «платно».
         </div>
       </div>
       <label class="toggle" style="margin-bottom:12px">

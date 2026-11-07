@@ -53,7 +53,8 @@
     {% if item.excerpt %}<p class="excerpt">{{ item.excerpt }}</p>{% endif %}
     <div class="tags">
       {% if item.category and item.category.name %}<span class="tag tag-cat">{{ item.category.icon_svg | safe }}{{ item.category.name }}</span>{% endif %}
-      {% if item.is_paid is true %}<span class="tag">Платно</span>{% endif %}
+      {% if item.is_paid is true %}<span class="tag">Платно</span>
+      {% elif item.is_paid is none %}<span class="tag">{{ item.price_label }}</span>{% endif %}
       {% if item.kid_friendly %}<span class="tag">Для детей</span>{% endif %}
       {% if item.distance_label %}<span class="tag">📍 {{ item.distance_label }}</span>{% endif %}
       {% if item.likes_label %}<span class="tag tag-likes">♥ {{ item.likes_label }}</span>{% endif %}
@@ -77,6 +78,7 @@
     <div class="tags">
       {% if item.category and item.category.name %}<span class="tag tag-cat">{{ item.category.icon_svg | safe }}{{ item.category.name }}</span>{% endif %}
       {% if item.difficulty_label %}<span class="tag">{{ item.difficulty_label }}</span>{% endif %}
+      {% if item.is_paid is none %}<span class="tag">{{ item.price_label }}</span>{% endif %}
       {% if item.duration_label %}<span class="tag">{{ item.duration_label }}</span>{% endif %}
       {% if item.likes_label %}<span class="tag tag-likes">♥ {{ item.likes_label }}</span>{% endif %}
     </div>

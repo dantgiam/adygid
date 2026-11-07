@@ -2,7 +2,8 @@
 
 PATCH с {"is_paid": null} сбрасывает статус в «не проверено».
 Тело без ключа is_paid прежнее значение не меняет.
-Неизвестный статус не рисуется как «Платно», «Бесплатно» или ноль.
+Гость при null видит «уточняем, скоро появится :)», не «Платно»,
+«Бесплатно» и не ноль. В API значение остаётся null.
 """
 import os
 import re
@@ -17,7 +18,10 @@ from sqlalchemy import text
 
 from app.database import engine
 from app.main import CheckpointUpdate, TrailUpdate, _relax_is_paid_column, app
-from site_app.router import _price_label
+from site_app.router import UNKNOWN_COST_LABEL, _price_label
+
+# Точная гостевая формулировка. Её нельзя подменять «бесплатно», нулём или пустым полем.
+UNKNOWN_COPY = "уточняем, скоро появится :)"
 
 AUTH = (os.environ["ADMIN_USER"], os.environ["ADMIN_PASSWORD"])
 
@@ -72,14 +76,17 @@ _OMIT = _Omit()
 
 
 def test_price_label_three_states():
+    assert UNKNOWN_COST_LABEL == UNKNOWN_COPY
     assert _price_label(True, None) == "Платно"
     assert _price_label(True, "300 ₽") == "300 ₽"
     assert _price_label(False, None) == "Бесплатно"
     assert _price_label(False, "устаревшая пометка") == "Бесплатно"
     # Неизвестная стоимость не превращается в «бесплатно», ноль или текст пометки.
-    assert _price_label(None, None) is None
-    assert _price_label(None, "300 ₽") is None
-    assert _price_label(None, "0") is None
+    assert _price_label(None, None) == UNKNOWN_COPY
+    assert _price_label(None, "300 ₽") == UNKNOWN_COPY
+    assert _price_label(None, "0") == UNKNOWN_COPY
+    assert _price_label(None, None) != "0"
+    assert _price_label(None, None) != "Бесплатно"
 
 
 def test_patch_model_distinguishes_null_from_omitted():
@@ -211,7 +218,7 @@ def test_new_draft_without_is_paid_is_unknown_not_free(client):
             page = client.get(path)
             assert page.status_code == 200, page.text
             spec = _spec(page.text)
-            assert "<dt>Стоимость</dt>" not in spec
+            assert f"<dt>Стоимость</dt><dd>{UNKNOWN_COPY}</dd>" in spec
             assert "Бесплатно" not in spec
             assert "Платно" not in spec
             assert "isAccessibleForFree" not in page.text
@@ -260,10 +267,11 @@ def test_render_paid_free_and_unknown(client):
 
         unknown_page = client.get(f"/mesta/{unknown['id']}")
         unknown_spec = _spec(unknown_page.text)
-        assert "<dt>Стоимость</dt>" not in unknown_spec
+        assert f"<dt>Стоимость</dt><dd>{UNKNOWN_COPY}</dd>" in unknown_spec
         assert "Бесплатно" not in unknown_spec
         assert "Платно" not in unknown_spec
         assert "эту пометку гость не видит" not in unknown_spec
+        assert unknown["is_paid"] is None
         assert "isAccessibleForFree" not in unknown_page.text
 
         paid_route_page = client.get(f"/marshruty/{paid_route['id']}")
@@ -272,7 +280,7 @@ def test_render_paid_free_and_unknown(client):
         assert "<dt>Стоимость</dt><dd>Бесплатно</dd>" in free_route_page.text
         unknown_route_page = client.get(f"/marshruty/{unknown_route['id']}")
         unknown_route_spec = _spec(unknown_route_page.text)
-        assert "<dt>Стоимость</dt>" not in unknown_route_spec
+        assert f"<dt>Стоимость</dt><dd>{UNKNOWN_COPY}</dd>" in unknown_route_spec
         assert "Бесплатно" not in unknown_route_spec
         assert "Платно" not in unknown_route_spec
         assert "скрытая пометка" not in unknown_route_spec
@@ -280,13 +288,23 @@ def test_render_paid_free_and_unknown(client):
         listing = client.get("/mesta").text
         assert ">Платно</span>" in _card(listing, "CostRenderPaid")
         assert ">Платно</span>" in _card(listing, "CostRenderNoted")
+        assert UNKNOWN_COPY not in _card(listing, "CostRenderPaid")
         free_card = _card(listing, "CostRenderFree")
         unknown_card = _card(listing, "CostRenderUnknown")
         assert "Платно" not in free_card
         assert "Бесплатно" not in free_card
+        assert UNKNOWN_COPY not in free_card
+        assert f">{UNKNOWN_COPY}</span>" in unknown_card
         assert "Платно" not in unknown_card
         assert "Бесплатно" not in unknown_card
         assert "эту пометку гость не видит" not in unknown_card
+
+        routes = client.get("/marshruty").text
+        assert f">{UNKNOWN_COPY}</span>" in _card(routes, "CostRenderUnknownRoute")
+        assert UNKNOWN_COPY not in _card(routes, "CostRenderPaidRoute")
+        assert UNKNOWN_COPY not in _card(routes, "CostRenderFreeRoute")
+        assert "Платно" not in _card(routes, "CostRenderPaidRoute")
+        assert "Бесплатно" not in _card(routes, "CostRenderFreeRoute")
 
         only_free = client.get("/mesta?paid=0").text
         assert "CostRenderFree" in only_free

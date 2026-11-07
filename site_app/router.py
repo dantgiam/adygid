@@ -496,14 +496,19 @@ def _category_lite(cat) -> Optional[dict]:
     }
 
 
-def _price_label(is_paid: Optional[bool], price_note: Optional[str]) -> Optional[str]:
-    """Подпись только для проверенной стоимости.
+# Гостю при is_paid is None. В базе и в API при этом остаётся null:
+# строка не значит «бесплатно», «платно» или ноль.
+UNKNOWN_COST_LABEL = "уточняем, скоро появится :)"
 
-    None — не проверяли: ни «Платно», ни «Бесплатно», ни ноль. False нельзя
-    получать из пустого значения: «не знаем» и «бесплатно» — разные ответы.
+
+def _price_label(is_paid: Optional[bool], price_note: Optional[str]) -> str:
+    """Подпись стоимости для гостя.
+
+    None в базе не превращается в false: на сайте это UNKNOWN_COST_LABEL.
+    Проверенные false/true сохраняют «Бесплатно» и «Платно» (или price_note).
     """
     if is_paid is None:
-        return None
+        return UNKNOWN_COST_LABEL
     if is_paid is False:
         return "Бесплатно"
     return price_note or "Платно"
@@ -758,6 +763,7 @@ def _place_card_dict(cp: Checkpoint) -> dict:
         "district_label": _DISTRICT_LABELS.get(cp.district),
         "category": _category_lite(cp.category),
         "is_paid": cp.is_paid,
+        "price_label": _price_label(cp.is_paid, cp.price_note),
         "kid_friendly": cp.kid_friendly,
     }
 
@@ -773,6 +779,8 @@ def _route_card_dict(t: Trail) -> dict:
         "popularity": t.popularity,
         "district_label": _DISTRICT_LABELS.get(t.district),
         "category": _category_lite(t.category),
+        "is_paid": t.is_paid,
+        "price_label": _price_label(t.is_paid, t.price_note),
         "difficulty_label": DIFFICULTY_LABELS.get(t.difficulty, t.difficulty),
         "duration_label": _duration_label(t.duration_minutes),
     }

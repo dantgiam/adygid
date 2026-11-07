@@ -191,6 +191,7 @@ function criteriaBadgesHtml(obj){
   let html = '';
   if(obj.kid_friendly) html += `<span class="badge">👶 С детьми</span>`;
   if(obj.is_paid === true) html += `<span class="badge">💰 Платно${obj.price_note?': '+escHtml(obj.price_note):''}</span>`;
+  else if(obj.is_paid === null) html += `<span class="badge">уточняем, скоро появится :)</span>`;
   if(obj.weather_warning) html += `<span class="badge badge-warn">⚠️ Осторожно после дождя</span>`;
   return html ? `<div class="badges">${html}</div>` : '';
 }
