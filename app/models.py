@@ -52,7 +52,9 @@ class Trail(Base):
     seasonality     = Column(String(20), nullable=False, default="year_round")   # year_round / summer_only
     weather_warning = Column(Boolean, nullable=False, default=False)             # предупреждение, не фильтр
     access_type     = Column(String(30), nullable=False, default="foot_only")    # paved / high_clearance / foot_only
-    is_paid         = Column(Boolean, nullable=False, default=False)
+    # NULL — стоимость не проверяли. False значит «бесплатно», поэтому
+    # у новой записи нет дефолта false и null нельзя подменять нулём.
+    is_paid         = Column(Boolean, nullable=True)
     price_note      = Column(String(255), nullable=True)
     equipment_tags  = Column(ARRAY(String(50)), nullable=False, default=list)
     kid_friendly    = Column(Boolean, nullable=False, default=False)
@@ -117,7 +119,9 @@ class Checkpoint(Base):
     seasonality     = Column(String(20), nullable=False, default="year_round")
     weather_warning = Column(Boolean, nullable=False, default=False)
     access_type     = Column(String(30), nullable=False, default="foot_only")
-    is_paid         = Column(Boolean, nullable=False, default=False)
+    # NULL — стоимость не проверяли. False значит «бесплатно», поэтому
+    # у новой записи нет дефолта false и null нельзя подменять нулём.
+    is_paid         = Column(Boolean, nullable=True)
     price_note      = Column(String(255), nullable=True)
     equipment_tags  = Column(ARRAY(String(50)), nullable=False, default=list)
     kid_friendly    = Column(Boolean, nullable=False, default=False)

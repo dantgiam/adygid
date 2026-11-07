@@ -7,17 +7,21 @@
 {% block og_image %}{% if place.cover %}<meta property="og:image" content="{{ place.cover|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 
 {% block extra_ld %}
-<script type="application/ld+json">
-{{ {
+{# isAccessibleForFree пишем только когда стоимость проверена. false при
+   неизвестной цене поисковик читает как «вход платный». #}
+{% set attraction_ld = {
   "@context": "https://schema.org",
   "@type": "TouristAttraction",
   "name": place.name,
   "description": place.excerpt or place.name,
   "url": canonical_url,
   "image": place.photos,
-  "isAccessibleForFree": place.price_label == "Бесплатно",
   "address": {"@type": "PostalAddress", "addressRegion": "Республика Адыгея", "addressCountry": "RU"}
-} | tojson }}
+} %}
+{% if place.is_paid is false %}{% set _ = attraction_ld.update({"isAccessibleForFree": true}) %}
+{% elif place.is_paid is true %}{% set _ = attraction_ld.update({"isAccessibleForFree": false}) %}{% endif %}
+<script type="application/ld+json">
+{{ attraction_ld | tojson }}
 </script>
 {% endblock %}
 
@@ -58,7 +62,7 @@
           <dt>Сложность</dt><dd>{{ difficulty.badge(place.difficulty_info, difficulty_levels, difficulty_intro) }}</dd>
           <dt>Сезонность</dt><dd>{{ place.season_label }}</dd>
           <dt>Доступ</dt><dd>{{ place.access_label }}</dd>
-          <dt>Стоимость</dt><dd>{{ place.price_label }}</dd>
+          {% if place.price_label %}<dt>Стоимость</dt><dd>{{ place.price_label }}</dd>{% endif %}
           {% if place.kid_friendly %}<dt>С детьми</dt><dd>Подходит</dd>{% endif %}
           {% if place.equipment_tags %}<dt>Взять с собой</dt><dd>{{ place.equipment_tags|join(', ') }}</dd>{% endif %}
         </dl>

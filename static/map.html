@@ -190,7 +190,7 @@ window.goTo = goTo;
 function criteriaBadgesHtml(obj){
   let html = '';
   if(obj.kid_friendly) html += `<span class="badge">👶 С детьми</span>`;
-  if(obj.is_paid) html += `<span class="badge">💰 Платно${obj.price_note?': '+escHtml(obj.price_note):''}</span>`;
+  if(obj.is_paid === true) html += `<span class="badge">💰 Платно${obj.price_note?': '+escHtml(obj.price_note):''}</span>`;
   if(obj.weather_warning) html += `<span class="badge badge-warn">⚠️ Осторожно после дождя</span>`;
   return html ? `<div class="badges">${html}</div>` : '';
 }
@@ -289,7 +289,8 @@ function matchesFilters(obj){
   if(filterSets.access.size && !filterSets.access.has(obj.access_type)) return false;
   if(filterSets.season.size && !filterSets.season.has(obj.seasonality)) return false;
   if(filterBools.kidFriendly && !obj.kid_friendly) return false;
-  if(filterBools.freeOnly && obj.is_paid) return false;
+  // null — стоимость не проверена, в «только бесплатные» её нет.
+  if(filterBools.freeOnly && obj.is_paid !== false) return false;
   if(filterSets.equipment.size){
     const arr = obj.equipment_tags || [];
     if(!arr.some(t=>filterSets.equipment.has(t))) return false;

@@ -496,8 +496,15 @@ def _category_lite(cat) -> Optional[dict]:
     }
 
 
-def _price_label(is_paid: bool, price_note: Optional[str]) -> str:
-    if not is_paid:
+def _price_label(is_paid: Optional[bool], price_note: Optional[str]) -> Optional[str]:
+    """Подпись только для проверенной стоимости.
+
+    None — не проверяли: ни «Платно», ни «Бесплатно», ни ноль. False нельзя
+    получать из пустого значения: «не знаем» и «бесплатно» — разные ответы.
+    """
+    if is_paid is None:
+        return None
+    if is_paid is False:
         return "Бесплатно"
     return price_note or "Платно"
 
@@ -833,6 +840,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "difficulty_info": _difficulty_info(cp.difficulty, _difficulty_levels(db)),
         "season_label": SEASON_LABELS.get(cp.seasonality, cp.seasonality),
         "access_label": ACCESS_LABELS.get(cp.access_type, cp.access_type),
+        "is_paid": cp.is_paid,
         "price_label": _price_label(cp.is_paid, cp.price_note),
         "kid_friendly": cp.kid_friendly,
         "equipment_tags": cp.equipment_tags or [],
@@ -869,6 +877,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         "duration_label": _duration_label(t.duration_minutes),
         "season_label": SEASON_LABELS.get(t.seasonality, t.seasonality),
         "access_label": ACCESS_LABELS.get(t.access_type, t.access_type),
+        "is_paid": t.is_paid,
         "price_label": _price_label(t.is_paid, t.price_note),
         "kid_friendly": t.kid_friendly,
         "equipment_tags": t.equipment_tags or [],
@@ -1206,10 +1215,12 @@ def places_list(
         q = q.where(Checkpoint.category_id == int(type))
     if district:
         q = q.where(Checkpoint.district == district)
+    # NULL не входит ни в «бесплатные», ни в «платные»: непроверенная
+    # стоимость не должна всплывать в фильтре как бесплатная.
     if paid == "0":
-        q = q.where(Checkpoint.is_paid == False)
+        q = q.where(Checkpoint.is_paid.is_(False))
     elif paid == "1":
-        q = q.where(Checkpoint.is_paid == True)
+        q = q.where(Checkpoint.is_paid.is_(True))
     if kid == "1":
         q = q.where(Checkpoint.kid_friendly == True)
     q = q.order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc())

@@ -111,13 +111,29 @@ _EXTRA_CRITERIA_DDL = [
     "seasonality VARCHAR(20) NOT NULL DEFAULT 'year_round'",
     "weather_warning BOOLEAN NOT NULL DEFAULT false",
     "access_type VARCHAR(30) NOT NULL DEFAULT 'foot_only'",
-    "is_paid BOOLEAN NOT NULL DEFAULT false",
+    # Без NOT NULL и без DEFAULT false: отсутствие колонки — это «не знаем»,
+    # а не «бесплатно». На уже существующих базах колонку дописывает блок ниже.
+    "is_paid BOOLEAN",
     "price_note VARCHAR(255)",
     "equipment_tags TEXT[] NOT NULL DEFAULT '{}'",
     "kid_friendly BOOLEAN NOT NULL DEFAULT false",
     "district VARCHAR(30)",
     "popularity VARCHAR(20) NOT NULL DEFAULT 'normal'",
 ]
+
+def _relax_is_paid_column(conn, table: str) -> None:
+    """Сделать is_paid nullable без дефолта false.
+
+    Повторяется на каждом старте и не трогает уже записанные true/false.
+    Обратно (только когда NULL-строк не осталось):
+
+        ALTER TABLE {table} ALTER COLUMN is_paid SET DEFAULT false;
+        ALTER TABLE {table} ALTER COLUMN is_paid SET NOT NULL;
+    """
+    conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN is_paid DROP NOT NULL"))
+    conn.execute(text(f"ALTER TABLE {table} ALTER COLUMN is_paid DROP DEFAULT"))
+
+
 # Примеры для блока «О чём спрашивают» на странице клуба — подставляются один
 # раз при появлении колонки, дальше список живёт в админке.
 _DEFAULT_CLUB_QUESTIONS = [
@@ -131,6 +147,11 @@ with engine.begin() as _conn:
     for _table in ("trails", "checkpoints"):
         for _col_ddl in _EXTRA_CRITERIA_DDL:
             _conn.execute(text(f"ALTER TABLE {_table} ADD COLUMN IF NOT EXISTS {_col_ddl}"))
+        # Старые базы создавали is_paid как NOT NULL DEFAULT false, и любой
+        # пропуск поля читался как «бесплатно». Снимаем ограничение и дефолт,
+        # не переписывая уже записанные true/false: непроверенные строки
+        # координатор сбрасывает точечно, PATCH {"is_paid": null}.
+        _relax_is_paid_column(_conn, _table)
     _conn.execute(text("ALTER TABLE checkpoints ADD COLUMN IF NOT EXISTS duration_minutes INTEGER"))
     _conn.execute(text("ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true"))
     _conn.execute(text("ALTER TABLE articles ADD COLUMN IF NOT EXISTS faq JSONB NOT NULL DEFAULT '[]'::jsonb"))
@@ -634,6 +655,8 @@ class ExtraCriteriaIn(BaseModel):
     seasonality: Optional[str] = None
     weather_warning: Optional[bool] = None
     access_type: Optional[str] = None
+    # null в PATCH — только если ключ реально прислали (см. _apply_extra_criteria):
+    # это «стоимость не проверена», а не «бесплатно». Пропуск ключа поле не меняет.
     is_paid: Optional[bool] = None
     price_note: Optional[str] = None
     equipment_tags: Optional[List[str]] = None
@@ -799,12 +822,36 @@ _EXTRA_CRITERIA_FIELDS = [
 
 
 def _extra_criteria_kwargs(body: ExtraCriteriaIn) -> dict:
-    """Только переданные (не-None) критерии фильтрации — чтобы не затирать DB-дефолты None-ами."""
+    """Только переданные не-None критерии.
+
+    is_paid=null при создании тоже не передаём: у колонки нет дефолта false,
+    поэтому новая запись остаётся NULL («не проверено»), а не «бесплатно».
+    Явные true и false (False is not None) записываются как есть.
+    """
     return {f: getattr(body, f) for f in _EXTRA_CRITERIA_FIELDS if getattr(body, f) is not None}
 
 
 def _apply_extra_criteria(obj, body: ExtraCriteriaIn):
+    """Записать присланные критерии.
+
+    is_paid — единственное поле, где null осмыслен: явный {"is_paid": null}
+    ставит «не проверено». Ключ, которого в теле нет, прежнее true/false/null
+    не затирает. Остальные критерии по-прежнему игнорируют null, чтобы
+    случайный null не стирал сложность, округ и прочие уже заполненные поля.
+
+    Сбросить непроверенную стоимость у конкретной записи (та же Basic-авторизация,
+    что у остальных admin PATCH; массового UPDATE здесь нет):
+
+        PATCH /api/trails/{id}         {"is_paid": null}
+        PATCH /api/checkpoints/{id}    {"is_paid": null}
+
+    В ответе "is_paid": null. Тело без ключа is_paid хранимое значение не меняет.
+    """
     for f in _EXTRA_CRITERIA_FIELDS:
+        if f == "is_paid":
+            if "is_paid" in body.model_fields_set:
+                setattr(obj, "is_paid", body.is_paid)
+            continue
         value = getattr(body, f)
         if value is not None:
             setattr(obj, f, value)
