@@ -74,7 +74,7 @@
           <dt>Длительность</dt><dd>{{ route.duration_label or '—' }}</dd>
           <dt>Сезонность</dt><dd>{{ route.season_label }}</dd>
           <dt>Доступ</dt><dd>{{ route.access_label }}</dd>
-          <dt>Стоимость</dt><dd>{{ route.price_label }}</dd>
+          {% if route.price_label %}<dt>Стоимость</dt><dd>{{ route.price_label }}</dd>{% endif %}
           {% if route.kid_friendly %}<dt>С детьми</dt><dd>Подходит</dd>{% endif %}
           {% if route.equipment_tags %}<dt>Взять с собой</dt><dd>{{ route.equipment_tags|join(', ') }}</dd>{% endif %}
         </dl>

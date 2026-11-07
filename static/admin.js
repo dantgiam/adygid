@@ -531,6 +531,27 @@ function readDescEditor() {
 //  ОБЩИЙ БЛОК КРИТЕРИЕВ (маршрут и место) — сгруппирован
 // ═══════════════════════════════════════════════════════════════
 
+// Три состояния стоимости. Пустая строка — «не проверено» и уходит в API как null,
+// а не как false: неотмеченный чекбокс раньше сохранял вход как бесплатный.
+function paidCostSelectHtml(isPaid) {
+  const value = isPaid === true ? 'true' : isPaid === false ? 'false' : '';
+  const opt = (val, label) => `<option value="${val}"${value === val ? ' selected' : ''}>${label}</option>`;
+  return `<select id="m-paid">${opt('', 'Не проверено')}${opt('false', 'Бесплатно')}${opt('true', 'Платно')}</select>`;
+}
+
+function readPaidCost() {
+  const value = document.getElementById('m-paid').value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return null;
+}
+
+function costMeta(isPaid) {
+  if (isPaid === true) return '<span>платно</span>';
+  if (isPaid === false) return '<span>бесплатно</span>';
+  return '<span>стоимость не проверена</span>';
+}
+
 function criteriaHtml(v, opts) {
   v = v || {};
   opts = opts || {};
@@ -570,10 +591,13 @@ function criteriaHtml(v, opts) {
         <input id="m-equipment" list="equipment-list" value="${escAttr((v.equipment_tags || []).join(', '))}" placeholder="треккинговые палки, ветровка">
         <datalist id="equipment-list">${equipmentTags.map(t => `<option value="${escAttr(t)}">`).join('')}</datalist>
       </div>
-      <label class="toggle" style="margin-bottom:12px">
-        <input type="checkbox" id="m-paid" ${v.is_paid ? 'checked' : ''}>
-        <span class="toggle-track"></span><span class="toggle-label">Платный вход</span>
-      </label>
+      <div class="field" style="margin-bottom:12px">
+        <label>Стоимость</label>
+        ${paidCostSelectHtml(v.is_paid)}
+        <div class="hint" style="font-size:11.5px;color:var(--muted);margin-top:4px">
+          «Не проверено» — гость видит «уточняем, скоро появится :)». Это не «бесплатно» и не «платно».
+        </div>
+      </div>
       <label class="toggle" style="margin-bottom:12px">
         <input type="checkbox" id="m-kid" ${v.kid_friendly ? 'checked' : ''}>
         <span class="toggle-track"></span>
@@ -628,7 +652,7 @@ function readCriteria() {
     seasonality: document.getElementById('m-season').value,
     price_note: document.getElementById('m-price-note').value.trim() || null,
     equipment_tags: document.getElementById('m-equipment').value.split(',').map(s => s.trim()).filter(Boolean),
-    is_paid: document.getElementById('m-paid').checked,
+    is_paid: readPaidCost(),
     kid_friendly: document.getElementById('m-kid').checked,
     weather_warning: document.getElementById('m-weather').checked,
     district: document.getElementById('m-district').value || null,
@@ -1332,6 +1356,7 @@ function renderRoutes() {
         <div class="row-meta">
           <span>${t.segments.length} участк. тропы</span>
           <span>${pts} точ. · ${shown} как места</span>
+          ${costMeta(t.is_paid)}
           ${t.duration_minutes ? `<span>${formatDuration(t.duration_minutes)}</span>` : ''}
           <span>${escHtml(categoryLabel(t.category))}</span>
         </div>
@@ -2190,7 +2215,7 @@ function renderPlaces() {
         <div class="row-meta">
           <span>${escHtml(categoryLabel(c.category))}</span>
           ${c.district ? `<span>${escHtml((DISTRICT_OPTS.find(d => d.code === c.district) || {}).label || c.district)}</span>` : ''}
-          ${c.is_paid ? '<span>платно</span>' : ''}
+          ${costMeta(c.is_paid)}
         </div>
       </div>
       <div class="row-actions">
