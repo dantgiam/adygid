@@ -159,7 +159,8 @@ const numIcon = (n,color='#1D9E75') => L.divIcon({
 function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function categoryLabel(cat){ return cat ? `${cat.icon?cat.icon+' ':''}${escHtml(cat.name)}` : ''; }
 function formatDuration(min){
-  if(!min) return '';
+  // null — длительность не задана. Не рисуем «0 мин». Ноль по-прежнему тоже пустой.
+  if(min == null || !min) return '';
   const h = Math.floor(min/60), m = min%60;
   if(h && m) return `${h} ч ${m} мин`;
   if(h) return `${h} ч`;
@@ -199,7 +200,8 @@ function criteriaBadgesHtml(obj){
 function popupHtml(kind, obj, destLat, destLon){
   let html = `<b>${escHtml(obj.name)}</b>`;
   if(obj.category) html += `<div class="popup-cat">${categoryLabel(obj.category)}</div>`;
-  if(obj.duration_minutes) html += `<div class="popup-duration">⏱ ${formatDuration(obj.duration_minutes)}</div>`;
+  const durationText = formatDuration(obj.duration_minutes);
+  if(durationText) html += `<div class="popup-duration">⏱ ${durationText}</div>`;
   if(obj.difficulty) html += `<div class="popup-diff"><span class="dot" style="background:${DIFF_COLOR[obj.difficulty]||'#888'}"></span>${DIFF_LABEL[obj.difficulty]||obj.difficulty}</div>`;
   html += criteriaBadgesHtml(obj);
   if(obj.equipment_tags && obj.equipment_tags.length) html += `<div class="popup-equipment">🎒 ${obj.equipment_tags.map(escHtml).join(', ')}</div>`;
