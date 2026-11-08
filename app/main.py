@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func, text
 from geoalchemy2.shape import to_shape
 from shapely.geometry import shape, mapping
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from PIL import Image, ImageOps
 
 from app.database import Base, engine, get_db
@@ -714,7 +714,11 @@ class CheckpointUpdate(ExtraCriteriaIn):
     category_id: Optional[int] = None
     description: Optional[str] = None
     order_index: Optional[int] = None
-    duration_minutes: Optional[int] = None
+    # null здесь — осмысленное значение («длительность не проверена»), но только
+    # если ключ реально прислали. Пропуск ключа тоже даёт None на модели и поле
+    # не меняет: иначе любой PATCH без duration_minutes стирал бы минуты.
+    # 0 — обычное число, не синоним null. Отрицательные минуты не принимаем.
+    duration_minutes: Optional[int] = Field(default=None, ge=0)
     show_as_place: Optional[bool] = None
     checked_at: Optional[datetime] = None
     is_published: Optional[bool] = None
@@ -1128,7 +1132,11 @@ def update_checkpoint(cp_id: int, body: CheckpointUpdate, db: Session = Depends(
     if body.category_id is not None: cp.category_id = body.category_id
     if body.description is not None: cp.description = body.description
     if body.order_index is not None: cp.order_index = body.order_index
-    if body.duration_minutes is not None: cp.duration_minutes = body.duration_minutes
+    # model_fields_set отличает {"duration_minutes": null} от тела без ключа.
+    # Проверка `is not None` оба случая пропускала: ответ был 200, значение
+    # и updated_at оставались прежними, потому что UPDATE вообще не уходил.
+    if "duration_minutes" in body.model_fields_set:
+        cp.duration_minutes = body.duration_minutes
     if body.show_as_place is not None: cp.show_as_place = body.show_as_place
     if body.checked_at is not None:  cp.checked_at = body.checked_at
     if body.is_published is not None: cp.is_published = body.is_published

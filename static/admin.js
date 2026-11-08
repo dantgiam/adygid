@@ -156,7 +156,9 @@ function categoryLabel(cat) {
 }
 
 function formatDuration(minutes) {
-  if (!minutes) return '';
+  // null — длительность не задана. Нельзя подставлять 0: в списке это
+  // выглядело бы как «0 мин». Настоящий ноль по-прежнему тоже без подписи.
+  if (minutes == null || !minutes) return '';
   const h = Math.floor(minutes / 60), m = minutes % 60;
   if (h && m) return `${h} ч ${m} мин`;
   if (h) return `${h} ч`;
@@ -1984,7 +1986,9 @@ function openPointForm(id, creating) {
   showTab('place-editor');
   document.getElementById('pl-name').value = v.name || '';
   document.getElementById('pl-category').innerHTML = categoryOptionsHtml('checkpoint', v.category_id);
-  document.getElementById('pl-duration').value = v.duration_minutes || '';
+  // null — пустое поле, не «0». Ноль в инпуте по-прежнему тоже пустой:
+  // сохранение делает parseInt(...) || null и не отличает его от пустой строки.
+  document.getElementById('pl-duration').value = v.duration_minutes == null ? '' : (v.duration_minutes || '');
   document.getElementById('pl-yandex-url').value = v.yandex_url || '';
   document.getElementById('pl-trail').innerHTML =
     `<option value="">— отдельное место —</option>` +
@@ -2116,6 +2120,8 @@ async function savePlace() {
   const payload = Object.assign({
     name: document.getElementById('pl-name').value.trim(),
     category_id: parseInt(document.getElementById('pl-category').value, 10) || null,
+    // Пустое поле уходит как null, не как 0 минут. Ноль по-прежнему тоже null:
+    // parseInt(0) || null не отличает его от пустой строки.
     duration_minutes: parseInt(document.getElementById('pl-duration').value, 10) || null,
     yandex_url: document.getElementById('pl-yandex-url').value.trim(),
     description: readDescEditor(),
@@ -2216,6 +2222,7 @@ function renderPlaces() {
           <span>${escHtml(categoryLabel(c.category))}</span>
           ${c.district ? `<span>${escHtml((DISTRICT_OPTS.find(d => d.code === c.district) || {}).label || c.district)}</span>` : ''}
           ${costMeta(c.is_paid)}
+          ${c.duration_minutes ? `<span>${formatDuration(c.duration_minutes)}</span>` : ''}
         </div>
       </div>
       <div class="row-actions">

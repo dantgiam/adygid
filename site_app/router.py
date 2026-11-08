@@ -118,7 +118,12 @@ def _excerpt(text: Optional[str], length: int = 140) -> str:
 
 
 def _duration_label(minutes: Optional[int]) -> Optional[str]:
-    if not minutes:
+    """Подпись длительности для гостя.
+
+    None — длительность не задана. Это не «0 мин»: строку не показываем.
+    0 по-прежнему тоже без подписи (прежняя проверка `if not minutes`).
+    """
+    if minutes is None or not minutes:
         return None
     h, m = divmod(minutes, 60)
     if h and m:
