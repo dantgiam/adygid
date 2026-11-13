@@ -1,4 +1,4 @@
-"""Блок отзыва в конце места, маршрута и статьи и плашка cookie.
+"""Блок отзыва на месте, маршруте и статье — после «Понравилось?», перед клубом — и плашка cookie.
 
 Данные маршрута 11 и места 50 не меняются: тест только читает их, если они есть.
 Страницу /privacy не создаём — в подвале пока только ссылка.
@@ -100,8 +100,17 @@ def test_review_block_on_place_route_and_article_only(client):
             assert 'target="_blank"' in block
             assert f'data-page-type="{kind}"' in block
             assert f'data-page-id="{token}"' in block
-            assert html.find("<h1") < html.find("review-cta-section") < html.find("</main>") < html.find("<footer")
+            assert html.count("review-cta-section") == 1
+            review_at = html.find("review-cta-section")
+            club_at = html.find("club-cta-section")
+            assert html.find("<h1") < review_at < club_at < html.find("</main>") < html.find("<footer")
             assert html.find('id="review-cta-title"') > html.find("</h1>")
+            # Клуб и всё, что шло за ним (маршруты, похожие), остаётся ниже отзыва.
+            assert html.rfind("review-cta-section") < club_at
+            if kind != "article":
+                like_at = html.find('class="like-row"')
+                assert 0 <= like_at < review_at
+                assert "Понравилось" in html[like_at:review_at]
 
         for path in ("/", "/mesta", "/marshruty", "/stati", "/podbor", "/klub"):
             page = client.get(path)
