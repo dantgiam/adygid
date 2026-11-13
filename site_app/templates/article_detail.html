@@ -83,6 +83,10 @@
   </div>
 </section>
 
+{% with review_kind="s", page_type="article", page_id=article.slug %}
+{% include "_review_cta.html" %}
+{% endwith %}
+
 {% include "_club_cta.html" %}
 
 {% if similar_places %}
@@ -103,7 +107,4 @@
 </section>
 {% endif %}
 
-{% with review_kind="s", page_type="article", page_id=article.slug %}
-{% include "_review_cta.html" %}
-{% endwith %}
 {% endblock %}

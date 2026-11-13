@@ -85,6 +85,10 @@
   </div>
 </section>
 
+{% with review_kind="r", page_type="route", page_id=route.id %}
+{% include "_review_cta.html" %}
+{% endwith %}
+
 {% include "_club_cta.html" %}
 
 {% if nearby %}
@@ -109,7 +113,4 @@
 </section>
 {% endif %}
 
-{% with review_kind="r", page_type="route", page_id=route.id %}
-{% include "_review_cta.html" %}
-{% endwith %}
 {% endblock %}

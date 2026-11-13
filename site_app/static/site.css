@@ -718,7 +718,7 @@ h1.article-title {
 .club-cta-text b { display: block; font-size: 18px; margin-bottom: 4px; }
 .club-cta .btn { flex: none; }
 
-/* ── Отзыв в MAX — в конце места, маршрута и статьи ─ */
+/* ── Отзыв в MAX — после «Понравилось?», перед клубом ─ */
 .review-cta-section { padding: 12px 0 28px; }
 .review-cta {
   display: flex; align-items: center; justify-content: space-between; gap: 18px 28px;
