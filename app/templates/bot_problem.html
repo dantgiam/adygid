@@ -1,0 +1,16 @@
+{% extends "bot_base.html" %}
+{% block title %}{{ problem_title }}{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>{% if section == 'inbox' %}Входящие{% else %}Шаблоны бота{% endif %}</h1>
+      <div class="sub">Бот MAX</div>
+    </div>
+  </div>
+  <div class="notice notice-warn" role="status">
+    <b>{{ problem_title }}</b>
+    <p>{{ problem_text }}</p>
+  </div>
+</div>
+{% endblock %}

@@ -35,6 +35,7 @@ from site_app.content import (
     consider_embed_html,
 )
 from site_app.router import router as site_router
+from app.bot_admin import router as bot_admin_router
 
 app = FastAPI(title="АдыГид API v2")
 
@@ -1769,6 +1770,9 @@ def mobile_preview():
     DPR 3.5 — как в чипе устройств Chrome DevTools) — чтобы смотреть мобильную
     вёрстку без реального телефона под рукой."""
     return FileResponse("static/mobile-preview.html")
+
+app.include_router(bot_admin_router)
+
 
 @app.get("/admin")
 def admin(_: bool = Depends(require_admin)):
