@@ -369,3 +369,20 @@ class District(Base):
     cover_focus     = Column(String(20), nullable=True)
     order_index     = Column(Integer, nullable=False, default=0)
     is_published    = Column(Boolean, nullable=False, default=True)
+
+
+class PodborAnswer(Base):
+    """Анонимный ответ подборщика. session_id — случайная строка браузера,
+    не пользователь. Свободного текста, имён и телефонов здесь нет."""
+    __tablename__ = "podbor_answers"
+
+    id                 = Column(Integer, primary_key=True, index=True)
+    session_id         = Column(String(64), nullable=False, index=True)
+    event_type         = Column(String(40), nullable=False)
+    question_id        = Column(String(40), nullable=True, index=True)
+    answer_code        = Column(String(80), nullable=True)
+    skipped            = Column(Boolean, nullable=False, default=False)
+    item_key           = Column(String(40), nullable=True)
+    plan_id            = Column(String(32), nullable=True)
+    algorithm_version  = Column(String(80), nullable=True)
+    created_at         = Column(DateTime, server_default=func.now())

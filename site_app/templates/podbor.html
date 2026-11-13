@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Подбор маршрута по Адыгее — бесплатно на сайте{% endblock %}
+{% block meta_description %}Подберём места и маршруты Адыгеи под сезон, число дней, компанию и интересы. Бесплатно, без регистрации. Время в пути — оценка.{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/assets/podbor.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="podbor" id="podbor-root">
+  <div class="wrap">
+    <div class="podbor-hero">
+      <div>
+        <p class="podbor-kicker">Бесплатный подбор · без регистрации</p>
+        <h1>Адыгея — в вашем темпе</h1>
+        <p class="podbor-lead">Несколько простых ответов — и места с маршрутами подстраиваются под вашу поездку. План дня считаем по времени: сколько длится место и сколько ехать.</p>
+        <p class="podbor-count">Идеи из {{ n_places }} мест и {{ n_routes }} маршрутов. Время в пути — оценка по координатам.</p>
+      </div>
+      <svg class="podbor-mark" viewBox="0 0 160 120" aria-hidden="true">
+        <circle cx="113" cy="31" r="17" fill="#e7b467"/>
+        <path d="M8 94 58 25 96 79 121 49 153 94Z" fill="#d8e2c6"/>
+        <path d="M8 94 58 25 96 79" fill="none" stroke="#326048" stroke-width="3"/>
+        <path d="m44 45 14-20 15 22-14-7Z" fill="#fafbf6"/>
+        <path d="M32 105Q70 72 90 99t55-5" fill="none" stroke="#83976d" stroke-width="2" stroke-dasharray="4 5"/>
+      </svg>
+    </div>
+
+    <noscript>
+      <p>Подбор считается в браузере. Можно сразу открыть <a href="/mesta">места</a> и <a href="/marshruty">маршруты</a>.</p>
+    </noscript>
+
+    <div class="podbor-layout" id="podbor-layout">
+      <aside class="podbor-wizard" id="wizard" aria-label="Подбор поездки"></aside>
+      <div class="podbor-results" id="results" aria-label="Подходящие места и маршруты"></div>
+    </div>
+  </div>
+
+  <div class="podbor-reaction" id="podbor-reaction" role="status" aria-live="polite">
+    <div class="podbor-reaction-box">
+      <p id="podbor-reaction-text"></p>
+      <div class="podbor-loader" aria-hidden="true"></div>
+      <p class="podbor-count">Смотрим, что подходит именно вам</p>
+    </div>
+  </div>
+
+  <div class="podbor-review hidden" id="review-sheet" role="region" aria-labelledby="review-title">
+    <div class="podbor-review-panel" id="review-panel"></div>
+  </div>
+  <div id="podbor-toast" class="hidden" role="status"></div>
+  <script id="podbor-boot" type="application/json">{{ boot_json|safe }}</script>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/assets/podbor-core.js?v={{ asset_version }}"></script>
+<script src="/assets/podbor.js?v={{ asset_version }}"></script>
+{% endblock %}

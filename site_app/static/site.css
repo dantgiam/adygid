@@ -1061,3 +1061,31 @@ h1.article-title {
   .notfound-text { font-size: 16px; }
   .notfound-actions .btn { flex: 1 1 100%; }
 }
+
+/* Виджет подбора — сразу под героем на главной. */
+.podbor-widget { margin: -8px 0 28px; position: relative; z-index: 2; }
+.podbor-widget-card {
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+  background: linear-gradient(120deg, #fffaf2, #fdebd9);
+  border: 1px solid #efcfae; border-radius: 22px; padding: 18px 16px;
+  box-shadow: 0 16px 40px rgba(24, 63, 54, .1);
+}
+.podbor-widget-text { flex: 1 1 260px; }
+.podbor-widget-title { margin: 0; font-size: 20px; font-weight: 800; line-height: 1.25; letter-spacing: -.2px; }
+.podbor-widget-sub { margin: 6px 0 0; color: #7b5b45; }
+.podbor-widget-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+.podbor-widget-chips a {
+  border: 1px solid #e3c7aa; background: #fff; border-radius: 20px; padding: 7px 12px; font-size: 13.5px;
+}
+.podbor-widget-chips a:hover { border-color: #d9773c; }
+.podbor-widget-go {
+  flex: 1 1 100%; text-align: center; background: #d9773c; color: #fff; font-weight: 750;
+  font-size: 17px; padding: 14px 18px; border-radius: 14px;
+}
+.podbor-widget-go:hover { background: #c4652e; color: #fff; }
+@media (min-width: 800px) {
+  .podbor-widget { margin-top: -12px; }
+  .podbor-widget-card { padding: 22px 24px; }
+  .podbor-widget-title { font-size: 22px; }
+  .podbor-widget-go { flex: none; }
+}
