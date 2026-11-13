@@ -1,0 +1,203 @@
+{% extends "bot_base.html" %}
+{% block title %}Шаблоны бота{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Шаблоны бота</h1>
+      <div class="sub">Тексты и подписи кнопок. После сохранения бот подхватывает правку примерно за минуту.</div>
+    </div>
+  </div>
+
+  {% if branches %}
+  <div class="bot-split">
+    <nav class="bot-nav" aria-label="Ветки шаблонов">
+      {% for branch in branches %}
+      <a href="#branch-{{ branch.branch }}">{{ branch.title }}</a>
+      {% endfor %}
+    </nav>
+    <div>
+      {% for branch in branches %}
+      <section class="branch" id="branch-{{ branch.branch }}">
+        <h2 class="branch-title">{{ branch.title }}</h2>
+        {% for t in branch.templates %}
+        <article class="tpl-card{% if t.focused %} is-focus{% endif %}" id="tpl-{{ t.key }}" data-template {% if t.focused %}data-focus{% endif %}>
+          <div class="tpl-head">
+            <div>
+              <h3>{{ t.title }}</h3>
+              <div class="row-meta"><code>{{ t.key }}</code> · {{ t.kind_label }}</div>
+            </div>
+            {% if t.is_default %}
+            <span class="badge badge-green">стандартный</span>
+            {% else %}
+            <span class="badge badge-gold">изменён</span>
+            {% endif %}
+          </div>
+          {% if t.description %}
+          <p class="tpl-where"><b>Где показывается.</b> {{ t.description }}</p>
+          {% endif %}
+
+          {% if t.saved %}
+          <div class="alert alert-ok" role="status">Сохранено. Бот увидит правку примерно через минуту.</div>
+          {% endif %}
+          {% if t.reset_done %}
+          <div class="alert alert-ok" role="status">Возвращён стандартный текст.</div>
+          {% endif %}
+          {% for message in t.api_errors %}
+          <div class="alert alert-err" role="alert">{{ message }}</div>
+          {% endfor %}
+          {% for message in t.local_errors %}
+          <div class="alert alert-err" role="alert">{{ message }}</div>
+          {% endfor %}
+          {% for message in t.api_warnings %}
+          <div class="alert alert-warn" role="status">{{ message }}</div>
+          {% endfor %}
+          {% for message in t.local_warnings %}
+          <div class="alert alert-warn" role="status">{{ message }}</div>
+          {% endfor %}
+
+          <form method="post" action="/admin/templates/{{ t.key }}" autocomplete="off">
+            <div class="field">
+              <label for="text-{{ t.key }}">Текст</label>
+              {% if t.kind == 'url' %}
+              <input id="text-{{ t.key }}" name="text" type="text" value="{{ t.text }}" data-text-input data-max="{{ t.limits.text_max }}" spellcheck="false">
+              <div class="hint">Ссылка должна начинаться с https://</div>
+              {% else %}
+              <textarea id="text-{{ t.key }}" name="text" rows="{{ t.text_rows }}" data-text-input data-max="{{ t.limits.text_max }}">{{ t.text }}</textarea>
+              {% if t.kind == 'labels' %}
+              <div class="hint">В боте используются подписи ниже. Это поле служебное.</div>
+              {% endif %}
+              {% endif %}
+              <div class="counter-row">
+                <span class="counter{% if t.text_length > t.limits.text_max %} bad{% endif %}" data-text-count>{{ t.text_length }}/{{ t.limits.text_max }}</span>
+              </div>
+            </div>
+
+            {% if t.placeholders %}
+            <div class="field">
+              <label>Плейсхолдеры</label>
+              <div class="chips">
+                {% for name in t.placeholders %}
+                <button type="button" class="chip" data-insert="{{ '{' ~ name ~ '}' }}">{{ '{' ~ name ~ '}' }}</button>
+                {% endfor %}
+              </div>
+              <div class="hint">Клик вставляет метку в текст. В сообщении вместо неё подставится значение: {name} — имя в MAX, {service} — выбранная услуга, {policy_url} — ссылка из шаблона политики.</div>
+              {% if t.required_placeholders %}
+              <div class="hint">Обязательные: {% for name in t.required_placeholders %}{{ '{' ~ name ~ '}' }}{% if not loop.last %}, {% endif %}{% endfor %}</div>
+              {% endif %}
+            </div>
+            {% endif %}
+
+            {% if t.buttons %}
+            <div class="field">
+              <label>Подписи кнопок</label>
+              {% for button in t.buttons %}
+              <div class="button-field">
+                <label for="btn-{{ t.key }}-{{ button.id }}">
+                  <code>{{ button.id }}</code>{% if button.hint %} — {{ button.hint }}{% endif %}
+                </label>
+                <input id="btn-{{ t.key }}-{{ button.id }}" name="button__{{ button.id }}" type="text" value="{{ button.label }}" data-button-input data-recommended="{{ t.limits.button_recommended }}" data-max="{{ t.limits.button_max }}">
+                <span class="counter {{ button.tone }}" data-button-count>{{ button.length }}/{{ t.limits.button_recommended }}</span>
+              </div>
+              {% endfor %}
+              <div class="hint">До {{ t.limits.button_recommended }} символов — рекомендация MAX, до {{ t.limits.button_max }} — жёсткий лимит. Длиннее {{ t.limits.button_recommended }} подпись может обрезаться.</div>
+            </div>
+            {% endif %}
+
+            <div class="field">
+              <label>Предпросмотр</label>
+              <div class="tpl-preview" data-preview>{{ t.preview }}</div>
+            </div>
+
+            <div class="tpl-actions">
+              <button class="btn btn-primary" type="submit">Сохранить</button>
+              <span class="row-meta">Последнее изменение: {{ t.updated_by }}, {{ t.updated_at }} МСК</span>
+            </div>
+          </form>
+
+          {% if not t.is_default %}
+          <form method="post" action="/admin/templates/{{ t.key }}/reset" class="reset-form" onsubmit="return confirm('Вернуть стандартный текст и подписи?')">
+            <button class="btn btn-ghost" type="submit">Сбросить к стандартному</button>
+          </form>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </section>
+      {% endfor %}
+    </div>
+  </div>
+  {% else %}
+  <div class="empty">
+    <b>Шаблонов нет</b>
+    Бот не вернул ни одной ветки.
+  </div>
+  {% endif %}
+</div>
+<script type="application/json" id="preview-samples">{{ samples|tojson }}</script>
+<script>
+(function () {
+  var samples = {};
+  try { samples = JSON.parse(document.getElementById("preview-samples").textContent || "{}"); } catch (e) {}
+
+  function previewText(text) {
+    var left = "\u0000", right = "\u0001";
+    var protectedText = String(text).split("{{").join(left).split("}}").join(right);
+    var rendered = protectedText.replace(/\{([A-Za-z_][A-Za-z0-9_]*)\}/g, function (match, key) {
+      if (Object.prototype.hasOwnProperty.call(samples, key) && samples[key] != null) return String(samples[key]);
+      return match;
+    });
+    return rendered.split(left).join("{").split(right).join("}");
+  }
+
+  document.querySelectorAll("[data-template]").forEach(function (card) {
+    var area = card.querySelector("[data-text-input]");
+    var counter = card.querySelector("[data-text-count]");
+    var preview = card.querySelector("[data-preview]");
+    var max = area ? Number(area.getAttribute("data-max") || "4000") : 4000;
+
+    function paintText() {
+      if (!area) return;
+      var length = Array.from(area.value).length;
+      if (counter) {
+        counter.textContent = length + "/" + max;
+        counter.classList.toggle("bad", length > max);
+      }
+      if (preview) preview.textContent = previewText(area.value);
+    }
+
+    if (area) area.addEventListener("input", paintText);
+
+    card.querySelectorAll("[data-insert]").forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        if (!area) return;
+        var token = chip.getAttribute("data-insert") || "";
+        var start = area.selectionStart == null ? area.value.length : area.selectionStart;
+        var end = area.selectionEnd == null ? start : area.selectionEnd;
+        area.value = area.value.slice(0, start) + token + area.value.slice(end);
+        var caret = start + token.length;
+        area.focus();
+        if (area.setSelectionRange) area.setSelectionRange(caret, caret);
+        paintText();
+      });
+    });
+
+    card.querySelectorAll("[data-button-input]").forEach(function (input) {
+      var badge = input.parentElement.querySelector("[data-button-count]");
+      var recommended = Number(input.getAttribute("data-recommended") || "20");
+      var hard = Number(input.getAttribute("data-max") || "128");
+      function paintButton() {
+        var length = Array.from(input.value).length;
+        if (!badge) return;
+        badge.textContent = length + "/" + recommended;
+        badge.classList.toggle("warn", length > recommended && length <= hard);
+        badge.classList.toggle("bad", length > hard);
+      }
+      input.addEventListener("input", paintButton);
+    });
+  });
+
+  var focus = document.querySelector("[data-focus]");
+  if (focus && focus.scrollIntoView) focus.scrollIntoView({block: "center"});
+})();
+</script>
+{% endblock %}

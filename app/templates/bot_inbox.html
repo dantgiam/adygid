@@ -1,0 +1,63 @@
+{% extends "bot_base.html" %}
+{% block title %}Входящие{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Входящие</h1>
+      <div class="sub">Вопросы, отзывы, заявки и отзывы о подборе из бота MAX. На сайте они только показываются и нигде не сохраняются.</div>
+    </div>
+  </div>
+
+  <form class="filters" method="get" action="/admin/inbox">
+    <label>Статус
+      <select name="status">
+        <option value="">Все статусы</option>
+        {% for code, label in statuses %}
+        <option value="{{ code }}"{% if status == code %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Тип
+      <select name="kind">
+        <option value="">Все типы</option>
+        {% for code, label in kinds %}
+        <option value="{{ code }}"{% if kind == code %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn btn-primary" type="submit">Показать</button>
+  </form>
+
+  <p class="inbox-note">Ответить человеку из админки нельзя — напишите ему в MAX. Показано: {{ items|length }}{% if truncated %} · это последние 200{% endif %}.</p>
+
+  {% if items %}
+  <div class="list">
+    {% for item in items %}
+    <a class="row inbox-row" href="/admin/inbox/{{ item.id }}{% if list_query %}?{{ list_query }}{% endif %}">
+      <div class="row-main">
+        <div class="row-title">
+          <span class="badge">{{ item.kind_title }}</span>
+          <span class="badge {{ item.status_badge }}">{{ item.status_title }}</span>
+          <span>№ {{ item.short_id }}</span>
+        </div>
+        <div class="inbox-preview">{{ item.preview }}</div>
+        <div class="row-meta">
+          <span>{{ item.user_name }}</span>
+          <span>id {{ item.user_id }}</span>
+          <span>{{ item.created_at }} МСК</span>
+          {% if item.notified %}<span>уведомление ушло</span>{% else %}<span>уведомление не ушло</span>{% endif %}
+          {% if item.phone %}<span>есть телефон</span>{% endif %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">
+    <b>Входящих пока нет</b>
+    По этому фильтру обращений не нашлось.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

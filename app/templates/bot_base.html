@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}Админка{% endblock %} — АдыГид</title>
+<link rel="icon" href="/assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+<link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/admin">АдыГид<span>панель управления</span></a>
+  <nav class="tabs">
+    <a class="tab" href="/admin">Статьи и разделы</a>
+    <a class="tab{% if section == 'inbox' %} active{% endif %}" href="/admin/inbox">Входящие</a>
+    <a class="tab{% if section == 'templates' %} active{% endif %}" href="/admin/templates">Шаблоны бота</a>
+  </nav>
+  <div class="topbar-actions">
+    <a class="btn btn-ghost btn-sm" href="/" target="_blank" rel="noopener">Открыть сайт →</a>
+  </div>
+</header>
+{% block content %}{% endblock %}
+</body>
+</html>

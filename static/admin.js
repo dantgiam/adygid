@@ -302,7 +302,10 @@ function showTab(name) {
 }
 
 document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => showTab(tab.dataset.tab));
+  tab.addEventListener('click', () => {
+    if (!tab.dataset.tab) return;
+    showTab(tab.dataset.tab);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════
