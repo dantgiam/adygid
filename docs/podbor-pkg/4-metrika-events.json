@@ -1,0 +1,298 @@
+[
+ {
+  "id": "podbor_cta_click",
+  "name": "Клик по виджету подбора на главной",
+  "group": "Подборщик",
+  "trigger": "Главная: кнопка «Подобрать маршрут» или чипс сезона в виджете",
+  "params": "src=home_widget, season_chip",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_start",
+  "name": "Начал подбор",
+  "group": "Подборщик",
+  "trigger": "/podbor: первый ответ (или пропуск) в сессии",
+  "params": "src (home_widget / direct / max)",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_q1_done",
+  "name": "Вопрос 1 — сезон",
+  "group": "Подборщик",
+  "trigger": "Ответ или пропуск вопроса 1",
+  "params": "q, answer, skipped",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_q2_done",
+  "name": "Вопрос 2 — длительность",
+  "group": "Подборщик",
+  "trigger": "то же",
+  "params": "q, answer, skipped",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_q3_done",
+  "name": "Вопрос 3 — база",
+  "group": "Подборщик",
+  "trigger": "то же",
+  "params": "q, answer, skipped",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_q4_done",
+  "name": "Вопрос 4 — с кем",
+  "group": "Подборщик",
+  "trigger": "то же",
+  "params": "q, answer, skipped",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_q5_done",
+  "name": "Вопрос 5 — бывали в Адыгее",
+  "group": "Подборщик",
+  "trigger": "то же",
+  "params": "q, answer, skipped",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_q6_done",
+  "name": "Вопрос 6 — темп",
+  "group": "Подборщик",
+  "trigger": "то же",
+  "params": "q, answer, skipped",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_q7_done",
+  "name": "Вопрос 7 — интересы",
+  "group": "Подборщик",
+  "trigger": "«Проверить пожелания» / пропуск",
+  "params": "interests (через запятую), skipped",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_summary",
+  "name": "Показана сводка",
+  "group": "Подборщик",
+  "trigger": "Экран «Сформировать план»",
+  "params": "—",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_plan_build",
+  "name": "Сформирован план",
+  "group": "Подборщик",
+  "trigger": "Кнопка «Сформировать план»",
+  "params": "days, points, mode (ok/few/none/all), algo",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_result_few",
+  "name": "Мало совпадений",
+  "group": "Подборщик",
+  "trigger": "Показан режим few/none",
+  "params": "mode, interests",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_edit",
+  "name": "Изменил ответ",
+  "group": "Подборщик",
+  "trigger": "Клик по чипсу/«изменить»",
+  "params": "q",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_refine_start",
+  "name": "Начал уточнения",
+  "group": "Подборщик",
+  "trigger": "«Сделать точнее»",
+  "params": "—",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_like",
+  "name": "👍 месту",
+  "group": "Подборщик",
+  "trigger": "👍 на карточке",
+  "params": "item (place:24)",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_dislike",
+  "name": "👎 месту",
+  "group": "Подборщик",
+  "trigger": "👎 на карточке",
+  "params": "item",
+  "phase": "сейчас"
+ },
+ {
+  "id": "place_seen_before",
+  "name": "«Уже был тут»",
+  "group": "Подборщик",
+  "trigger": "Кнопка на карточке",
+  "params": "item",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_plan_like",
+  "name": "План подошёл",
+  "group": "Подборщик",
+  "trigger": "👍 под планом",
+  "params": "—",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_plan_dislike",
+  "name": "План не подошёл",
+  "group": "Подборщик",
+  "trigger": "👎 под планом",
+  "params": "reasons",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_card_open",
+  "name": "Открыл карточку из подбора",
+  "group": "Подборщик",
+  "trigger": "Ссылка «Подробнее» в выдаче/плане",
+  "params": "item, position, block (main/also/plan)",
+  "phase": "сейчас"
+ },
+ {
+  "id": "podbor_feedback_max",
+  "name": "Обратная связь в MAX",
+  "group": "Бот",
+  "trigger": "Кнопка «Дать обратную связь по маршруту»",
+  "params": "plan_id (короткий код, без ответов)",
+  "phase": "после бота"
+ },
+ {
+  "id": "place_card_click",
+  "name": "Клик по карточке места",
+  "group": "Контент",
+  "trigger": "Списки мест на сайте",
+  "params": "item, list",
+  "phase": "сейчас"
+ },
+ {
+  "id": "route_card_click",
+  "name": "Клик по карточке маршрута",
+  "group": "Контент",
+  "trigger": "Списки маршрутов",
+  "params": "item, list",
+  "phase": "сейчас"
+ },
+ {
+  "id": "external_map_click",
+  "name": "Открыл карту",
+  "group": "Контент",
+  "trigger": "Ссылка «Яндекс Карты» на странице",
+  "params": "item",
+  "phase": "сейчас"
+ },
+ {
+  "id": "scroll_75",
+  "name": "Дочитал страницу на 75%",
+  "group": "Контент",
+  "trigger": "Статья/маршрут: 75% прокрутки (один раз)",
+  "params": "page_type",
+  "phase": "сейчас"
+ },
+ {
+  "id": "magnet_click_max",
+  "name": "Клик по магниту → MAX",
+  "group": "Клуб",
+  "trigger": "Блок-магнит со ссылкой max_url",
+  "params": "magnet_id",
+  "phase": "сейчас"
+ },
+ {
+  "id": "magnet_click_tg",
+  "name": "Клик по магниту → Telegram",
+  "group": "Клуб",
+  "trigger": "Блок-магнит со ссылкой telegram_url",
+  "params": "magnet_id",
+  "phase": "сейчас"
+ },
+ {
+  "id": "bot_max_click",
+  "name": "Любой переход в бот MAX",
+  "group": "Бот",
+  "trigger": "Кнопки «Вопрос» / «Отзыв» / «Ошибка»",
+  "params": "reason, page_type, item",
+  "phase": "после бота"
+ },
+ {
+  "id": "lead_magnet_get",
+  "name": "Получил лид-магнит",
+  "group": "Деньги",
+  "trigger": "Кнопка «Получить чек-лист»",
+  "params": "magnet_id",
+  "phase": "неделя 1–2"
+ },
+ {
+  "id": "paid_route_view",
+  "name": "Смотрел платный маршрут",
+  "group": "Деньги",
+  "trigger": "Блок «Маршрут от Фрэнка»",
+  "params": "—",
+  "phase": "неделя 1–2"
+ },
+ {
+  "id": "paid_route_request",
+  "name": "Заявка на платный маршрут",
+  "group": "Деньги",
+  "trigger": "Отправлена анкета",
+  "params": "—",
+  "phase": "неделя 1–2"
+ },
+ {
+  "id": "ad_partner_click",
+  "name": "Клик по рекламе партнёра",
+  "group": "Деньги",
+  "trigger": "Ссылка в блоке «Реклама»",
+  "params": "partner_id, slot (для отчёта рекламодателю)",
+  "phase": "неделя 1–2"
+ },
+ {
+  "id": "service_view",
+  "name": "Смотрел услугу",
+  "group": "Деньги",
+  "trigger": "Карточка услуги /uslugi",
+  "params": "service_id, provider_id, category",
+  "phase": "недели 3–5"
+ },
+ {
+  "id": "booking_start",
+  "name": "Начал заявку",
+  "group": "Деньги",
+  "trigger": "Кнопка «Забронировать через бот»",
+  "params": "service_id",
+  "phase": "недели 3–5"
+ },
+ {
+  "id": "booking_submit",
+  "name": "Отправил заявку",
+  "group": "Деньги",
+  "trigger": "Заявка ушла в бот",
+  "params": "service_id, people",
+  "phase": "недели 3–5"
+ },
+ {
+  "id": "pdf_checkout_start",
+  "name": "Начал покупку PDF",
+  "group": "Деньги",
+  "trigger": "Кнопка «Купить PDF»",
+  "params": "pdf_id, price",
+  "phase": "недели 6–10"
+ },
+ {
+  "id": "purchase_success",
+  "name": "Оплата прошла",
+  "group": "Деньги",
+  "trigger": "Страница «спасибо» после реальной оплаты + e-commerce purchase",
+  "params": "order_id, product, price",
+  "phase": "недели 6–10"
+ }
+]

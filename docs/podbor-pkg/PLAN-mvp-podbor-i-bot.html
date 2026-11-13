@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>АдыГид — план MVP: подборщик и бот обратной связи</title>
+<style>
+:root{--ink:#1f2a24;--mut:#5d6b63;--bg:#f6f3ec;--card:#fff;--g:#2f6b4f;--g2:#e3efe7;--acc:#e07a3f;--acc2:#fbe9dd;--line:#e2ddd2;--max:#5b4bff;--tg:#229ed9;--warn:#fff4d6;--r:16px}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font:16px/1.55 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+a{color:var(--g)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 18px}
+header.top{background:linear-gradient(135deg,#21523b,#2f6b4f 60%,#4c8a66);color:#fff;padding:42px 0 30px}
+header.top .eyebrow{font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+header.top h1{font-size:clamp(26px,4.4vw,40px);line-height:1.15;margin:8px 0 10px}
+header.top p{max-width:720px;opacity:.92;margin:0}
+nav.toc{position:sticky;top:0;z-index:20;background:rgba(246,243,236,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line)}
+nav.toc .wrap{display:flex;gap:6px;overflow-x:auto;padding:10px 18px;scrollbar-width:none}
+nav.toc a{white-space:nowrap;text-decoration:none;color:var(--ink);font-size:14px;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid var(--line)}
+section{padding:34px 0 8px}
+h2{font-size:clamp(22px,3.2vw,30px);margin:0 0 6px}
+h2 .n{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--g);color:#fff;font-size:17px;margin-right:8px;vertical-align:3px}
+h3{font-size:19px;margin:26px 0 8px}
+.lead{color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;margin:14px 0}
+.summary{border-left:6px solid var(--acc);font-size:17px}
+.summary ol{margin:6px 0 0;padding-left:20px}.summary li{margin:6px 0}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:760px){.g2,.g3{grid-template-columns:1fr}}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;vertical-align:2px}
+.must{background:#fde2e0;color:#a2312a}.later{background:#e6e9f7;color:#3a4a99}.est{background:var(--warn);color:#7a5a00}.fact{background:var(--g2);color:var(--g)}.unv{background:#eee;color:#555}
+ul.clean{padding-left:20px;margin:8px 0}ul.clean li{margin:5px 0}
+table{width:100%;border-collapse:collapse;font-size:15px;background:#fff;border-radius:12px;overflow:hidden}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#eef3ef;font-size:14px}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:12px 0}
+.note{background:var(--warn);border-radius:12px;padding:12px 14px;font-size:15px}
+.mock-label{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:18px 0 6px}
+/* device mocks */
+.device{background:#fff;border:1px solid #d9d3c6;border-radius:22px;box-shadow:0 10px 30px rgba(40,50,40,.08);overflow:hidden}
+.device .bar{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#f1eee6;border-bottom:1px solid #e4dfd3;font-size:12px;color:#777}
+.device .bar i{width:9px;height:9px;border-radius:50%;background:#d6d0c2;display:inline-block}
+.device .url{margin-left:8px;background:#fff;border-radius:6px;padding:2px 8px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.screen{padding:16px}
+.site-h{display:flex;justify-content:space-between;align-items:center;font-weight:700;color:var(--g);margin-bottom:12px}
+.site-h small{font-weight:400;color:var(--mut)}
+.hero-tile{border-radius:16px;padding:18px;background:linear-gradient(120deg,#2f6b4f,#5f9a73);color:#fff;position:relative;overflow:hidden}
+.hero-tile b{font-size:19px;display:block}
+.btn{display:inline-block;border:0;border-radius:12px;padding:10px 16px;font-weight:600;font-size:15px;text-decoration:none;cursor:default}
+.btn-acc{background:var(--acc);color:#fff}.btn-w{background:#fff;color:var(--g)}.btn-g{background:var(--g);color:#fff}.btn-o{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.beta{background:#fff3cd;color:#8a5b00;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:2px}
+.steps{display:flex;gap:5px;margin:10px 0}.steps span{flex:1;height:6px;border-radius:4px;background:#e6e1d6}.steps span.on{background:var(--g)}
+.chips{display:flex;flex-wrap:wrap;gap:7px}.chip{border:1px solid var(--line);border-radius:999px;padding:6px 11px;font-size:14px;background:#fff}.chip.on{background:var(--g2);border-color:var(--g);color:var(--g);font-weight:600}
+.rcard{display:flex;gap:12px;border:1px solid var(--line);border-radius:14px;padding:10px;margin:9px 0;background:#fff}
+.ph{width:78px;min-width:78px;height:78px;border-radius:10px;background:linear-gradient(135deg,#7fa88a,#3e6e57)}
+.ph.b{background:linear-gradient(135deg,#9ab7c9,#4d7895)}.ph.c{background:linear-gradient(135deg,#d7b48a,#a0714a)}
+.rcard .t{font-weight:700;font-size:15px}.rcard .m{font-size:13px;color:var(--mut)}
+.why{font-size:12.5px;background:var(--g2);color:var(--g);border-radius:8px;padding:3px 8px;display:inline-block;margin-top:4px}
+.thumbs{display:flex;gap:6px;margin-top:6px}.thumbs span{border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:14px;background:#fff}
+.ask{border:1.5px dashed #c9c1b0;border-radius:14px;padding:12px;text-align:center;margin-top:10px;background:#fffdf8}
+.ask b{display:block}
+.plan-cta{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--acc2);border-radius:14px;padding:12px 14px;margin:8px 0 4px}
+.summary-chips{font-size:13px;color:var(--mut)}
+/* sheet & fab */
+.phone{max-width:340px;margin:0 auto;background:#fff;border:10px solid #23262a;border-radius:34px;overflow:hidden;position:relative;min-height:520px}
+.phone .screen{padding:14px;min-height:500px;position:relative}
+.dim{position:absolute;inset:0;background:rgba(20,24,22,.42)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:14px 16px 18px}
+.sheet .grab{width:40px;height:5px;border-radius:3px;background:#ddd;margin:0 auto 10px}
+.opt{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:14px;padding:11px 12px;margin:8px 0;font-weight:600}
+.dot{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;color:#fff;font-size:14px;font-weight:800}
+.d-max{background:var(--max)}.d-tg{background:var(--tg)}.d-f{background:#8a8f88}
+.opt small{display:block;font-weight:400;color:var(--mut);font-size:12.5px}
+.fab{position:absolute;right:14px;bottom:16px;width:52px;height:52px;border-radius:50%;background:var(--g);color:#fff;display:grid;place-items:center;font-size:23px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.line{height:10px;border-radius:5px;background:#ece7dc;margin:8px 0}.line.s{width:60%}.line.m{width:82%}
+/* chat */
+.chat{background:#e9eef2;border-radius:16px;padding:12px;font-size:14.5px}
+.chat.maxc{background:#efedff}
+.msg{max-width:85%;padding:8px 11px;border-radius:14px;margin:6px 0;background:#fff;box-shadow:0 1px 1px rgba(0,0,0,.05)}
+.msg.me{margin-left:auto;background:#dcf5d6}
+.kb{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px}.kb span{background:#fff;border:1px solid #cdd6dd;border-radius:10px;padding:6px 10px;font-size:13.5px}
+.chat .hd{font-weight:700;font-size:13px;color:#555;margin-bottom:6px;display:flex;justify-content:space-between}
+.fb{background:#fff;border-radius:14px;padding:10px 12px;margin:8px 0;border-left:4px solid var(--g)}
+.fb.q{border-left-color:#3a7bd5}.fb.l{border-left-color:var(--acc)}.fb.e{border-left-color:#c0392b}
+.fb .meta{font-size:12.5px;color:var(--mut)}
+/* flow */
+.flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:8px}
+.flow .st{flex:1 1 150px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 12px;font-size:14px;position:relative}
+.flow .st b{display:block;font-size:14.5px}
+.arrow{display:grid;place-items:center;color:var(--mut);font-size:20px;flex:0 0 18px}
+@media(max-width:760px){.arrow{transform:rotate(90deg);flex-basis:100%;height:14px}}
+.cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.cat{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px}
+.cat .e{font-size:22px}.cat b{display:block}.cat small{color:var(--mut)}
+.check{list-style:none;padding:0;margin:8px 0}
+.check li{background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 12px 11px 44px;margin:8px 0;position:relative}
+.check li:before{content:"";position:absolute;left:14px;top:13px;width:18px;height:18px;border:2px solid var(--g);border-radius:5px}
+.check li.dec{border-color:var(--acc);background:#fffaf5}.check li.dec:before{border-color:var(--acc)}
+.phase{display:grid;grid-template-columns:120px 1fr;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin:10px 0}
+.phase .w{font-weight:800;color:var(--g)}
+@media(max-width:600px){.phase{grid-template-columns:1fr}}
+.src li{font-size:14px;margin:4px 0;word-break:break-word}
+footer{color:var(--mut);font-size:13px;padding:30px 0 50px}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 12px;font-size:14px;font-weight:600;border:1px solid var(--line);background:#fff}
+.pill .dot{width:20px;height:20px;border-radius:6px;font-size:11px}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <div class="eyebrow">АдыГид · план запуска · 9 ноября 2026, MSK</div>
+  <h1>Подборщик маршрутов на сайте + бот обратной связи в MAX и Telegram</h1>
+  <p>Общая рекомендация: свой анализ мы сверили с независимым мнением ChatGPT. Ниже — что сделать до запуска, как это будет выглядеть на сайте, как обращения будут приходить тебе, что важно по закону и что нужно решить тебе. Ничего на сайте пока не менялось.</p>
+</div></header>
+
+<nav class="toc"><div class="wrap">
+<a href="#itog">Итог</a><a href="#podbor">Подборщик</a><a href="#bot">Бот</a><a href="#law">Закон и техника</a><a href="#plan">План</a><a href="#you">Что от тебя</a><a href="#vs">Мы vs GPT</a><a href="#src">Источники</a>
+</div></nav>
+
+<main class="wrap">
+
+<section id="itog">
+<h2><span class="n">1</span>Итог</h2>
+<div class="card summary">
+<ol>
+<li><b>Подборщик запускаем как «бету» на отдельной странице <code>/podbor</code></b> — та же механика, что в демо (6 вопросов, реакции, перестановка карточек, «Сформировать план»), но на живых данных сайта: 25 маршрутов и 66 мест вместо старых 15 и 56.</li>
+<li><b>До запуска главное — данные, а не код:</b> разметить 10 новых маршрутов и 10 мест, завести в админке «темы» и «зимой — да/нет/неизвестно», не выдумывать время и цену.</li>
+<li><b>Под результатом — 👍/👎 и «Не то? Спросите нас»</b>: по нажатию открывается выбор MAX · Telegram · короткая форма на сайте.</li>
+<li><b>Бот — один, свой, сразу на оба мессенджера; MAX — основной канал</b>, потому что Telegram в России сильно ограничен. Форма на сайте нужна с первого дня. Сначала сохраняем обращение в базу, потом уведомляем тебя.</li>
+<li><b>Обращения приходят тебе по категориям:</b> заявки и вопросы — сразу в рабочий чат MAX, отзывы — вечерним дайджестом. Разбираешь и отвечаешь в разделе «Входящие» админки, ответ уходит человеку в тот мессенджер, откуда он написал.</li>
+<li><b>Важный стоп-фактор:</b> MAX-бота можно завести только на ИП, самозанятого или юрлицо. Обращения с личными данными нужно хранить на сервере в России, а не в текущем Supabase за рубежом. Также нужны политика конфиденциальности и согласие — сейчас на сайте их нет.</li>
+<li><b>Сроки (оценка):</b> бета подборщика — около 1–1,5 недели работы; бот с «Входящими» и российским хранением — ещё около 1,5–2 недель. Юридическую часть готовим параллельно.</li>
+</ol>
+</div>
+</section>
+
+<section id="podbor">
+<h2><span class="n">2</span>Подборщик: MVP на сайте</h2>
+<p class="lead">Цель беты — не идеальный навигатор, а честный и красивый подбор идей, на котором мы соберём реакцию людей.</p>
+
+<h3>Что доделать до запуска</h3>
+<div class="grid g2">
+<div class="card"><span class="tag must">Обязательно</span>
+<ul class="clean">
+<li><b>Живые данные.</b> Отдельный лёгкий канал данных для подборщика: десятки килобайт вместо файла на 3 МБ, фото подгружаются по мере прокрутки.</li>
+<li><b>Разметить 10 новых маршрутов и 10 мест</b> так же, как остальные: темы, район, «зимой не предлагать», «подходит малышам».</li>
+<li><b>Поля в админке</b> вместо ручных списков в коде: темы интересов, «зимой: да / нет / неизвестно», «коляска/ступени: да / нет / неизвестно», «показать новичку». Неизвестное не считаем «можно».</li>
+<li><b>Три вида результата:</b> полный план, если данных хватает; подборка без расписания, если не хватает; честное «нет подходящего» с альтернативами.</li>
+<li><b>Блок «Ещё может понравиться».</b> Основная выдача — строго по выбранным интересам; близкие варианты — отдельным подписанным блоком. Так музей не подменит ущелья молча, и пустых экранов не будет.</li>
+<li><b>Обратная связь:</b> 👍/👎 на карточках и плане, «Не то? Спросите нас».</li>
+<li><b>Цели в Яндекс.Метрике</b> и проверка на телефоне (360–390 px).</li>
+</ul></div>
+<div class="card"><span class="tag later">Потом (v2)</span>
+<ul class="clean">
+<li>Время в пути от жилья, карта плана, точные треки.</li>
+<li>Погода как вход алгоритма, часы работы, сезон по месяцам.</li>
+<li>Расширенные уточняющие вопросы. В бету берём 2–3 самых полезных: возраст младшего ребёнка, «без ступеней / коляска», запасной вариант на плохую погоду.</li>
+<li>Сохранение плана в личный кабинет, ИИ-тексты (только по проверенным фактам).</li>
+<li>Мини-приложение подборщика внутри MAX/Telegram — та же страница.</li>
+</ul>
+<p class="note" style="margin-top:10px">Что оставляем из демо по твоим пожеланиям: реакции с эмодзи после каждого ответа, заметную перестановку карточек, полноэкранную загрузку после 6-го ответа и кнопку «Сформировать план» над карточками, редактируемую сводку, «уточняем, скоро появится :)» вместо неизвестной цены. GPT предлагал убрать загрузку — <b>мы её оставляем</b>, но не дольше ~1,5 с, с пропуском по тапу и только при первом показе.</p>
+</div>
+</div>
+
+<h3>Как это будет выглядеть</h3>
+<div class="grid g3">
+<div>
+<div class="mock-label">Главная: вход в подборщик</div>
+<div class="device"><div class="bar"><i></i><i></i><i></i><span class="url">adygid.ru</span></div>
+<div class="screen">
+<div class="site-h">АдыГид <small>Места · Маршруты · Клуб</small></div>
+<div class="hero-tile"><span class="beta" style="margin:0 0 6px;display:inline-block">БЕТА</span><b>Подберём поездку за минуту</b>
+<div style="font-size:14px;opacity:.9;margin:4px 0 12px">6 вопросов — и план идей по дням из 25 маршрутов и 66 мест</div>
+<span class="btn btn-w">Подобрать →</span></div>
+<div class="line m"></div><div class="line s"></div>
+</div></div>
+</div>
+<div>
+<div class="mock-label">/podbor: вопрос и живые карточки</div>
+<div class="device"><div class="bar"><i></i><i></i><i></i><span class="url">adygid.ru/podbor</span></div>
+<div class="screen">
+<div style="font-weight:700">Подбор поездки <span class="beta">БЕТА</span></div>
+<div class="steps"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span></span><span></span></div>
+<div style="font-weight:600;margin:6px 0">С кем едете?</div>
+<div class="chips"><span class="chip">Один</span><span class="chip">Вдвоём</span><span class="chip on">С детьми</span><span class="chip">С малышами</span><span class="chip">Пропустить</span></div>
+<div class="m" style="font-size:13px;color:var(--mut);margin:10px 0 2px">Подобрано 14 → 9 · порядок обновлён</div>
+<div class="rcard"><div class="ph"></div><div><div class="t">Хаджохская теснина</div><div class="m">место · спокойно</div><span class="why">↑ подходит семьям</span></div></div>
+</div></div>
+</div>
+<div>
+<div class="mock-label">Результат: план, 👍/👎 и «Спросите нас»</div>
+<div class="device"><div class="bar"><i></i><i></i><i></i><span class="url">adygid.ru/podbor?…</span></div>
+<div class="screen">
+<div class="plan-cta"><div><b>Готово!</b><div class="summary-chips">ноябрь · 2–3 дня · Даховская · с детьми ✎</div></div><span class="btn btn-acc">Сформировать план</span></div>
+<div class="rcard"><div class="ph b"></div><div><div class="t">День 1 · Хаджох</div><div class="m">маршрут + 1 идея рядом</div><div class="thumbs"><span>👍</span><span>👎</span></div></div></div>
+<div class="rcard"><div class="ph c"></div><div><div class="t">Музей / термы</div><div class="m">цена: уточняем, скоро появится :)</div><div class="thumbs"><span>👍</span><span>👎</span></div></div></div>
+<div class="ask"><b>Не то? Спросите нас 🙂</b><span style="font-size:13px;color:var(--mut)">Подберём вручную — в MAX, Telegram или здесь</span></div>
+</div></div>
+</div>
+</div>
+<p class="lead" style="margin-top:10px">Это макеты для понимания, а не готовый дизайн. При 👎 появятся три быстрые причины: «далеко» / «не тот сезон» / «не интересно» — без перехода в мессенджер.</p>
+
+<h3>Как поймём, что работает</h3>
+<div class="grid g2">
+<div class="card"><b>Цели в Метрике</b> (обвязка целей на сайте уже есть)
+<ul class="clean"><li>начал → ответил на 6 вопросов (сколько пропусков) → увидел результат → сформировал план</li><li>клик по карточке, поделился ссылкой, 👍/👎</li><li>переход «Спросите нас» → MAX / Telegram / форма</li><li>«ничего не нашлось» (по каким ответам)</li></ul></div>
+<div class="card"><b>Главные показатели</b>
+<ul class="clean"><li><b>Полезное действие:</b> открыл маршрут, сформировал план или поделился — главный показатель.</li><li>Доля пустых выдач, доля 👎, вопросы после результата.</li><li>Пороги успеха не выдумываем — ставим после 2 недель наблюдений. A/B-тест на нашем трафике пока не нужен; смотрим 20–30 записей вебвизора и читаем отзывы.</li></ul></div>
+</div>
+<div class="card"><b>Где считать подбор — в браузере или на сервере?</b> GPT советует сервер, мы для беты выбираем браузер, а данные и правила берём с сервера. Почему: карточки должны переставляться мгновенно после каждого ответа, логика уже написана и проверена тестами, а объектов всего 91 — это доли секунды. Аргументы GPT учтены иначе: каталог всегда живой (берётся с сервера), у алгоритма есть номер версии в аналитике, ответы хранятся в ссылке, и любую выдачу можно воспроизвести. Расчёт напишем отдельным модулем, чтобы позже без переписывания перенести его на сервер — когда понадобятся время в пути или подбор прямо в боте.</div>
+</section>
+
+<section id="bot">
+<h2><span class="n">3</span>Бот обратной связи: MAX + Telegram</h2>
+<p class="lead">Один бот с одинаковым сценарием в двух мессенджерах плюс форма на сайте. Все обращения складываются в одну базу.</p>
+
+<h3>Путь человека</h3>
+<div class="flow">
+<div class="st"><b>1. Сайт</b>Страница маршрута, подборщик или футер: «Задать вопрос» / «Оставить отзыв»</div><div class="arrow">→</div>
+<div class="st"><b>2. Выбор канала</b>MAX · Telegram · форма на сайте (выбор запоминаем)</div><div class="arrow">→</div>
+<div class="st"><b>3. Бот знает контекст</b>«Вижу, вы со страницы „Хаджохская теснина“» — через короткий код в ссылке</div><div class="arrow">→</div>
+<div class="st"><b>4. Кнопки + текст</b>Тип обращения, 1–2 уточнения, согласие на обработку данных</div><div class="arrow">→</div>
+<div class="st"><b>5. Тебе</b>Сохранено в базе → уведомление по категории → ответ из админки уходит человеку</div>
+</div>
+
+<h3>Категории</h3>
+<div class="cats">
+<div class="cat"><div class="e">⭐</div><b>Отзыв о маршруте</b><small>оценка 1–5, что понравилось или нет, когда были; публикация на сайте — только с отдельного согласия</small></div>
+<div class="cat"><div class="e">❓</div><b>Вопрос</b><small>«Реально ли сейчас проехать в Гузерипль?» Непонятный текст тоже попадает сюда, человек может сменить тип одной кнопкой</small></div>
+<div class="cat"><div class="e">🧭</div><b>Заявка / помочь спланировать</b><small>когда, сколько дней, с кем, что нужно</small></div>
+<div class="cat"><div class="e">🔧</div><b>Ошибка на сайте</b><small>страница определяется автоматически, можно приложить скрин</small></div>
+<div class="cat"><div class="e">💡</div><b>Идея</b><small>предложения, новые места</small></div>
+</div>
+
+<div class="grid g2" style="margin-top:16px">
+<div>
+<div class="mock-label">Так видит турист (MAX или Telegram)</div>
+<div class="chat maxc">
+<div class="hd"><span>АдыГид</span><span>бот</span></div>
+<div class="msg">Привет! 👋 Вижу, вы со страницы маршрута <b>«Хаджохская теснина»</b>. Что хотите?</div>
+<div class="kb"><span>⭐ Отзыв</span><span>❓ Вопрос</span><span>🧭 Помочь спланировать</span><span>🔧 Ошибка</span><span>💡 Идея</span></div>
+<div class="msg me">⭐ Отзыв</div>
+<div class="msg">Как вам? <br>⭐️1 · 2 · 3 · 4 · 5</div>
+<div class="msg me">5 — были в субботу с детьми, ступени мокрые, но очень красиво</div>
+<div class="msg">Спасибо! 🙌 Можно показать отзыв на сайте — только имя, без фамилии?</div>
+<div class="kb"><span>Да, можно</span><span>Нет</span></div>
+</div>
+</div>
+<div>
+<div class="mock-label">Так приходит тебе (рабочий чат в MAX)</div>
+<div class="chat">
+<div class="hd"><span>АдыГид · входящие</span><span>18:42</span></div>
+<div class="fb l"><b>🧭 #заявка · с подборщика</b><div>«Хотим 2–3 дня в ноябре с ребёнком 5 лет, база — Даховская»</div><div class="meta">MAX · план: ноябрь/2–3 дня/с детьми · новое</div><div class="kb" style="margin-top:6px"><span>Ответить</span><span>В работу</span><span>Готово</span></div></div>
+<div class="fb q"><b>❓ #вопрос · Руфабго</b><div>«Можно сейчас пройти к водопадам?»</div><div class="meta">Telegram · стр. места · новое</div></div>
+<div class="fb"><b>📊 Дайджест за 9 ноября</b><div>⭐ 3 отзыва (в среднем 4,3) · ❓ 2 вопроса (1 без ответа больше 12 ч ⚠️) · 🧭 1 заявка · 🔧 1 ошибка<br>Чаще всего упоминали: Хаджох, Лаго-Наки · 👎 в подборщике: 4 («далеко» ×3)</div><div class="meta">каждый вечер в 20:00 MSK · ссылка на «Входящие»</div></div>
+</div>
+</div>
+</div>
+
+<div class="card" style="margin-top:16px"><b>«Входящие» в админке сайта</b> — основное рабочее место (так советует GPT, мы согласны): вкладки Все / Вопросы / Отзывы / Заявки / Ошибки, статусы «новое → в работе → ждём ответа → готово / спам», привязка к маршруту, выгрузка в CSV. В рабочем чате — только короткая карточка и ссылка, без телефонов и лишних личных данных. Заявки и вопросы приходят сразу, отзывы — в вечернем дайджесте. Если вопрос висит без ответа больше 12 часов — придёт напоминание.</div>
+
+<h3>Как встроить на сайт — лаконично</h3>
+<div class="grid g3">
+<div>
+<div class="mock-label">Страница маршрута</div>
+<div class="device"><div class="bar"><i></i><i></i><i></i><span class="url">adygid.ru/marshruty/17</span></div>
+<div class="screen">
+<div class="ph" style="width:100%;height:90px"></div>
+<div style="font-weight:700;margin:10px 0 4px">Гузерипль с детьми</div>
+<div class="line m"></div><div class="line"></div><div class="line s"></div>
+<div class="card" style="margin:12px 0 0;padding:12px"><b>Были здесь? Расскажите, как сейчас</b>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><span class="btn btn-g" style="padding:8px 12px">⭐ Оставить отзыв</span><span class="btn btn-o" style="padding:8px 12px">❓ Задать вопрос</span></div></div>
+</div></div>
+</div>
+<div>
+<div class="mock-label">Выбор канала (по нажатию)</div>
+<div class="phone"><div class="screen">
+<div class="line m"></div><div class="line"></div><div class="line s"></div><div class="line m"></div>
+<div class="dim"></div>
+<div class="sheet"><div class="grab"></div>
+<div style="font-weight:700;margin-bottom:4px">Где удобнее?</div>
+<div class="opt"><span class="dot d-max">M</span><div>MAX<small>основной канал — отвечаем здесь</small></div></div>
+<div class="opt"><span class="dot d-tg">T</span><div>Telegram<small>если вам так удобнее</small></div></div>
+<div class="opt"><span class="dot d-f">✎</span><div>Написать здесь<small>короткая форма, без мессенджера</small></div></div>
+</div></div></div>
+</div>
+<div>
+<div class="mock-label">Плавающая 💬 (опция, решаешь ты)</div>
+<div class="phone"><div class="screen">
+<div class="site-h">АдыГид</div>
+<div class="ph" style="width:100%;height:110px"></div>
+<div class="line m"></div><div class="line"></div><div class="line s"></div><div class="line m"></div><div class="line"></div>
+<div class="fab">💬</div>
+</div></div>
+</div>
+</div>
+<div class="card"><b>Где будут входы:</b>
+<ul class="clean">
+<li><b>Страница маршрута и места:</b> «Были здесь? Оставьте отзыв» и «Задать вопрос».</li>
+<li><b>Подборщик:</b> 👍/👎 и «Не то? Спросите нас».</li>
+<li><b>Футер всех страниц:</b> «Связаться с АдыГидом».</li>
+<li><b>Плавающая 💬 — вопрос открытый.</b> Мы её предлагали, GPT против: на телефоне она может закрывать контент. Компромисс — <b>в бету без неё</b>; если за 2 недели будет мало обращений через контекстные кнопки, включим её с задержкой (после 20 с или половины прокрутки) и не поверх магнитов клуба.</li>
+<li><b>Клуб не трогаем.</b> Магниты «Забрать в клубе» остаются, бот их не заменяет: канал — для контента, бот — для вопросов. В конце диалога бот мягко предлагает подписаться на клуб.</li>
+<li><b>Оформление:</b> те же пилюли MAX/Telegram, что уже есть на сайте.</li>
+</ul></div>
+
+<h3>Свой бот или конструктор</h3>
+<div class="tbl"><table>
+<tr><th></th><th>Свой бот (рекомендуем)</th><th>Конструктор без кода</th></tr>
+<tr><td>Контекст с сайта (маршрут, план подборщика)</td><td>✅ полностью</td><td>⚠️ зависит от сервиса</td></tr>
+<tr><td>Одна база + «Входящие» в админке + дайджест</td><td>✅ как нам нужно</td><td>⚠️ своя панель сервиса, интеграции</td></tr>
+<tr><td>Ответ человеку из админки</td><td>✅</td><td>✅ обычно есть</td></tr>
+<tr><td>Скорость запуска</td><td>около 1,5–2 недель <span class="tag est">оценка</span></td><td>1–2 дня <span class="tag est">оценка</span></td></tr>
+<tr><td>Деньги</td><td>сервер в РФ + наше время, без абонентки</td><td>абонентка. <b>BotHelp PRO — от 1 599 ₽/мес</b> (официальная страница, 09.11; цена растёт с числом подписчиков). Puzzlebot, Salebot, Chatforma — цены по обзорам, перепроверить</td></tr>
+<tr><td>Личные данные (152-ФЗ)</td><td>✅ храним сами в РФ</td><td>⚠️ нужно проверять, где серверы сервиса, и заключать договор-поручение</td></tr>
+<tr><td>Минусы</td><td>поддержка на нас; модерация MAX</td><td>зависимость от сервиса, меньше гибкости</td></tr>
+</table></div>
+<p class="lead">Puzzlebot на своём сайте подтверждает «один сценарий — сразу Telegram и MAX». Если хочется «работает завтра» — его можно взять как пилот на 2–4 недели, но затем переходить на свой бот. Для MAX в обоих вариантах нужен твой верифицированный профиль (ИП, самозанятый или юрлицо).</p>
+</section>
+
+<section id="law">
+<h2><span class="n">4</span>Юридические и технические нюансы</h2>
+<p class="note">Это продуктовая сводка по открытым источникам, а не юридическая консультация. Перед приёмом обращений тексты и схему хранения лучше показать юристу.</p>
+<div class="grid g2">
+<div class="card"><span class="tag fact">MAX</span>
+<ul class="clean">
+<li>Бота создаёт только <b>верифицированный профиль юрлица, ИП или самозанятого — резидента РФ</b>; физлицу нельзя. Подтверждение — через Госуслуги, у ИП/юрлица — также T-Business ID или Alfa ID.</li>
+<li>Лимит ботов: самозанятый — 2, ИП/юрлицо — 5. Модерация каждого бота — <b>до 48 рабочих часов</b>.</li>
+<li>Имя ссылки бота выдаётся автоматически (вида <code>idИНН_bot</code>) и пока не меняется. Название и логотип 500×500 можно задать свои.</li>
+<li>Технически: ссылка с меткой <code>max.ru/бот?start=…</code> (до 128 знаков). Вебхук — только HTTPS на порту 443, нужен сертификат доверенного центра или Минцифры, самоподписанные не принимаются (с 25.05.2026). Для запросов к API нужно добавить корневой сертификат Минцифры в доверенные.</li>
+</ul></div>
+<div class="card"><span class="tag fact">Telegram</span>
+<ul class="clean">
+<li>Бота создаёт кто угодно через @BotFather за минуту. Ссылка с меткой <code>t.me/бот?start=…</code> — до 64 символов.</li>
+<li><b>В России Telegram с февраля 2026 ограничивают:</b> в марте до ~80% запросов к нему не проходили, сообщения шли с задержками. Полной официальной блокировки на начало ноября не объявлено. Вывод: <b>MAX — основной канал</b>, Telegram — запасной, и обязательно форма на сайте.</li>
+<li>Запрет общаться с клиентами через иностранные мессенджеры (с 01.06.2025) касается банков, госорганов, операторов связи, маркетплейсов и т. п. — <b>не туристического гида</b>, если он не относится к этим категориям.</li>
+</ul></div>
+<div class="card"><span class="tag fact">Личные данные (152-ФЗ)</span>
+<ul class="clean">
+<li><b>С 01.07.2025</b> личные данные граждан РФ при сборе нельзя записывать и хранить в базах за рубежом. Имя, ID в мессенджере, телефон и текст обращения — это личные данные. <b>Railway (США/Нидерланды/Сингапур) и Supabase российских регионов не имеют</b>, поэтому обращения храним в отдельной базе на российском хостинге.</li>
+<li><b>С 01.09.2025</b> согласие на обработку оформляется <b>отдельным действием</b>: кнопка «Согласен» в боте, отдельная галочка в форме.</li>
+<li>Публикация отзыва с именем на сайте — <b>отдельное согласие на распространение</b> (ст. 10.1). Рассылки с рекламой — <b>отдельное согласие на рекламу</b> (ст. 18 закона о рекламе). Три согласия — три разных действия.</li>
+<li>До начала обработки — <b>уведомление в Роскомнадзор</b>. Штраф за неуведомление с 30.05.2025 — 100–300 тыс. ₽ для ИП и юрлиц (по сводкам, проверить у юриста).</li>
+<li><b>На сайте сейчас нет политики обработки персональных данных</b>, хотя вебвизор Метрики и cookie лайков уже работают. Это стоит закрыть в любом случае.</li>
+</ul></div>
+<div class="card"><span class="tag fact">Хостинг и надёжность</span>
+<ul class="clean">
+<li>Сайт и каталог можно пока оставить на Railway. <b>Бот и база обращений</b> — отдельный небольшой сервис в РФ (например, Yandex Cloud, Selectel или Timeweb Cloud — выбор за тобой). Форма на сайте отправляет данные сразу туда. Схему «сайт за рубежом → сервис в РФ» стоит показать юристу. Самый простой долгосрочный путь — со временем перенести в РФ весь сайт.</li>
+<li>Код контекста из ссылки (маршрут, ответы подборщика) — случайный, без личных данных, с ограниченным сроком жизни.</li>
+<li>Порядок: сначала сохраняем в базу, потом уведомляем; если доставка не удалась — повторяем. Защита вебхуков секретом, лимиты против спама, «приманка» для ботов в форме, журнал действий админа, удаление данных по запросу.</li>
+<li>Тексты обращений не отправляем в зарубежные ИИ. Если позже понадобится авто-классификация — только российская модель.</li>
+<li><span class="tag unv">не проверено</span> Есть ли в групповых чатах MAX темы, как в Telegram. Поэтому в MAX сортируем хэштегами и эмодзи, а настоящая сортировка — во «Входящих».</li>
+</ul></div>
+</div>
+</section>
+
+<section id="plan">
+<h2><span class="n">5</span>План по этапам</h2>
+<p class="lead">Все сроки — <span class="tag est">оценка</span> для работы через PR с проверкой, не обещание. GPT оценил весь объём в 67–117 часов и предупредил, что «всё за 1–2 недели» — нереалистично. Мы согласны, поэтому делим на этапы.</p>
+<div class="phase"><div class="w">Сейчас<br><small>1–3 дня, параллельно</small></div><div><b>Твои решения и оформление:</b> статус для MAX и верификация, бот в @BotFather, выбор хостинга в РФ, черновики политики и согласий (мы готовим, юрист проверяет), уведомление в РКН.</div></div>
+<div class="phase"><div class="w">Этап 1<br><small>~1–1,5 нед.</small></div><div><b>Бета подборщика:</b> живые данные, разметка новых маршрутов и мест, поля «темы» и «зимой да/нет/?» в админке, страница <code>/podbor</code> с меткой «Бета», 👍/👎, цели Метрики, проверка на телефоне. «Спросите нас» сначала ведёт в форму (или в пилотного бота). Запуск — ссылкой в клубе MAX и в 1–2 статьях, потом плитка на главной.</div></div>
+<div class="phase"><div class="w">Этап 2<br><small>~1,5–2 нед.</small></div><div><b>Бот и «Входящие»:</b> сервис в РФ, бот MAX + Telegram (запускаем тот, что готов раньше: Telegram — сразу, MAX — после верификации и модерации), контекст с сайта, категории, «Входящие» в админке, ответы людям, уведомления и вечерний дайджест, кнопки на страницах маршрутов и мест, форма с согласием.</div></div>
+<div class="phase"><div class="w">Этап 3<br><small>недели 4–6</small></div><div><b>Улучшения по данным:</b> поправить веса и вопросы по реальным ответам, публикация отзывов на страницах маршрутов (модерация + согласие), шаблоны ответов, недельная сводка «какие маршруты хвалят и ругают», решение по плавающей 💬.</div></div>
+<div class="phase"><div class="w">Позже</div><div>Время в пути от жилья и карта плана, подборщик как мини-приложение в MAX/Telegram, добровольная подписка на новости маршрутов, авто-классификация российской ИИ-моделью.</div></div>
+</section>
+
+<section id="you">
+<h2><span class="n">6</span>Что нужно от тебя</h2>
+<p class="lead">Оранжевые пункты — решения. Остальное — действия, которые можешь сделать только ты.</p>
+<ul class="check">
+<li class="dec"><b>Статус для MAX:</b> ИП, самозанятый или юрлицо? На кого оформляем бота и кто будет «оператором» личных данных. Без статуса — только Telegram и форма.</li>
+<li class="dec"><b>Хостинг в РФ для бота и обращений:</b> какой провайдер (или переносим со временем весь сайт).</li>
+<li class="dec"><b>Куда присылать уведомления:</b> рабочий чат MAX (рекомендуем), Telegram-группа или оба; время дайджеста (предлагаем 20:00 MSK); кто ещё отвечает.</li>
+<li class="dec"><b>Свой бот сразу или пилот на конструкторе</b> на 2–4 недели.</li>
+<li class="dec"><b>Мелкие решения:</b> плавающая 💬 — да/нет; публиковать ли отзывы на сайте; закрыть ли бету от поисковиков (noindex) или пусть индексируется; оставляем ли полноэкранную загрузку (мы — за, коротко).</li>
+<li>Пройти верификацию на платформе MAX для партнёров (через Госуслуги, роль руководителя), подготовить логотип 500×500, название и описание бота (до 200 знаков).</li>
+<li>Создать бота в @BotFather. Токены передать безопасно — в секреты сервера, не в чат.</li>
+<li>Утвердить тексты политики и трёх согласий (обработка, публикация отзыва, реклама) и подать уведомление в РКН, если ещё не подано.</li>
+<li>Тексты приветствия бота и примерный срок ответа, который реально выдержишь («ответим в течение дня»).</li>
+<li>Позвать 5–10 знакомых протестировать бету до публичного анонса.</li>
+</ul>
+</section>
+
+<section id="vs">
+<h2><span class="n">7</span>Мы vs GPT</h2>
+<div class="tbl"><table>
+<tr><th>Вопрос</th><th>Мы</th><th>GPT</th><th>Итог</th></tr>
+<tr><td>Где считать подбор</td><td>в браузере, данные с сервера</td><td>на сервере</td><td><b>Браузер для беты</b> (мгновенная перестановка, готовый код); модуль, который можно перенести на сервер в v2</td></tr>
+<tr><td>Интересы</td><td>строгий фильтр</td><td>мягкий бонус + запасные</td><td><b>Строго в основной выдаче + подписанный блок «Ещё может понравиться»</b></td></tr>
+<tr><td>Полноэкранная загрузка</td><td>оставить</td><td>убрать</td><td><b>Оставить</b> (твоё пожелание), ≤1,5 с, пропуск по тапу</td></tr>
+<tr><td>Результат при нехватке данных</td><td>оговорки</td><td>три режима результата</td><td><b>Берём три режима</b></td></tr>
+<tr><td>Плавающая кнопка 💬</td><td>да, с задержкой</td><td>нет</td><td><b>В бету без неё</b>, решаем по данным</td></tr>
+<tr><td>Где читать обращения</td><td>админ-чат + таблица</td><td>«Входящие» в админке, чат — уведомления</td><td><b>«Входящие» главное; чат MAX — уведомления и дайджест</b></td></tr>
+<tr><td>Контекст в бот</td><td>закодированный в ссылке</td><td>случайный короткий ID на сервере</td><td><b>Случайный ID (GPT)</b> — надёжнее и без ограничений длины</td></tr>
+<tr><td>Непонятный текст</td><td>правила по словам</td><td>считать вопросом</td><td><b>Вопрос + кнопка «сменить тип»</b></td></tr>
+<tr><td>Хранение данных</td><td>сервис в РФ</td><td>сервис в РФ</td><td>Согласны</td></tr>
+<tr><td>Согласия</td><td>обработка + публикация</td><td>+ отдельное на рекламу</td><td><b>Три отдельных согласия</b> (проверено)</td></tr>
+<tr><td>Сроки</td><td>~2–2,5 недели</td><td>67–117 ч, не за 1–2 недели</td><td><b>Этапами:</b> бета подборщика → бот</td></tr>
+<tr><td>MAX или Telegram первым</td><td>MAX основной</td><td>MAX основной, но не обязательная зависимость</td><td>Согласны: запускаем, что готово раньше</td></tr>
+</table></div>
+<p class="lead">Что нашёл GPT, а мы упустили (и мы проверили): отдельное согласие на рекламные рассылки; для вебхука MAX подходит сертификат любого доверенного центра, не только Минцифры; три режима результата; «клуб не заменять ботом»; «сначала база, потом уведомление».</p>
+</section>
+
+<section id="src">
+<h2><span class="n">8</span>Источники</h2>
+<p class="lead">Все открыты 9 ноября 2026 (MSK). Цены конструкторов, кроме BotHelp, — по обзорам, перед оплатой перепроверить.</p>
+<ul class="src">
+<li>MAX — кто может создать бота: help.max.ru/help/bots/sozdanie_chat-bota/kak_sozdat_svoego_chat-bota_v_max ; dev.max.ru/docs/maxbusiness/connection ; dev.max.ru/help/platform_connection</li>
+<li>MAX — создание и модерация бота: dev.max.ru/docs/chatbots/bots-create/create/ ; обзор платформы: dev.max.ru/docs</li>
+<li>MAX API, вебхуки, сертификаты: dev.max.ru/docs-api ; dev.max.ru/docs-api/methods/POST/subscriptions</li>
+<li>MAX — ссылки с меткой: dev.max.ru/help/deeplinks ; dev.max.ru/docs/chatbots/bots-coding/prepare/ ; события: dev.max.ru/docs-api/objects/Update/</li>
+<li>Python-библиотека для MAX (неофициальная): github.com/love-apples/maxapi</li>
+<li>Telegram Bot API: core.telegram.org/bots/features</li>
+<li>Ограничения Telegram в РФ: interfax.ru/digital/1072012 (10.02.2026); rbc.ru/technology_and_media/10/02/2026/698b5e909a7947bd423d28c9 ; kommersant.ru/doc/8513557 (март 2026); обзор на 03.11.2026: journal.viton13.com (вторичный)</li>
+<li>Иностранные мессенджеры (41-ФЗ): duma.gov.ru/news/61537/</li>
+<li>Локализация ПДн (23-ФЗ): kremlin.ru/acts/bank/51683 ; письмо РКН 24.03.2025 № 08-134789</li>
+<li>Отдельное согласие с 01.09.2025: literafort.ru/publication/152-fz-2025/ ; consultant.ru (ред. 152-ФЗ от 24.06.2025)</li>
+<li>Согласие на распространение и на рекламу: gramotaib.ru/blog/soglasie-na-obrabotku-pdn-vidy ; companies.rbc.ru/news/aBXMImIfGm/ ; 38-ФЗ ст. 18</li>
+<li>Уведомление РКН и штрафы: pagaev-legal.ru/sayty/uvedomlenie-roskomnadzora.html ; consultant.ru (КоАП, ред. 30.05.2025)</li>
+<li>Регионы хостинга: docs.railway.com/reference/deployment-regions ; supabase.com/regions</li>
+<li>Конструкторы: bothelp.io/ru/pricing (официально) ; puzzle.bot (официально, без цен) ; habr.com/ru/articles/1042600/ ; chbt.io/blog/konstruktory-chat-botov-v-rossii-sravnenie ; kontekstnaya-reklama.pro/konstruktory-chat-botov-2 (обзоры)</li>
+<li>Сайт: публичный API adygid.ru/api/trails и /api/checkpoints (25 маршрутов, 66 мест); код сайта github.com/dantgiam/adygid (чтение, коммит от 08.11.2026)</li>
+<li>Второе мнение: ChatGPT, 09.11.2026 — chatgpt.com/c/6af1e33d-6e1c-83ed-b193-8267ee70943c</li>
+</ul>
+</section>
+</main>
+<footer><div class="wrap">АдыГид · план MVP · собрано 9 ноября 2026, MSK. Макеты — иллюстрации, а не готовый дизайн. Сроки — оценки. Юридическая часть — не консультация.</div></footer>
+</body>
+</html>
