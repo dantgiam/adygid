@@ -203,6 +203,9 @@ with engine.begin() as _conn:
     _conn.execute(text("ALTER TABLE site_pages ALTER COLUMN items SET DEFAULT '[]'::jsonb"))
     _conn.execute(text("ALTER TABLE site_pages ALTER COLUMN items SET NOT NULL"))
 
+from site_app.podbor_api import ensure_podbor_table
+ensure_podbor_table()
+
 # scenarios.tips (отдельный список коротких советов) заменён на локальный
 # блок «Что учесть», вставляемый прямо в текст lead — см. site_app.content.
 # consider_embed_html. У существующих сценариев с непустыми tips переносим
@@ -1743,6 +1746,16 @@ def render_preview(body: PreviewIn, db: Session = Depends(get_db), _: bool = Dep
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/assets", StaticFiles(directory="site_app/static"), name="site_static")
 app.include_router(site_router)
+
+from site_app.podbor_api import router as podbor_router, podbor_stats
+
+app.include_router(podbor_router)
+
+
+@app.get("/api/podbor/stats")
+def get_podbor_stats(db: Session = Depends(get_db), _: bool = Depends(require_admin)):
+    """Сводка ответов подборщика: с детьми / без, расклад по вопросам."""
+    return podbor_stats(db)
 
 
 # Иконки сайта лежат в /assets, но и поисковики, и браузеры первым делом

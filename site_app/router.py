@@ -26,6 +26,7 @@ from site_app.content import (
     SEASON_LABELS,
 )
 from site_app.icons import category_svg
+from site_app.podbor_catalog import catalog_items, invalidate_podbor_cache, load_copy, script_json
 
 router = APIRouter()
 templates = Jinja2Templates(directory="site_app/templates")
@@ -43,7 +44,10 @@ def _asset_version() -> str:
     поэтому в ссылку добавляем метку версии: после правки файла адрес
     меняется, и браузер забирает новую версию сразу, а не через неделю."""
     stamp = 0
-    names = ["site.css", "site.js", "magnet-gift.png", "magnet-tg.png", "magnet-max.png"]
+    names = [
+        "site.css", "site.js", "podbor.css", "podbor.js", "podbor-core.js",
+        "magnet-gift.png", "magnet-tg.png", "magnet-max.png",
+    ]
     for name in names:
         try:
             stamp = max(stamp, int(os.path.getmtime(os.path.join("site_app", "static", name))))
@@ -1142,6 +1146,7 @@ def invalidate_home_cache() -> None:
     _DIFFICULTY_CACHE["value"] = None
     _DISTRICT_CACHE["value"] = None
     _CLUB_URL_CACHE["value"] = None
+    invalidate_podbor_cache()
 
 
 @router.get("/")
@@ -1208,6 +1213,32 @@ def home(request: Request, db: Session = Depends(get_db)):
     _HOME_CACHE["body"] = response.body
     _HOME_CACHE["at"] = time.monotonic()
     return response
+
+
+@router.get("/podbor")
+def podbor_page(request: Request, db: Session = Depends(get_db), src: str = "", season: str = ""):
+    """Подбор маршрута. Каталог собирается из опубликованных мест и маршрутов."""
+    items = catalog_items(db)
+    known_src = src if src in ("home_widget", "direct", "max") else "direct"
+    known_season = season if season in ("winter", "summer", "any") else ""
+    packed = load_copy()
+    boot = {
+        "items": items,
+        "copy": packed.get("copy") or {},
+        "refine": packed.get("refine") or [],
+        "src": known_src if (src or known_season) else "direct",
+        "season": known_season,
+        "fresh": bool(src or known_season),
+    }
+    return templates.TemplateResponse(
+        "podbor.html",
+        _ctx(
+            request, db, active_nav="podbor",
+            boot_json=script_json(boot),
+            n_places=sum(1 for item in items if item["type"] == "place"),
+            n_routes=sum(1 for item in items if item["type"] == "route"),
+        ),
+    )
 
 
 # ─────────────────────────────────────────────
@@ -1786,6 +1817,7 @@ def sitemap_xml(db: Session = Depends(get_db)):
         ("/okrugi", None, "monthly"),
         ("/voprosy", None, "monthly"),
         ("/klub", None, "monthly"),
+        ("/podbor", None, "weekly"),
     ]
     for row in db.execute(select(Scenario.slug).where(Scenario.is_published == True)).scalars().all():
         urls.append((f"/kuda/{row}", None, "weekly"))

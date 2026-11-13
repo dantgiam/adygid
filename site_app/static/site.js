@@ -1,3 +1,13 @@
+// Общая обёртка целей Яндекс.Метрики. Номер счётчика приходит из шаблона.
+// Без счётчика (локальная разработка) вызов ничего не делает и не бросает.
+window.adygidGoal = function (name, params) {
+  const id = window.ADYGID_METRIKA_ID;
+  if (!id) return;
+  try {
+    if (typeof window.ym === "function") window.ym(id, "reachGoal", name, params);
+  } catch (e) { /* аналитика не должна ронять страницу */ }
+};
+
 // ── Случайное место: кнопка «Ещё» ────────────────────────────────────────
 // Карточка приходит уже отрисованной с сервера, здесь только перетасовка на
 // месте. Без скрипта «Ещё» остаётся обычной ссылкой на /naugad — тот сам
@@ -52,7 +62,11 @@
     next = null;
     prefetch();
 
-    if (data) paint(data);
+    if (data) {
+      paint(data);
+      const kind = String(data.url || "").indexOf("/marshruty/") === 0 ? "route" : "place";
+      window.adygidGoal("random_place_refresh", { item: data.id ? kind + ":" + data.id : "" });
+    }
     card.classList.remove("rolling");
     busy = false;
   });
@@ -190,10 +204,17 @@
   }
 })();
 
-// Автосабмит форм фильтров при смене любого поля
+// Автосабмит форм фильтров при смене любого поля.
+// form.submit() не поднимает событие submit, поэтому цель шлём здесь — один раз на изменение.
 document.querySelectorAll("form.filters").forEach((form) => {
   form.querySelectorAll("select, input[type=checkbox]").forEach((el) => {
-    el.addEventListener("change", () => form.submit());
+    el.addEventListener("change", () => {
+      window.adygidGoal("filter_apply", {
+        page: location.pathname,
+        field: el.name || el.id || "",
+      });
+      form.submit();
+    });
   });
 });
 
@@ -254,9 +275,11 @@ document.querySelectorAll("form.filters").forEach((form) => {
     }
     writeFavorites(favorites);
 
+    const active = isFavorite(favorites, type, id);
     document.querySelectorAll(`.fav-btn[data-type="${type}"][data-id="${id}"]`).forEach((b) => {
-      paintButton(b, isFavorite(favorites, type, id));
+      paintButton(b, active);
     });
+    window.adygidGoal("favorite_toggle", { item: type + ":" + id, state: active ? "on" : "off" });
   });
 
   initButtons();
@@ -326,6 +349,8 @@ document.querySelectorAll(".like-btn").forEach((btn) => {
       const count = btn.querySelector(".like-count");
       count.textContent = data.count;
       count.hidden = !data.count;
+      const kind = type === "trail" ? "route" : type === "checkpoint" ? "place" : type;
+      window.adygidGoal("like_click", { item: kind + ":" + id, state: data.liked ? "on" : "off" });
     } catch (e) {
       // тихо игнорируем — счётчик просто не обновится
     } finally {
@@ -466,13 +491,17 @@ document.addEventListener("click", (e) => {
 
   // Очередь ym() создаётся синхронно в шапке, поэтому вызывать её можно и до
   // того, как догрузился tag.js: события не потеряются, а встанут в очередь.
-  function goal(name, params) {
-    try {
-      if (typeof window.ym === "function") window.ym(ID, "reachGoal", name, params);
-    } catch (e) { /* аналитика не должна ронять страницу */ }
-  }
+  const goal = window.adygidGoal;
 
   const path = location.pathname;
+
+  function contentItem() {
+    const place = path.match(/^\/mesta\/(\d+)/);
+    if (place) return "place:" + place[1];
+    const route = path.match(/^\/marshruty\/(\d+)/);
+    if (route) return "route:" + route[1];
+    return "";
+  }
 
   // ── Активное время: считаем только когда вкладка на экране ──
   // «Время на сайте» в Метрике включает вкладки, брошенные в фоне на час.
@@ -540,6 +569,10 @@ document.addEventListener("click", (e) => {
       if (maxDepth >= step && !firedDepth.has(step)) {
         firedDepth.add(step);
         goal("read_" + step, { page: path, seconds: seconds() });
+        if (step === 75) {
+          const pageType = /^\/stati\/.+/.test(path) ? "article" : /^\/marshruty\/\d+/.test(path) ? "route" : "";
+          if (pageType) goal("scroll_75", { page_type: pageType });
+        }
       }
     }
   }
@@ -597,8 +630,51 @@ document.addEventListener("click", (e) => {
       info.depth = maxDepth;
       info.section = currentSection ? (currentSection.title || currentSection.id) : "";
       goal("magnet_click", info);
-      goal("magnet_click_" + info.messenger, info);   // отдельные цели под воронку в Метрике
+      // В счётчике отдельная цель для Telegram — magnet_click_tg.
+      goal(info.messenger === "max" ? "magnet_click_max" : "magnet_click_tg", info);
       return;
+    }
+
+    const podborCta = e.target.closest("[data-podbor-cta]");
+    if (podborCta) {
+      goal("podbor_cta_click", {
+        src: "home_widget",
+        season_chip: podborCta.getAttribute("data-season") || "",
+      });
+      return;
+    }
+
+    const weather = e.target.closest('a[href*="yandex.ru/pogoda"]');
+    if (weather) {
+      goal("weather_click", { item: contentItem() });
+      return;
+    }
+
+    const mapLink = e.target.closest('a[href*="yandex.ru/maps"], a[href*="yandex.ru/navi"]');
+    if (mapLink) {
+      goal("external_map_click", { item: contentItem() });
+      return;
+    }
+
+    if (path === "/klub") {
+      const messenger = e.target.closest(".btn-messenger");
+      if (messenger) {
+        goal("club_page_messenger_click", {
+          messenger: messenger.classList.contains("btn-tg") ? "tg" : "max",
+        });
+        return;
+      }
+    }
+
+    if (!e.target.closest(".fav-btn")) {
+      const card = e.target.closest("a.card, a.random-open");
+      if (card) {
+        const href = card.getAttribute("href") || "";
+        const place = href.match(/^\/mesta\/(\d+)/);
+        const route = href.match(/^\/marshruty\/(\d+)/);
+        if (place) goal("place_card_click", { item: "place:" + place[1], list: path });
+        else if (route) goal("route_card_click", { item: "route:" + route[1], list: path });
+      }
     }
 
     // Нижний блок «Открыть клуб» — второй по важности выход в мессенджер
