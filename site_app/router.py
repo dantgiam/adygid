@@ -1786,6 +1786,22 @@ def club(request: Request, db: Session = Depends(get_db)):
 
 
 # ─────────────────────────────────────────────
+#  Политика и согласие. В sitemap их нет, в шаблонах стоит noindex:
+#  страницы должны открываться (в том числе по ссылке из бота), но не
+#  попадать в поиск. Подвал и базовый шаблон здесь не меняются.
+# ─────────────────────────────────────────────
+
+@router.get("/privacy")
+def privacy_policy(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("privacy.html", _ctx(request, db, active_nav=None))
+
+
+@router.get("/soglasie")
+def personal_data_consent(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse("soglasie.html", _ctx(request, db, active_nav=None))
+
+
+# ─────────────────────────────────────────────
 #  robots.txt / sitemap.xml — чтобы поисковики знали, что обходить
 # ─────────────────────────────────────────────
 
