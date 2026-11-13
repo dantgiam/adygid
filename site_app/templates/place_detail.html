@@ -107,4 +107,8 @@
   </div>
 </section>
 {% endif %}
+
+{% with review_kind="m", page_type="place", page_id=place.id %}
+{% include "_review_cta.html" %}
+{% endwith %}
 {% endblock %}

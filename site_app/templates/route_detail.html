@@ -108,4 +108,8 @@
   </div>
 </section>
 {% endif %}
+
+{% with review_kind="r", page_type="route", page_id=route.id %}
+{% include "_review_cta.html" %}
+{% endwith %}
 {% endblock %}

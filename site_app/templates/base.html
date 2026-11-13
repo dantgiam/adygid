@@ -48,34 +48,14 @@
 {% block extra_ld %}{% endblock %}
 
 {% if yandex_metrika_id %}
-<!-- Yandex.Metrika counter -->
-<script type="text/javascript">
-   /* Очередь ym() заводим сразу — цели из site.js могут выстрелить раньше,
-      чем счётчик догрузится, и не должны потеряться. А сам tag.js (91 КБ)
-      подключаем только после события load: он ходит на mc.yandex.ru, откуда
-      ответ иногда идёт по двадцать секунд, и всё это время страница считалась
-      грузящейся, хотя показывать её было уже нечего. */
-   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-   m[i].l=1*new Date();
-   var load=function(){
-     for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-     k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a);
-   };
-   if (document.readyState === 'complete') load(); else m.addEventListener('load', load);
-   })
-   (window, document,'script','https://mc.yandex.ru/metrika/tag.js?id={{ yandex_metrika_id }}', 'ym');
-
-   ym({{ yandex_metrika_id }}, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", accurateTrackBounce:true, trackLinks:true});
-
-   /* Номер счётчика нужен и в site.js — там размечены цели (переход в клуб,
-      клик по магниту, глубина чтения). Отдаём его через window, а не дублируем
-      константой в скрипте: счётчик задаётся переменной окружения и на разных
-      стендах разный. Пусто — блока нет вовсе, и аналитика в site.js молча
-      выключается, поэтому локальная разработка не шлёт events в статистику. */
+<script>
+   /* Номер счётчика нужен site.js, чтобы копить цели. Сам tag.js и ym('init')
+      там же, и только после «Принять» в плашке cookie: до согласия запрос
+      на mc.yandex.ru не уходит. Пиксель без скрипта тоже не ставим — он
+      посчитал бы визит раньше выбора. Пустой номер (локальная разработка)
+      этот блок не выводит, и цели в site.js молча выключаются. */
    window.ADYGID_METRIKA_ID = {{ yandex_metrika_id }};
 </script>
-<noscript><div><img src="https://mc.yandex.ru/watch/{{ yandex_metrika_id }}" style="position:absolute; left:-9999px;" alt=""></div></noscript>
-<!-- /Yandex.Metrika counter -->
 {% endif %}
 </head>
 <body>
@@ -133,9 +113,21 @@
       На сайте собрано {{ places_label(footer_stats.places) }} и {{ routes_label(footer_stats.trails) }}
     </div>
     <a class="footer-faq" href="/voprosy">Частые вопросы</a>
+    <div class="footer-legal">
+      <a href="/privacy">Политика конфиденциальности</a>
+      <a href="#cookie-banner" id="cookie-settings">Настройки cookie</a>
+    </div>
     <div class="footer-club">Живые впечатления и отзывы — в <a href="/klub">клубе АдыГид в MAX →</a></div>
   </div>
 </footer>
+
+<div id="cookie-banner" class="cookie-banner" hidden role="region" aria-label="Уведомление о cookie">
+  <p>Мы используем cookie и Яндекс Метрику, чтобы сайт становился удобнее. Подробнее — в <a href="/privacy">политике конфиденциальности</a></p>
+  <div class="cookie-banner-actions">
+    <button type="button" class="btn btn-primary" id="cookie-accept">Принять</button>
+    <button type="button" class="btn btn-ghost" id="cookie-necessary">Только необходимые</button>
+  </div>
+</div>
 
 <script src="/assets/site.js?v={{ asset_version }}"></script>
 {% block extra_scripts %}{% endblock %}

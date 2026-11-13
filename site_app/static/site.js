@@ -1,12 +1,148 @@
-// Общая обёртка целей Яндекс.Метрики. Номер счётчика приходит из шаблона.
-// Без счётчика (локальная разработка) вызов ничего не делает и не бросает.
-window.adygidGoal = function (name, params) {
-  const id = window.ADYGID_METRIKA_ID;
-  if (!id) return;
-  try {
-    if (typeof window.ym === "function") window.ym(id, "reachGoal", name, params);
-  } catch (e) { /* аналитика не должна ронять страницу */ }
-};
+// Общая обёртка целей Яндекс.Метрики и плашка cookie.
+// Номер счётчика приходит из шаблона. Без номера (локальная разработка)
+// цели ничего не делают и не бросают. tag.js и ym('init') запускаются
+// только после «Принять»: до этого reachGoal копится в очереди вкладки
+// и уходит после согласия. «Только необходимые» очередь гасит.
+(function () {
+  const CONSENT_KEY = "adygid_cookie_consent";
+  const queue = [];
+  let metrikaStarted = false;
+
+  function readStored() {
+    try {
+      return localStorage.getItem(CONSENT_KEY);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  let consent = readStored();
+
+  function remember(value) {
+    consent = value;
+    try {
+      localStorage.setItem(CONSENT_KEY, value);
+    } catch (e) {
+      // Приватный режим: выбор живёт, пока открыта вкладка.
+    }
+  }
+
+  function onAdminPage() {
+    const path = location.pathname;
+    return path === "/admin" || path.indexOf("/admin/") === 0;
+  }
+
+  function loadMetrika() {
+    const id = window.ADYGID_METRIKA_ID;
+    if (!id || metrikaStarted || consent !== "accepted") return;
+    metrikaStarted = true;
+    const src = "https://mc.yandex.ru/metrika/tag.js?id=" + id;
+    try {
+      // Заглушка ym() встаёт сразу, а сам tag.js (91 КБ) — после load:
+      // он ходит на mc.yandex.ru, и ждать его в критическом пути не нужно.
+      (function (m, e, t, r, i, k, a) {
+        m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments); };
+        m[i].l = 1 * new Date();
+        const load = function () {
+          for (let j = 0; j < document.scripts.length; j++) {
+            if (document.scripts[j].src === r) return;
+          }
+          k = e.createElement(t);
+          a = e.getElementsByTagName(t)[0];
+          k.async = 1;
+          k.src = r;
+          a.parentNode.insertBefore(k, a);
+        };
+        if (document.readyState === "complete") load();
+        else m.addEventListener("load", load);
+      })(window, document, "script", src, "ym");
+      window.ym(id, "init", {
+        ssr: true,
+        webvisor: true,
+        clickmap: true,
+        ecommerce: "dataLayer",
+        accurateTrackBounce: true,
+        trackLinks: true,
+      });
+    } catch (e) { /* счётчик не должен ронять страницу */ }
+  }
+
+  function send(name, params) {
+    const id = window.ADYGID_METRIKA_ID;
+    if (!id) return;
+    try {
+      if (typeof window.ym === "function") window.ym(id, "reachGoal", name, params);
+    } catch (e) { /* аналитика не должна ронять страницу */ }
+  }
+
+  function flush() {
+    if (consent !== "accepted") return;
+    loadMetrika();
+    const pending = queue.splice(0, queue.length);
+    pending.forEach((item) => send(item.name, item.params));
+  }
+
+  window.adygidGoal = function (name, params) {
+    if (!window.ADYGID_METRIKA_ID) return;
+    if (consent === "necessary") return;
+    if (consent !== "accepted") {
+      queue.push({ name: name, params: params });
+      return;
+    }
+    if (!metrikaStarted) loadMetrika();
+    send(name, params);
+  };
+
+  if (consent === "accepted") loadMetrika();
+
+  const banner = document.getElementById("cookie-banner");
+  const acceptBtn = document.getElementById("cookie-accept");
+  const necessaryBtn = document.getElementById("cookie-necessary");
+  const settingsLink = document.getElementById("cookie-settings");
+
+  function showBanner() {
+    if (!banner || onAdminPage()) return;
+    banner.hidden = false;
+  }
+  function hideBanner() {
+    if (banner) banner.hidden = true;
+  }
+
+  if (consent !== "accepted" && consent !== "necessary") showBanner();
+  if (acceptBtn) {
+    acceptBtn.addEventListener("click", () => {
+      remember("accepted");
+      hideBanner();
+      flush();
+    });
+  }
+  if (necessaryBtn) {
+    necessaryBtn.addEventListener("click", () => {
+      remember("necessary");
+      queue.length = 0;
+      hideBanner();
+    });
+  }
+  if (settingsLink) {
+    settingsLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      showBanner();
+    });
+  }
+})();
+
+// Клик «Оставить отзыв в MAX». Название берём из h1 в момент клика —
+// тот же текст читает бот. До согласия цель остаётся в очереди adygidGoal.
+document.addEventListener("click", (e) => {
+  const link = e.target.closest("[data-review-click]");
+  if (!link || typeof window.adygidGoal !== "function") return;
+  const heading = document.querySelector("h1");
+  window.adygidGoal("review_click", {
+    page_type: link.getAttribute("data-page-type") || "",
+    page_id: link.getAttribute("data-page-id") || "",
+    page_title: heading ? heading.textContent.trim() : "",
+  });
+});
 
 // ── Случайное место: кнопка «Ещё» ────────────────────────────────────────
 // Карточка приходит уже отрисованной с сервера, здесь только перетасовка на
@@ -489,8 +625,9 @@ document.addEventListener("click", (e) => {
   const ID = window.ADYGID_METRIKA_ID;
   if (!ID) return;   // счётчик не задан (локальная разработка) — молчим
 
-  // Очередь ym() создаётся синхронно в шапке, поэтому вызывать её можно и до
-  // того, как догрузился tag.js: события не потеряются, а встанут в очередь.
+  // После согласия заглушка ym() уже стоит, поэтому цель можно звать и до
+  // загрузки tag.js: она встанет в очередь счётчика. До согласия adygidGoal
+  // копится сам и ym не вызывает.
   const goal = window.adygidGoal;
 
   const path = location.pathname;

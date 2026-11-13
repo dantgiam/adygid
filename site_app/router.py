@@ -73,6 +73,28 @@ def _abs_url(url: Optional[str]) -> str:
 
 templates.env.filters["abs_url"] = _abs_url
 
+# start-параметр бота отзывов: rv_ + m|r|s + id или slug из URL.
+# В параметре только [A-Za-z0-9-], не длиннее 80 символов — так бот
+# отличает место, маршрут и статью и не получает посторонние знаки.
+_REVIEW_TOKEN_RE = re.compile(r"[^A-Za-z0-9-]")
+_REVIEW_KINDS = {"m", "r", "s"}
+REVIEW_BOT = "https://max.ru/se15002131_bot"
+
+
+def review_token(value) -> str:
+    if value is None:
+        return ""
+    return _REVIEW_TOKEN_RE.sub("", str(value))[:80]
+
+
+def review_bot_url(kind: str, page_id) -> str:
+    letter = kind if kind in _REVIEW_KINDS else ""
+    return f"{REVIEW_BOT}?start=rv_{letter}{review_token(page_id)}"
+
+
+templates.env.globals["review_token"] = review_token
+templates.env.globals["review_bot_url"] = review_bot_url
+
 
 def _count_label(n: int, one: str, few: str, many: str) -> str:
     """«3 места», «2 маршрута» — число вместе с правильной формой слова."""
@@ -1689,6 +1711,7 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
 
     article = {
         "title": a.title,
+        "slug": a.slug,
         "excerpt": a.excerpt or _excerpt(a.body, 200),
         "district_label": _DISTRICT_LABELS.get(a.district),
         "cover_url": a.cover_url,

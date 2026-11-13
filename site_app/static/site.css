@@ -718,6 +718,26 @@ h1.article-title {
 .club-cta-text b { display: block; font-size: 18px; margin-bottom: 4px; }
 .club-cta .btn { flex: none; }
 
+/* ── Отзыв в MAX — в конце места, маршрута и статьи ─ */
+.review-cta-section { padding: 12px 0 28px; }
+.review-cta {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px 28px;
+  background: var(--bg-card); border: 1px solid var(--border); border-left: 4px solid var(--gold);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px 26px;
+}
+.review-cta-copy { min-width: 0; max-width: 68ch; }
+.review-cta h2 {
+  font-family: var(--font-display); font-weight: 400; font-size: 26px;
+  line-height: 1.2; margin: 0 0 6px;
+}
+.review-cta p { margin: 0; font-size: 15.5px; color: var(--text-muted); }
+.review-cta-btn { flex: none; }
+@media (max-width: 640px) {
+  .review-cta { flex-direction: column; align-items: stretch; padding: 18px 16px; }
+  .review-cta h2 { font-size: 24px; }
+  .review-cta-btn { width: 100%; }
+}
+
 /* ── «О чём спрашивают в клубе» ────────────────────
    Реплики из чата, а не рекламные тезисы: карточка — это одна живая фраза
    с пометкой темы. Кавычки рисуем псевдоэлементом, чтобы автор в админке
@@ -772,6 +792,32 @@ h1.article-title {
 .footer-faq:hover { color: var(--accent); }
 .footer-club { font-size: 15px; }
 .footer-club a { color: var(--accent); font-weight: 700; }
+.footer-legal { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.footer-legal a { font-size: 14px; color: var(--text-muted); text-decoration: none; }
+.footer-legal a:hover { color: var(--accent); }
+
+/* Плашка cookie. [hidden] обязателен отдельно: display:flex иначе
+   перебивает атрибут hidden, и баннер виден даже после выбора. */
+.cookie-banner {
+  position: fixed; z-index: 60; left: 50%; bottom: 16px; transform: translateX(-50%);
+  width: min(720px, calc(100% - 24px));
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 16px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 12px 40px -16px rgba(30, 110, 48, .45);
+}
+.cookie-banner[hidden] { display: none; }
+.cookie-banner p { margin: 0; font-size: 14.5px; line-height: 1.45; flex: 1; }
+.cookie-banner a { color: var(--accent-dark); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+.cookie-banner-actions { display: flex; gap: 8px; flex: none; }
+.cookie-banner .btn { padding: 9px 14px; white-space: nowrap; }
+@media (max-width: 640px) {
+  .cookie-banner { flex-direction: column; align-items: stretch; bottom: 10px; padding: 14px; }
+  .cookie-banner-actions { width: 100%; }
+  .cookie-banner .btn { white-space: normal; }
+  .cookie-banner-actions .btn { flex: 1 1 auto; }
+  .footer-legal { width: 100%; }
+}
 
 @media (max-width: 640px) {
   .wrap { padding: 0 16px; }
