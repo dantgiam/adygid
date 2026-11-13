@@ -187,16 +187,184 @@
     toastTimer = setTimeout(() => el.classList.add("hidden"), 2400);
   }
   function reduced() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
-  function animateAnswer(q, a, done) {
+  /* Пауза между ответами была 1100 мс. Держим около 2 секунд (×2) и не дольше:
+     ответ уже записан, оверлей только показывает кадр. */
+  const REACTION_MS = 2200;
+  const FLASH_MS = 750;
+  const PLACE_PHOTOS = [];
+  let reelGen = 0;
+  let reelTimer = 0;
+  let reelLayer = 0;
+  function shuffle(list) {
+    const a = list.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = a[i];
+      a[i] = a[j];
+      a[j] = t;
+    }
+    return a;
+  }
+  function preloadPlacePhotos() {
+    const seen = new Set();
+    DATA.forEach((x) => {
+      if (!x || x.type !== "place" || !x.image || seen.has(x.image)) return;
+      seen.add(x.image);
+      PLACE_PHOTOS.push({
+        name: String(x.name || "Место Адыгеи"),
+        image: String(x.image),
+        ready: false,
+        failed: false,
+      });
+    });
+    const queue = shuffle(PLACE_PHOTOS);
+    let inflight = 0;
+    let cursor = 0;
+    const pump = () => {
+      while (inflight < 4 && cursor < queue.length) {
+        const item = queue[cursor++];
+        inflight += 1;
+        const img = new Image();
+        img.decoding = "async";
+        img.onload = () => {
+          item.ready = img.naturalWidth > 0;
+          item.failed = !item.ready;
+          inflight -= 1;
+          pump();
+        };
+        img.onerror = () => {
+          item.failed = true;
+          inflight -= 1;
+          pump();
+        };
+        img.src = item.image;
+      }
+    };
+    pump();
+  }
+  function showSpinner() {
+    const stage = document.getElementById("podbor-flash");
+    const loader = document.getElementById("podbor-loader");
+    if (stage) stage.classList.add("is-off");
+    if (loader) loader.classList.remove("is-off");
+  }
+  function stopPhotoReel() {
+    reelGen += 1;
+    clearTimeout(reelTimer);
+    const stage = document.getElementById("podbor-flash");
+    if (stage) {
+      stage.classList.add("is-off");
+      stage.querySelectorAll("img").forEach((img) => img.classList.remove("is-on"));
+    }
+    const loader = document.getElementById("podbor-loader");
+    if (loader) loader.classList.remove("is-off");
+  }
+  function paintFrame(photo, gen) {
+    return new Promise((resolve) => {
+      const stage = document.getElementById("podbor-flash");
+      const loader = document.getElementById("podbor-loader");
+      if (!stage || !loader) { resolve(false); return; }
+      const imgs = stage.querySelectorAll("img");
+      const incoming = imgs[reelLayer % 2];
+      const outgoing = imgs[(reelLayer + 1) % 2];
+      let settled = false;
+      const finish = (ok) => {
+        if (settled) return;
+        settled = true;
+        incoming.onload = null;
+        incoming.onerror = null;
+        resolve(ok);
+      };
+      const show = () => {
+        if (gen !== reelGen) { finish(false); return; }
+        const cap = document.getElementById("podbor-flash-cap");
+        if (cap) cap.textContent = photo.name;
+        incoming.classList.add("is-on");
+        if (outgoing) outgoing.classList.remove("is-on");
+        stage.classList.remove("is-off");
+        loader.classList.add("is-off");
+        reelLayer += 1;
+        finish(true);
+      };
+      const fail = () => {
+        photo.ready = false;
+        photo.failed = true;
+        if (!stage.querySelector("img.is-on")) showSpinner();
+        finish(false);
+      };
+      incoming.onload = () => {
+        if (!incoming.naturalWidth) { fail(); return; }
+        if (typeof incoming.decode === "function") incoming.decode().then(show).catch(show);
+        else show();
+      };
+      incoming.onerror = fail;
+      const abs = new URL(photo.image, window.location.href).href;
+      if (incoming.src === abs && incoming.complete) {
+        if (incoming.naturalWidth) incoming.onload();
+        else fail();
+        return;
+      }
+      incoming.src = photo.image;
+    });
+  }
+  function startPhotoReel() {
+    stopPhotoReel();
+    const gen = reelGen;
+    if (reduced()) return;
+    const arm = () => {
+      if (gen !== reelGen) return;
+      const pool = PLACE_PHOTOS.filter((p) => p.ready && !p.failed);
+      if (!pool.length) {
+        showSpinner();
+        if (PLACE_PHOTOS.some((p) => !p.ready && !p.failed)) reelTimer = setTimeout(arm, 160);
+        return;
+      }
+      const order = shuffle(pool);
+      let i = 0;
+      const step = () => {
+        if (gen !== reelGen) return;
+        const photo = order[i % order.length];
+        i += 1;
+        paintFrame(photo, gen).then((ok) => {
+          if (gen !== reelGen) return;
+          if (!ok) {
+            const left = shuffle(PLACE_PHOTOS.filter((p) => p.ready && !p.failed));
+            if (left.length) {
+              order.splice(0, order.length, ...left);
+              i = 0;
+              step();
+              return;
+            }
+            showSpinner();
+            if (PLACE_PHOTOS.some((p) => !p.ready && !p.failed)) reelTimer = setTimeout(arm, 160);
+            return;
+          }
+          if (order.length > 1) reelTimer = setTimeout(step, FLASH_MS);
+        });
+      };
+      step();
+    };
+    arm();
+  }
+  function holdReaction(text, done) {
     busy = true;
     const el = document.getElementById("podbor-reaction");
+    document.getElementById("podbor-reaction-text").textContent = text;
+    el.classList.add("show");
+    startPhotoReel();
+    const wait = reduced() ? 0 : REACTION_MS;
+    timer = setTimeout(() => {
+      el.classList.remove("show");
+      stopPhotoReel();
+      busy = false;
+      if (typeof done === "function") done();
+    }, wait);
+  }
+  function animateAnswer(q, a, done) {
     const text = q === "summary" ? copyLine(COPY.summary, "Готово, пожелания собраны ✅")
       : q === "final" ? copyLine(refining ? (COPY.refine_final || COPY.final) : COPY.final, "Собираю план поездки 🧭")
       : reaction(q, a);
-    document.getElementById("podbor-reaction-text").textContent = text;
-    el.classList.add("show");
-    const wait = reduced() ? 0 : 1100;
-    timer = setTimeout(() => { el.classList.remove("show"); busy = false; done(); }, wait);
+    holdReaction(text, done);
   }
   function scrollWizard() {
     if (window.innerWidth < 900) document.getElementById("wizard").scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" });
@@ -319,12 +487,28 @@
     const also = z.kind === "also" ? ' · <span class="podbor-alsotag">не из ваших тем — по пути</span>' : "";
     return drive + '<div class="podbor-stop' + (z.kind === "also" ? " is-also" : "") + '" data-type="' + x.type + '" data-id="' + x.id + '"><div class="podbor-stop-photo">' + photo + '</div><div><h4>' + esc(x.name) + '</h4><div class="podbor-stop-meta">' + vt(x) + " · " + (x.type === "route" ? "маршрут" : "место") + also + winter + '</div><div class="podbor-why">' + esc(why(x)) + "</div>" + acts(x) + " " + moreLink(x, "plan", i) + "</div></div>";
   }
+  function yandexDayUrl(day) {
+    const pts = [];
+    (day.stops || []).forEach((z) => {
+      const x = z && z.x;
+      if (!x) return;
+      const lat = Number(x.lat);
+      const lon = Number(x.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+      pts.push([Math.round(lat * 1e6) / 1e6, Math.round(lon * 1e6) / 1e6]);
+    });
+    if (pts.length >= 2) return "https://yandex.ru/maps/?rtext=" + pts.map((p) => p[0] + "," + p[1]).join("~") + "&rtt=auto";
+    if (pts.length === 1) return "https://yandex.ru/maps/?pt=" + pts[0][1] + "," + pts[0][0] + "&z=14";
+    return "";
+  }
   function dayHtml(d, i) {
     if (d.empty) return '<section class="podbor-day"><div class="podbor-dayhead"><span>День ' + (i + 1) + '</span><h3>Свободный день</h3></div><p>Больше подходящих мест под ваши интересы и условия не нашлось. Не добиваем день случайными местами — можно отдохнуть или изменить пожелания.</p></section>';
     const vp = Math.round(d.visitMin / d.budget * 100);
     const dp = Math.round(d.driveMin / d.budget * 100);
     const word = d.stops.length === 1 ? "точка" : d.stops.length < 5 ? "точки" : "точек";
-    return '<section class="podbor-day"><div class="podbor-dayhead"><span>День ' + (i + 1) + "</span><div><h3>" + esc(AREA_NAMES[d.area] || "Адыгея") + '</h3><p>' + d.stops.length + " " + word + " · ≈ " + esc(C.fmtMin(d.totalMin)) + " с дорогой из ≈ " + esc(C.fmtMin(d.budget)) + ' на день</p></div></div><div class="podbor-bud" aria-hidden="true"><i class="is-visit" style="width:' + Math.min(100, vp) + '%"></i><i class="is-drive" style="width:' + Math.min(100 - Math.min(100, vp), dp) + '%"></i></div><p class="podbor-bud-label">зелёное — на местах, серое — дорога, пусто — запас (≥ 15%). Светлое время ≈ ' + esc(C.fmtMin(d.daylight)) + "." + (d.estimated ? " Есть оценочные длительности (≈)." : "") + '</p><div class="podbor-timeline">' + d.stops.map(stopRow).join("") + (d.returnDrive != null ? '<div class="podbor-drive">🚗 обратно на базу <b>≈ ' + esc(C.fmtMin(d.returnDrive)) + "</b></div>" : "") + "</div>" + (d.long ? '<p class="podbor-daynote">Длинный выход — на весь день, другие точки не добавляем.</p>' : "") + "</section>";
+    const mapUrl = yandexDayUrl(d);
+    const mapBtn = mapUrl ? '<a class="podbor-yamaps" href="' + esc(mapUrl) + '" target="_blank" rel="noopener" data-act="yamaps" data-day="' + (i + 1) + '">Открыть день в Яндекс Картах</a>' : "";
+    return '<section class="podbor-day"><div class="podbor-dayhead"><span>День ' + (i + 1) + "</span><div><h3>" + esc(AREA_NAMES[d.area] || "Адыгея") + '</h3><p>' + d.stops.length + " " + word + " · ≈ " + esc(C.fmtMin(d.totalMin)) + " с дорогой из ≈ " + esc(C.fmtMin(d.budget)) + ' на день</p></div></div>' + mapBtn + '<div class="podbor-bud" aria-hidden="true"><i class="is-visit" style="width:' + Math.min(100, vp) + '%"></i><i class="is-drive" style="width:' + Math.min(100 - Math.min(100, vp), dp) + '%"></i></div><p class="podbor-bud-label">зелёное — на местах, серое — дорога, пусто — запас (≥ 15%). Светлое время ≈ ' + esc(C.fmtMin(d.daylight)) + "." + (d.estimated ? " Есть оценочные длительности (≈)." : "") + '</p><div class="podbor-timeline">' + d.stops.map(stopRow).join("") + (d.returnDrive != null ? '<div class="podbor-drive">🚗 обратно на базу <b>≈ ' + esc(C.fmtMin(d.returnDrive)) + "</b></div>" : "") + "</div>" + (d.long ? '<p class="podbor-daynote">Длинный выход — на весь день, другие точки не добавляем.</p>' : "") + "</section>";
   }
   function planCode() {
     if (!state.planId || !/^[A-Za-z0-9_-]{4,32}$/.test(state.planId)) state.planId = C.contextId();
@@ -357,7 +541,116 @@
     const dur = state.answers.duration;
     const opts = dur === "short" ? [2, 3] : dur === "long" ? [4, 5, 6, 7] : [1];
     const dayBtns = opts.length > 1 ? '<div class="podbor-daycount">Сколько дней показать? ' + opts.map((n) => '<button type="button" class="podbor-tab' + (C.daysFor(answers(), state.days) === n ? " is-on" : "") + '" data-act="days" data-n="' + n + '">' + n + "</button>").join("") + "</div>" : "";
-    return '<div class="podbor-kicker">Ваш план</div><h2 class="podbor-final-title">Адыгея, которая вам ближе</h2><div class="podbor-chips">' + summary() + "</div>" + modeNotice(R) + hiddenBar() + '<div class="podbor-notice"><b>План по времени, но не навигатор.</b> Время на месте — из данных сайта, а где их нет — оценка по типу места (≈). Дорога — оценка по координатам с поправкой на горные дороги. Часы работы, подходы и погоду на дату нужно проверить.' + (!C.baseAnchor(state.answers.base) ? " База не выбрана — дорогу от жилья не считаем." : "") + "</div>" + dayBtns + days.map(dayHtml).join("") + altBlock(R) + feedback() + '<div class="podbor-again"><h3>Хотите подстроить ещё точнее?</h3><p>Возраст детей, ходьба, непогода, что исключить. Всё необязательно.</p><div class="podbor-nav"><button type="button" class="podbor-btn" data-act="refine">Сделать точнее — ещё пара вопросов</button><button type="button" class="podbor-btn podbor-btn-ghost" data-act="enough">Достаточно</button></div></div><p class="podbor-fine">Ничего не забронировано. Подборка не обещает безопасность или выполнимость. Стоимость: уточняем, скоро появится :)</p>';
+    return '<div class="podbor-kicker">Ваш план</div><h2 class="podbor-final-title">Адыгея, которая вам ближе</h2><button type="button" class="podbor-share" data-act="share">Поделиться / сохранить план ссылкой</button><div class="podbor-chips">' + summary() + "</div>" + modeNotice(R) + hiddenBar() + '<div class="podbor-notice"><b>План по времени, но не навигатор.</b> Время на месте — из данных сайта, а где их нет — оценка по типу места (≈). Дорога — оценка по координатам с поправкой на горные дороги. Часы работы, подходы и погоду на дату нужно проверить.' + (!C.baseAnchor(state.answers.base) ? " База не выбрана — дорогу от жилья не считаем." : "") + "</div>" + dayBtns + days.map(dayHtml).join("") + altBlock(R) + feedback() + '<div class="podbor-again"><h3>Хотите подстроить ещё точнее?</h3><p>Возраст детей, ходьба, непогода, что исключить. Всё необязательно.</p><div class="podbor-nav"><button type="button" class="podbor-btn" data-act="refine">Сделать точнее — ещё пара вопросов</button><button type="button" class="podbor-btn podbor-btn-ghost" data-act="enough">Достаточно</button></div></div><p class="podbor-fine">Ничего не забронировано. Подборка не обещает безопасность или выполнимость. Стоимость: уточняем, скоро появится :)</p>';
+  }
+  const SHARE_ORDER = ["season", "duration", "base", "party", "been", "pace"];
+  const REFINE_KEYS = ["childage", "walking", "distance", "rain", "exclude"];
+  const SHARE_VALUES = {
+    season: ["winter", "summer", "any"],
+    duration: ["one", "short", "long", "any"],
+    base: ["maykop", "khadzhokh", "dakhovskaya", "guzeripl", "lago", "any"],
+    party: ["solo", "couple", "family", "small", "any"],
+    been: ["first", "some", "often", "any"],
+    pace: ["calm", "balanced", "active", "any"],
+    childage: ["tiny", "preschool", "school", "teen", "any"],
+    walking: ["short", "stepfree", "long", "any"],
+    distance: ["local", "adjacent", "wide", "any"],
+    rain: ["backup", "indoor", "outdoors", "any"],
+    exclude: ["thermal", "culture", "cable", "any"],
+  };
+  function shareCode(key) {
+    const v = state.answers[key];
+    return SHARE_VALUES[key].includes(v) ? v : "any";
+  }
+  function planHash() {
+    const interests = state.interests.filter((t) => LABELS[t]);
+    const main = SHARE_ORDER.map(shareCode).concat([
+      interests.length ? interests.join(",") : "any",
+      state.days >= 1 && state.days <= 7 ? String(state.days) : "0",
+    ]);
+    const refine = REFINE_KEYS.map(shareCode);
+    if (refine.some((v) => v !== "any")) main.push.apply(main, refine);
+    return "plan=" + main.join(".");
+  }
+  function shareUrl() {
+    const url = new URL("/podbor", window.location.origin);
+    url.hash = planHash();
+    return url.toString();
+  }
+  function readSharedPlan() {
+    const raw = String(window.location.hash || "").replace(/^#/, "");
+    if (!raw.startsWith("plan=")) return null;
+    const parts = raw.slice(5).split(".");
+    if (parts.length !== 8 && parts.length !== 13) return null;
+    const answers = {};
+    for (let i = 0; i < SHARE_ORDER.length; i++) {
+      if (!SHARE_VALUES[SHARE_ORDER[i]].includes(parts[i])) return null;
+      answers[SHARE_ORDER[i]] = parts[i];
+    }
+    let interests = [];
+    if (parts[6] !== "any") {
+      interests = parts[6].split(",").filter(Boolean);
+      if (!interests.length || interests.some((t) => !LABELS[t])) return null;
+      answers.interests = interests.join(",");
+    } else answers.interests = "any";
+    if (!/^[0-7]$/.test(parts[7])) return null;
+    if (parts.length === 13) {
+      for (let i = 0; i < REFINE_KEYS.length; i++) {
+        const v = parts[8 + i];
+        if (!SHARE_VALUES[REFINE_KEYS[i]].includes(v)) return null;
+        answers[REFINE_KEYS[i]] = v;
+      }
+    }
+    return { answers: answers, interests: interests, days: parts[7] === "0" ? null : Number(parts[7]) };
+  }
+  function applySharedPlan(parsed) {
+    state.answers = parsed.answers;
+    state.interests = parsed.interests.slice();
+    state.days = parsed.days;
+    state.final = true;
+    state.step = MAIN_N - 1;
+    if (REFINE_KEYS.some((k) => state.answers[k] && state.answers[k] !== "any")) {
+      refining = true;
+      QUESTIONS.splice(MAIN_N, QUESTIONS.length - MAIN_N, ...REFINE_QUESTIONS.filter((q) => !q.children_only || childrenTrip()));
+      state.step = QUESTIONS.length - 1;
+    }
+    started = true;
+    goal("podbor_shared_open", {});
+  }
+  function copyShareLink(url) {
+    const done = () => showToast("Ссылка скопирована");
+    const fallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      let ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      ta.remove();
+      if (ok) done();
+      else showToast(url);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(done).catch(fallback);
+      return;
+    }
+    fallback();
+  }
+  function sharePlan() {
+    const url = shareUrl();
+    goal("podbor_share_click", {});
+    const mobile = window.matchMedia("(max-width: 899px), (hover: none) and (pointer: coarse)").matches;
+    if (mobile && typeof navigator.share === "function") {
+      navigator.share({ title: "План поездки по Адыгее", url: url }).catch((err) => {
+        if (err && err.name === "AbortError") return;
+        copyShareLink(url);
+      });
+      return;
+    }
+    copyShareLink(url);
   }
   function captureCards() {
     const box = document.getElementById("results");
@@ -632,6 +925,8 @@
         goal("podbor_card_open", { item: d.item, position: Number(d.pos) || 0, block: d.block || "main" });
         break;
       case "refine": startRefine(); break;
+      case "share": sharePlan(); break;
+      case "yamaps": goal("podbor_yamaps_click", { day: Number(d.day) || 0 }); break;
       case "enough": showToast("Хорошо, план остаётся здесь. Можно вернуться к любому ответу 🌿"); break;
       default: break;
     }
@@ -640,6 +935,7 @@
     if (e.key === "Escape" && reviewOpen) { closeReview(); return; }
     if (e.key === "Escape" && busy) {
       clearTimeout(timer);
+      stopPhotoReel();
       document.getElementById("podbor-reaction").classList.remove("show");
       busy = false;
       render();
@@ -648,7 +944,10 @@
   window.addEventListener("pagehide", flush);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
 
-  if (!boot.fresh) restore();
+  preloadPlacePhotos();
+  const sharedPlan = readSharedPlan();
+  if (sharedPlan) applySharedPlan(sharedPlan);
+  else if (!boot.fresh) restore();
   let preset = "";
   if (boot.fresh && ["winter", "summer", "any"].includes(boot.season) && !state.answers.season) {
     state.answers.season = boot.season;
@@ -660,12 +959,6 @@
     markStart();
     goal("podbor_q1_done", { q: "season", answer: preset, skipped: 0 });
     logEvent("answer", { question_id: "season", answer_code: preset, skipped: false });
-    busy = true;
-    document.getElementById("podbor-reaction-text").textContent = reaction("season", preset);
-    document.getElementById("podbor-reaction").classList.add("show");
-    timer = setTimeout(() => {
-      document.getElementById("podbor-reaction").classList.remove("show");
-      busy = false;
-    }, reduced() ? 0 : 900);
+    holdReaction(reaction("season", preset));
   }
 })();
