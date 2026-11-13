@@ -1,0 +1,21 @@
+{# Общий блок отзыва в самом конце места, маршрута и статьи.
+   review_kind: m — место, r — маршрут, s — статья.
+   Заголовок страницы остаётся в h1: бот MAX берёт название оттуда. #}
+{% set token = review_token(page_id) %}
+<section class="section review-cta-section" aria-labelledby="review-cta-title">
+  <div class="wrap">
+    <div class="review-cta">
+      <div class="review-cta-copy">
+        <h2 id="review-cta-title">Уже бывали тут?</h2>
+        <p>Поделитесь впечатлениями или свежей информацией — это поможет другим путешественникам</p>
+      </div>
+      <a class="btn btn-primary review-cta-btn"
+         href="{{ review_bot_url(review_kind, page_id) }}"
+         target="_blank"
+         rel="noopener"
+         data-review-click
+         data-page-type="{{ page_type }}"
+         data-page-id="{{ token }}">Оставить отзыв в MAX</a>
+    </div>
+  </div>
+</section>
