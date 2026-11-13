@@ -24,6 +24,7 @@ PICKER_GOALS = [
     "podbor_plan_build", "podbor_result_few", "podbor_edit", "podbor_refine_start",
     "podbor_like", "podbor_dislike", "place_seen_before", "podbor_plan_like",
     "podbor_plan_dislike", "podbor_card_open", "podbor_feedback_max",
+    "podbor_share_click", "podbor_shared_open", "podbor_yamaps_click",
 ]
 SITE_GOALS = [
     "scroll_75", "magnet_click_tg", "place_card_click", "route_card_click",
