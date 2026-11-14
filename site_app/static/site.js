@@ -82,9 +82,22 @@
     pending.forEach((item) => send(item.name, item.params));
   }
 
+  // Одинаковое событие за короткий интервал (двойной обработчик, повторный
+  // клик по той же ссылке) в Метрику не дублируем.
+  const recentGoals = [];
+  function isDuplicate(name, params) {
+    const key = String(name) + "\t" + JSON.stringify(params || {});
+    const now = Date.now();
+    while (recentGoals.length && now - recentGoals[0].at > 400) recentGoals.shift();
+    if (recentGoals.some((item) => item.key === key)) return true;
+    recentGoals.push({ key: key, at: now });
+    return false;
+  }
+
   window.adygidGoal = function (name, params) {
     if (!window.ADYGID_METRIKA_ID) return;
     if (consent === "necessary") return;
+    if (isDuplicate(name, params)) return;
     if (consent !== "accepted") {
       queue.push({ name: name, params: params });
       return;
@@ -92,6 +105,8 @@
     if (!metrikaStarted) loadMetrika();
     send(name, params);
   };
+  // Короткий алиас: один и тот же помощник, те же правила согласия и дедупа.
+  window.adyGoal = window.adygidGoal;
 
   if (consent === "accepted") loadMetrika();
 
@@ -757,7 +772,74 @@ document.addEventListener("click", (e) => {
     magnets.forEach((m) => io.observe(m));
   }
 
+  function absUrl(href) {
+    try { return new URL(href, location.origin); } catch (err) { return null; }
+  }
+  function hostOf(url) {
+    return (url && url.hostname || "").replace(/^www\./, "").toLowerCase();
+  }
+  function isMaxHost(host) {
+    return host === "max.ru" || host.endsWith(".max.ru");
+  }
+  function isTgHost(host) {
+    return host === "t.me" || host.endsWith(".t.me")
+      || host === "telegram.me" || host === "telegram.org" || host === "telegram.dog";
+  }
+  function linkPlacement(el) {
+    if (el.closest(".magnet, .magnet-pill")) return "magnet";
+    if (el.closest("[data-review-click]")) return "review";
+    if (el.closest(".a3-club, .podbor-max, #podbor, .podbor-app, .podbor-root, [data-podbor]")) return "podbor";
+    if (path === "/klub" && el.closest(".btn-messenger")) return "club_page";
+    if (el.closest(".club-cta")) return "club_cta";
+    if (el.closest(".footer-club, .site-header, #mobile-menu, footer, .site-footer")) return "nav";
+    if (el.closest(".article-body")) return "article";
+    return "page";
+  }
+  // Общие клики по ссылкам: бот, внутренние ссылки в статье, телефон, уход с сайта.
+  // Срабатывают вместе с более узкими целями (магнит, отзыв, карты) — это разные
+  // идентификаторы, чтобы в кабинете можно было смотреть и сумму, и источник.
+  function trackCommonLink(el) {
+    const a = el.closest("a[href]");
+    if (!a) return;
+    const href = a.getAttribute("href") || "";
+    if (!href || href.charAt(0) === "#") return;
+    const placement = linkPlacement(a);
+    if (href.indexOf("tel:") === 0) {
+      goal("phone_click", { placement: placement });
+      return;
+    }
+    if (href.indexOf("mailto:") === 0) {
+      goal("email_click", { placement: placement });
+      return;
+    }
+    const url = absUrl(href);
+    if (!url) return;
+    const host = hostOf(url);
+    if (isMaxHost(host)) {
+      goal("bot_click_max", { placement: placement, host: host });
+      return;
+    }
+    if (isTgHost(host)) {
+      goal("bot_click_tg", { placement: placement, host: host });
+      return;
+    }
+    const internal = url.origin === location.origin;
+    if (internal && a.closest(".article-body") && !a.closest(".article-toc, .magnet")) {
+      if (/^\/(mesta|marshruty|stati|kuda|okrugi|voprosy|podbor|klub)(\/|$)/.test(url.pathname)) {
+        goal("article_internal_link", { href: url.pathname, page: path });
+      }
+    }
+    if (!internal) {
+      const full = url.href;
+      if (/yandex\.(ru|com)$/.test(host) || host === "ya.ru") {
+        if (/\/(maps|navi|pogoda)/.test(full)) return;
+      }
+      goal("outbound_click", { host: host, placement: placement });
+    }
+  }
+
   document.addEventListener("click", (e) => {
+    trackCommonLink(e.target);
     // Магнит: в какой мессенджер ушли и на какой секунде чтения
     const pill = e.target.closest(".magnet-pill");
     if (pill) {
@@ -826,6 +908,7 @@ document.addEventListener("click", (e) => {
     const clubBtn = e.target.closest(".club-cta .btn");
     if (clubBtn) {
       goal("club_cta_click", { page: path, seconds: seconds(), depth: maxDepth });
+      goal("club_click", { placement: "club_cta", page: path });
       return;
     }
 
@@ -834,6 +917,7 @@ document.addEventListener("click", (e) => {
     const clubLink = e.target.closest('a[href="/klub"], .footer-club a');
     if (clubLink) {
       goal("club_nav_click", { page: path, seconds: seconds() });
+      goal("club_click", { placement: "nav", page: path });
       return;
     }
 

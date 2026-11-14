@@ -21,15 +21,18 @@ ROOT = Path(__file__).resolve().parents[1]
 PICKER_GOALS = [
     "podbor_cta_click", "podbor_start", "podbor_q1_done", "podbor_q2_done", "podbor_q3_done",
     "podbor_q4_done", "podbor_q5_done", "podbor_q6_done", "podbor_q7_done", "podbor_summary",
-    "podbor_plan_build", "podbor_result_few", "podbor_edit", "podbor_refine_start",
-    "podbor_like", "podbor_dislike", "place_seen_before", "podbor_plan_like",
-    "podbor_plan_dislike", "podbor_card_open", "podbor_feedback_max",
-    "podbor_share_click", "podbor_shared_open", "podbor_yamaps_click",
+    "podbor_plan_build", "podbor_result_few", "podbor_edit", "podbor_edit_click",
+    "podbor_refine_start", "podbor_like", "podbor_dislike", "place_seen_before",
+    "podbor_plan_like", "podbor_plan_dislike", "podbor_card_open", "podbor_feedback_max",
+    "podbor_share_click", "podbor_save_click", "podbor_shared_open", "podbor_yamaps_click",
+    "podbor_club_click",
 ]
 SITE_GOALS = [
     "scroll_75", "magnet_click_tg", "place_card_click", "route_card_click",
     "external_map_click", "like_click", "favorite_toggle", "filter_apply",
     "random_place_refresh", "weather_click", "club_page_messenger_click",
+    "bot_click_max", "bot_click_tg", "club_click", "article_internal_link",
+    "phone_click", "email_click", "outbound_click", "review_click",
 ]
 MONEY_GOALS = [
     "service_view", "booking_start", "booking_submit", "pdf_checkout_start",
@@ -292,3 +295,6 @@ def test_metrica_goals_are_wired_without_money_events():
     assert "magnet_click_telegram" not in js
     assert "function goal" in (ROOT / "site_app" / "static" / "podbor.js").read_text(encoding="utf-8")
     assert "window.adygidGoal" in js
+    assert "window.adyGoal = window.adygidGoal" in js
+    assert "function isDuplicate" in js
+    assert "function trackCommonLink" in js

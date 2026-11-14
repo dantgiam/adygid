@@ -19,7 +19,7 @@
   <div class="wrap hero-grid">
     {% if page.cover %}
     <figure class="hero-photo">
-      <img src="{{ page.cover }}" alt="{{ page.lead_extra or 'Автор сайта' }}" style="{{ page.cover_style }}" width="800" height="800">
+      <img src="{{ page.cover }}" alt="{{ page.lead_extra or 'Автор сайта' }}" style="{{ page.cover_style }}" width="800" height="800" fetchpriority="high" decoding="async">
       {% if page.lead_extra %}
       <figcaption class="hero-photo-badge">
         {{ page.lead_extra }}
@@ -75,7 +75,7 @@
       <div class="seasonal-grid">
         {% for item in seasonal["items"] %}
         <a class="seasonal-item" href="{{ item.url }}" data-seasonal-click data-target="{{ item.url }}">
-          <span class="seasonal-cover">{% if item.cover %}<img src="{{ item.cover }}" alt="" loading="lazy" decoding="async"{% if item.cover_style %} style="{{ item.cover_style }}"{% endif %}>{% endif %}</span>
+          <span class="seasonal-cover">{% if item.cover %}<img src="{{ item.cover }}" alt="" width="800" height="500" loading="lazy" decoding="async"{% if item.cover_style %} style="{{ item.cover_style }}"{% endif %}>{% endif %}</span>
           <span class="seasonal-text">
             <span class="seasonal-label">{{ item.label }}</span>
             <span class="seasonal-note">{{ item.note }}</span>

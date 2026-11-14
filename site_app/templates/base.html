@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{% if media_origin %}
+<link rel="preconnect" href="{{ media_origin }}" crossorigin>
+<link rel="dns-prefetch" href="{{ media_origin }}">
+{% endif %}
 <title>{% block title %}АдыГид — личный гид по Адыгее{% endblock %}</title>
 <meta name="description" content="{% block meta_description %}Личный гид по Адыгее: места, маршруты и статьи для тех, кто планирует поездку в горы.{% endblock %}">
 <link rel="canonical" href="{{ canonical_url }}">

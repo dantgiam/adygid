@@ -42,6 +42,25 @@ SITE_URL = os.getenv("SITE_URL", "http://localhost:8000").rstrip("/")
 YANDEX_METRIKA_ID = os.getenv("YANDEX_METRIKA_ID", "").strip()
 
 
+def _media_origin() -> str:
+    """Публичный хост фото (Supabase Storage) — только для preconnect в <head>.
+    Пусто, если переменная не задана: локальные тесты не ходят во внешнее хранилище."""
+    raw = (os.getenv("SUPABASE_URL") or "").strip()
+    if not raw.startswith("https://"):
+        return ""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(raw)
+        if parsed.scheme == "https" and parsed.hostname:
+            return f"https://{parsed.hostname}"
+    except Exception:
+        return ""
+    return ""
+
+
+MEDIA_ORIGIN = _media_origin()
+
+
 def _asset_version() -> str:
     """Стили, скрипты и картинки лид-магнита отдаются с недельным кэшем,
     поэтому в ссылку добавляем метку версии: после правки файла адрес
@@ -1194,6 +1213,7 @@ def _ctx(request: Request, db: Session, **extra) -> dict:
         "difficulty_levels": _difficulty_levels(db),
         "difficulty_intro": _site_page(db, "difficulty"),
         "asset_version": ASSET_VERSION,
+        "media_origin": MEDIA_ORIGIN,
     }
     base.update(extra)
     return base
@@ -2085,6 +2105,7 @@ def render_not_found(request: Request) -> Response:
             "yandex_metrika_id": YANDEX_METRIKA_ID, "club_url": CLUB_URL,
             "difficulty_levels": _difficulty_levels(db),
         "difficulty_intro": _site_page(db, "difficulty"), "asset_version": ASSET_VERSION,
+            "media_origin": MEDIA_ORIGIN,
             "active_nav": None,
         }
     finally:

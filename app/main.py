@@ -76,7 +76,12 @@ async def _cache_policy(request, call_next):
     # сюда не попадают: она правится часто, а открывает её один человек.
     if path.startswith("/assets/") or path.startswith("/static/uploads/") \
             or path in _ROOT_ICON_PATHS:
-        response.headers["Cache-Control"] = "public, max-age=604800"
+        # ?v= на стилях и скриптах меняется при выкладке, поэтому такой URL
+        # можно пометить immutable: браузер не будет перепроверять его неделю.
+        cache = "public, max-age=604800"
+        if "v" in request.query_params:
+            cache += ", immutable"
+        response.headers["Cache-Control"] = cache
     else:
         response.headers["Cache-Control"] = "no-store"
     return response
