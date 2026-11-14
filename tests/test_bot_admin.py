@@ -23,6 +23,7 @@ TOKEN = "test-token-not-for-browser"
 QUESTION_ID = "3f0c9a52-6a1e-4f7e-9a51-1b2c3d4e5f60"
 REVIEW_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
 SERVICE_ID = "11111111-2222-4333-8444-555555555555"
+TG_QUESTION_ID = "aaaaaaaa-1111-4222-8333-444444444444"
 LONG_REVIEW = "Оставить отзыв о месте или маршруте"
 SECRET_BODY = "секретное обращение Данила"
 SECRET_LEAK = "секретный-телефон-+79990001122"
@@ -133,6 +134,20 @@ def _items():
             "payload": {"free_text": True},
             "status": "new",
             "notified": True,
+            "platform": "max",
+        },
+        {
+            "id": TG_QUESTION_ID,
+            "created_at": "2026-11-14T08:00:00+00:00",
+            "updated_at": "2026-11-14T08:00:00+00:00",
+            "user_id": 866973179,
+            "user_name": "Игорь",
+            "kind": "question",
+            "text": "Зимой открыт Хаджох?",
+            "payload": {"channel": "tg", "free_text": True},
+            "status": "new",
+            "notified": True,
+            "platform": "telegram",
         },
         {
             "id": REVIEW_ID,
@@ -269,6 +284,16 @@ def test_preview_and_moscow_time():
     assert bot_admin.preview_text("Привет, {name}! Цена {{100}}", bot_admin.PREVIEW_SAMPLES) == "Привет, Анна! Цена {100}"
     assert bot_admin.format_msk("2026-11-13T14:47:12+00:00") == "13.11.2026 17:47"
     assert len(LONG_REVIEW) == 35
+    assert bot_admin._item_platform({}, {}) == "max"
+    assert bot_admin._item_platform({"platform": "telegram"}, {}) == "telegram"
+    assert bot_admin._item_platform({"channel": "tg"}, {}) == "telegram"
+    assert bot_admin._item_platform({}, {"channel": "tg"}) == "telegram"
+    assert bot_admin._item_platform({}, {"platform": "max"}) == "max"
+    view = bot_admin._inbox_view({
+        "id": QUESTION_ID, "kind": "question", "status": "new",
+        "payload": {"channel": "tg"}, "text": "hi",
+    }, {"question": "❓ Вопрос"})
+    assert view["platform"] == "telegram" and view["platform_title"] == "Telegram"
 
 
 def test_pages_require_auth(client):
@@ -315,6 +340,9 @@ def test_inbox_list_filters_and_hides_secrets(client, api_state):
     everything = client.get("/admin/inbox", auth=AUTH)
     assert "Рафтинг" in everything.text
     assert "Хочется тихую воду" in everything.text
+    assert "Telegram" in everything.text
+    assert "Зимой открыт Хаджох?" in everything.text
+    assert everything.text.count(">MAX<") >= 1
 
 
 def test_inbox_detail_and_status_change(client, api_state):
@@ -328,6 +356,14 @@ def test_inbox_detail_and_status_change(client, api_state):
     assert "https://files.example.test/pic.jpg" in page.text
     assert SECRET_TOKEN not in page.text
     assert "Сохранить статус" in page.text
+    assert "id в MAX" in page.text
+    assert ">MAX<" in page.text
+    tg_page = client.get(f"/admin/inbox/{TG_QUESTION_ID}", auth=AUTH)
+    assert tg_page.status_code == 200
+    assert "Игорь" in tg_page.text
+    assert "id в Telegram" in tg_page.text
+    assert "Зимой открыт Хаджох?" in tg_page.text
+    assert "id в MAX" not in tg_page.text
     for label in ("Новое", "В работе", "Готово", "Спам"):
         assert label in page.text
 

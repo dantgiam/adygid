@@ -5,7 +5,7 @@
   <div class="page-head">
     <div>
       <h1>Входящие</h1>
-      <div class="sub">Вопросы, отзывы, заявки и отзывы о подборе из бота MAX. На сайте они только показываются и нигде не сохраняются.</div>
+      <div class="sub">Вопросы, отзывы, заявки и отзывы о подборе из ботов MAX и Telegram. На сайте они только показываются и нигде не сохраняются.</div>
     </div>
   </div>
 
@@ -29,7 +29,7 @@
     <button class="btn btn-primary" type="submit">Показать</button>
   </form>
 
-  <p class="inbox-note">Ответить человеку из админки нельзя — напишите ему в MAX. Показано: {{ items|length }}{% if truncated %} · это последние 200{% endif %}.</p>
+  <p class="inbox-note">Ответить человеку из админки нельзя — напишите ему в том же мессенджере, откуда пришло обращение. Показано: {{ items|length }}{% if truncated %} · это последние 200{% endif %}.</p>
 
   {% if items %}
   <div class="list">
@@ -39,6 +39,7 @@
         <div class="row-title">
           <span class="badge">{{ item.kind_title }}</span>
           <span class="badge {{ item.status_badge }}">{{ item.status_title }}</span>
+          <span class="badge {{ item.platform_badge }}">{{ item.platform_title }}</span>
           <span>№ {{ item.short_id }}</span>
         </div>
         <div class="inbox-preview">{{ item.preview }}</div>
