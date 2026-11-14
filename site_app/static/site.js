@@ -131,7 +131,7 @@
   }
 })();
 
-// Клик «Оставить отзыв в MAX». Название берём из h1 в момент клика —
+// Клик «Оставить отзыв в MAX» или «… в Telegram». Название берём из h1 в момент клика —
 // тот же текст читает бот. До согласия цель остаётся в очереди adygidGoal.
 document.addEventListener("click", (e) => {
   const link = e.target.closest("[data-review-click]");
@@ -140,6 +140,7 @@ document.addEventListener("click", (e) => {
   window.adygidGoal("review_click", {
     page_type: link.getAttribute("data-page-type") || "",
     page_id: link.getAttribute("data-page-id") || "",
+    messenger: link.getAttribute("data-review-messenger") || "max",
     page_title: heading ? heading.textContent.trim() : "",
   });
 });

@@ -5,6 +5,7 @@ import re
 import time
 import uuid
 from html import escape, unescape
+from markupsafe import Markup
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -28,6 +29,7 @@ from site_app.content import (
 from site_app.icons import category_svg
 from site_app.podbor_catalog import catalog_items, invalidate_podbor_cache, load_copy, script_json
 from site_app import seo
+from site_app.autolink import autolink
 
 router = APIRouter()
 templates = Jinja2Templates(directory="site_app/templates")
@@ -80,6 +82,9 @@ templates.env.filters["abs_url"] = _abs_url
 _REVIEW_TOKEN_RE = re.compile(r"[^A-Za-z0-9-]")
 _REVIEW_KINDS = {"m", "r", "s"}
 REVIEW_BOT = "https://max.ru/se15002131_bot"
+# Тот же код отзыва для Telegram. У Telegram параметр start — до 64 символов
+# из [A-Za-z0-9_-], поэтому длинный слаг статьи обрезается (бот ищет по началу).
+REVIEW_BOT_TG = "https://t.me/adygid_bot"
 
 
 def review_token(value) -> str:
@@ -93,7 +98,13 @@ def review_bot_url(kind: str, page_id) -> str:
     return f"{REVIEW_BOT}?start=rv_{letter}{review_token(page_id)}"
 
 
+def review_bot_url_tg(kind: str, page_id) -> str:
+    letter = kind if kind in _REVIEW_KINDS else ""
+    return f"{REVIEW_BOT_TG}?start={('rv_' + letter + review_token(page_id))[:64]}"
+
+
 templates.env.globals["review_token"] = review_token
+templates.env.globals["review_bot_url_tg"] = review_bot_url_tg
 templates.env.globals["review_bot_url"] = review_bot_url
 
 
@@ -1856,6 +1867,8 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "slug": slug,
         "label": page["label"],
         "lead": page["lead"],
+        # Первое упоминание места этого района в тексте — ссылка на карточку.
+        "lead_html": Markup(autolink(str(escape(page["lead"])), place_ids, max_links=4)[0]),
         "facts": page.get("facts", []),
         "cover": page["cover"],
         "cover_style": page["cover_style"],

@@ -26,7 +26,7 @@
     {% if district.cover %}<div class="detail-hero"><img class="hero-img" style="{{ district.cover_style }}" src="{{ district.cover }}" alt="{{ district.label }}" fetchpriority="high" decoding="async"></div>{% endif %}
     <p class="eyebrow"><a href="/okrugi" style="color:inherit">Районы</a></p>
     <h1 class="page-title">{{ district.label }}</h1>
-    <p class="lede district-lead">{{ district.lead }}</p>
+    <p class="lede district-lead">{{ district.lead_html }}</p>
 
     {% if district.start_links %}
     <p class="district-start">С чего начать: {% for l in district.start_links %}<a href="{{ l.url }}">{{ l.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.</p>

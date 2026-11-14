@@ -133,7 +133,9 @@ def test_practical_fields_never_carry_unsourced_prices():
         text = tickets["text"] if isinstance(tickets, dict) else (tickets or "")
         if "₽" in text:
             # цифра либо с официальным источником, либо явно «не подтверждён»
-            assert (isinstance(tickets, dict) and tickets.get("source")) or "не подтвержд" in text, pid
+            # или с пометкой «по данным путеводителей» (решение 14.11.2026)
+            assert ((isinstance(tickets, dict) and tickets.get("source")) or "не подтвержд" in text
+                    or "по данным путеводителей" in text.lower()), pid
 
 
 def test_place_practical_block_renders_only_filled_fields(client, monkeypatch):
@@ -222,3 +224,111 @@ def test_home_cards_show_rayon_labels_even_on_cold_start(client):
         assert "округ" not in v.lower(), (k, v)
     html = client.get("/").text
     assert 'class="kicker">Округ' not in html
+
+
+def _publish_module():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("seo_publish", "scripts/seo_content_publish.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_autolink_first_mention_only_and_idempotent():
+    from site_app.autolink import autolink
+    html = ('<h2>Хаджохская теснина</h2><p>Сначала в Хаджохскую теснину, потом снова Хаджохская теснина '
+            'и <a href="/mesta/40">Руфабго</a>, водопады Руфабго.</p>'
+            '<figure><figcaption>Гранитный каньон</figcaption></figure><p>Скала Чёртов палец.</p>')
+    out, added = autolink(html)
+    assert [pid for pid, _ in added] == [24]
+    assert out.count('href="/mesta/24"') == 1 and '<a href="/mesta/24">Хаджохскую теснину</a>' in out
+    assert "<h2>Хаджохская теснина</h2>" in out          # заголовки не трогаем
+    assert out.count('href="/mesta/40"') == 1             # уже связанное — не дублируем
+    assert 'href="/mesta/52"' not in out                  # подписи к фото — тоже
+    assert "/mesta/50" not in out                         # место 50 не связываем
+    again, added2 = autolink(out)
+    assert again == out and added2 == []
+    # предел ссылок на странице считает и уже стоявшие
+    many = "".join(f'<a href="/mesta/{i}">x</a>' for i in range(100, 112)) + "<p>Хаджохская теснина</p>"
+    assert autolink(many)[1] == []
+    # только опубликованные карточки и без ссылки на себя
+    assert autolink("<p>Хаджохская теснина</p>", allowed={40})[1] == []
+    assert autolink("<p>Хаджохская теснина</p>", self_id=24)[1] == []
+
+
+def test_text_patch_survives_autolinks_inside_new_text():
+    mod = _publish_module()
+    pairs = [("Казачий камень", 'Казачий камень и <a href="/mesta/24">теснина</a>, Гранитный каньон')]
+    text, _ = mod.apply_text_patch("<p>Казачий камень</p>", pairs, "t")
+    from site_app.autolink import autolink
+    linked, _ = autolink(text)
+    again, done = mod.apply_text_patch(linked, pairs, "t")
+    assert again == linked and done == 0
+
+
+def test_district_assignment_is_complete_and_never_touches_50_or_11():
+    mod = _publish_module()
+    plan = list(mod.district_plan(mod.CONTENT["district_assign"]))
+    assert len([p for p in plan if p[0] == "mesta"]) == 23 and len([p for p in plan if p[0] == "marshruty"]) == 17
+    assert ("mesta", 105, "khadzhokh") in plan
+    assert {slug for _, _, slug in plan} <= {"maikop", "khadzhokh", "guzeripl", "dakhovskaya", "lagonaki"}
+    assert all((k, i) not in {("mesta", 50), ("marshruty", 11)} for k, i, _ in plan)
+    # Гончарка и Новосвободная — «Майкоп и окрестности»
+    assert ("mesta", 79, "maikop") in plan and ("mesta", 85, "maikop") in plan
+    with pytest.raises(SystemExit):
+        list(mod.district_plan({"mesta": {50: "khadzhokh"}}))
+
+
+def test_guidebook_prices_are_labelled_and_new_photos_credited():
+    mod = _publish_module()
+    c = mod.CONTENT
+    blob = json.dumps(c, ensure_ascii=False)
+    assert "по прайсу комплекса" not in blob and "Последняя известная цена по путеводителям" not in blob
+    assert "1150 ₽" in blob and "по данным путеводителей на 14.11.2026, актуальный тариф" in blob
+    for pid in (24, 40, 67):
+        p = seo.PLACE_PRACTICAL[pid]
+        assert "по данным путеводителей" in (p["tickets"] if isinstance(p["tickets"], str) else p["tickets"]["text"]).lower()
+    # без Альп и без чужих фото на новых страницах
+    assert "581ad467b3414354b038915f243f8e79" not in blob
+    assert "68c87251f4cb492b93a278a6436b78bf" not in blob
+    for key, ph in c["commons"].items():
+        assert "Адыге" in ph["what"] or "Лаго-Наки" in ph["what"], key
+        assert ph["license"].startswith(("CC BY", "Public domain"))
+    pages = [a["body"] for a in c["articles"]] + [c["scenario_zimoy"]["lead"]]
+    for a in c["articles"] + [dict(c["scenario_zimoy"], body=c["scenario_zimoy"]["lead"])]:
+        for key, ph in c["commons"].items():
+            if a["cover_url"] == ph["src"]:
+                assert ph["page"] in a["body"] and ph["author"] in a["body"]
+    assert pages
+
+
+def test_hub_faq_sets_for_dozhd_and_s_detmi():
+    c = _publish_module().CONTENT
+    sets = {f["slug"]: f for f in c["faq_sets"]}
+    for slug in ("kuda-dozhd", "kuda-s-detmi"):
+        assert slug in sets and 3 <= len(sets[slug]["items"]) <= 5
+        assert sets[slug]["on_faq_page"] is False
+        assert "₽" not in json.dumps(sets[slug], ensure_ascii=False)
+
+
+def test_review_block_has_telegram_next_to_max(client):
+    from site_app.router import review_bot_url_tg
+    assert review_bot_url_tg("m", 54) == "https://t.me/adygid_bot?start=rv_m54"
+    assert review_bot_url_tg("r", 12) == "https://t.me/adygid_bot?start=rv_r12"
+    long = review_bot_url_tg("s", "a" * 80)
+    assert len(long.split("start=")[1]) == 64
+    pid = _place(client, "Место для отзыва в Telegram")
+    html = client.get(f"/mesta/{pid}").text
+    block = html[html.find('class="section review-cta-section"'):]
+    block = block[:block.find("</section>")]
+    assert f"https://max.ru/se15002131_bot?start=rv_m{pid}" in block
+    assert f"https://t.me/adygid_bot?start=rv_m{pid}" in block
+    assert block.find("max.ru") < block.find("t.me")
+
+
+def test_district_lead_links_its_places(client, monkeypatch):
+    from site_app import router
+    r = client.get("/okrugi/guzeripl")
+    if r.status_code != 200:
+        pytest.skip("в тестовой базе нет района")
+    assert "district-lead" in r.text
