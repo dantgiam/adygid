@@ -1436,6 +1436,8 @@ def podbor_page(request: Request, db: Session = Depends(get_db), src: str = "", 
         "src": known_src if (src or known_season) else "direct",
         "season": known_season,
         "fresh": bool(src or known_season),
+        # Клуб в MAX — для блока «уточните детали» между днями плана.
+        "club": _club_url(db),
     }
     return templates.TemplateResponse(
         "podbor.html",
