@@ -51,6 +51,7 @@
   let busy = false;
   let timer = 0;
   let reviewOpen = false;
+  let detailsOpen = false;
   let returnToReview = false;
   let pendingCapture = null;
   let started = false;
@@ -419,23 +420,298 @@
       return '<button type="button" class="podbor-chip" data-act="edit" data-i="' + i + '">' + esc(answerLabel(q)) + " ↗</button>";
     }).join("");
   }
-  function wizard() {
-    const q = QUESTIONS[state.step] || QUESTIONS[0];
-    if (state.final) {
-      return '<div class="podbor-kicker">Ваши пожелания</div><h2>Поездка обретает форму</h2><div class="podbor-chips">' + summary() + '</div><button type="button" class="podbor-btn podbor-btn-ghost" data-act="back">← Изменить ответы</button><button type="button" class="podbor-skip" data-act="restart">Подобрать заново</button>';
+  /* Визуал A2. Ключи ответов и подписи o[1] не меняются: по ним ищутся
+     реакции в podbor_copy.json. Короткие подписи ниже — только на карточках. */
+  const IMG_V = (root.dataset && root.dataset.asset) || "";
+  const TICK = '<i class="a2-tick" aria-hidden="true">✓</i>';
+  const VISUAL = {
+    season: {
+      title: "Когда едете?", hint: "От сезона зависят тропы и длина дня", tile: "Сезон",
+      opts: {
+        winter: { sub: "снег, горы, термы", emoji: "❄️", img: "winter", tone: "winter" },
+        summer: { sub: "водопады и луга", emoji: "☀️", img: "summer", tone: "summer" },
+        any: { sub: "покажем разное", emoji: "🗓️", img: "anyseason", tone: "any" },
+      },
+    },
+    duration: {
+      title: "Сколько дней?", hint: "Разложим места по дням с дорогой", tile: "Дней",
+      opts: {
+        one: { sub: "один яркий день", n: 1 },
+        short: { sub: "без спешки", n: 3 },
+        long: { sub: "много направлений", n: 7 },
+        any: { sub: "начнём с одного", n: 0 },
+      },
+    },
+    base: {
+      title: "Где остановились?", hint: "От базы считаем дорогу", tile: "База",
+      opts: {
+        maykop: { img: "maykop" },
+        khadzhokh: { label: "Хаджох", img: "khadzhokh" },
+        dakhovskaya: { img: "dakhovskaya" },
+        guzeripl: { img: "guzeripl" },
+        lago: { label: "Лаго-Наки", img: "lago" },
+        any: { emoji: "📍" },
+      },
+    },
+    party: {
+      title: "С кем едете?", hint: "С малышами — короче прогулки, больше пауз", tile: "С кем",
+      credits: ["Max Dawncat, CC BY 2.0", "vastateparksstaff, CC BY 2.0", "NPS/Patrick Myers, CC BY 2.0"],
+      opts: {
+        solo: { emoji: "🧍", img: "who_solo" },
+        couple: { emoji: "👫", img: "who_couple" },
+        family: { emoji: "👨‍👩‍👧", img: "who_family" },
+        small: { label: "С малышами", emoji: "👶", img: "who_small" },
+        any: { emoji: "🤷" },
+      },
+    },
+    been: {
+      title: "Уже бывали в Адыгее?", hint: "Бывалым — меньше очевидного", tile: "Бывали",
+      opts: {
+        first: { label: "Впервые", sub: "покажем лучшее", emoji: "🌱", img: "been_first" },
+        some: { label: "1–2 раза", sub: "больше нового", emoji: "🔁", img: "been_some" },
+        often: { sub: "хочу необычного", emoji: "🧭", img: "been_often" },
+        any: { emoji: "⏭️" },
+      },
+    },
+    pace: {
+      title: "Какой темп?", hint: "Задаёт длину дня", tile: "Темп",
+      opts: {
+        calm: { sub: "виды, кафе, без спешки", emoji: "🌿", lvl: 1, hrs: "≈5,5 ч", img: "pace_calm" },
+        balanced: { sub: "прогулки + отдых", emoji: "🥾", lvl: 2, hrs: "≈7,5 ч", img: "pace_bal" },
+        active: { sub: "тропы, рафтинг", emoji: "⚡", lvl: 3, hrs: "≈9,5 ч", img: "pace_act" },
+        any: { emoji: "🤔" },
+      },
+    },
+    interests: {
+      title: "Что хочется увидеть?", hint: "Можно выбрать несколько", tile: "Хочется увидеть",
+      credits: ["R. Laubenstein (USFWS), PD"],
+      opts: {
+        any: { sub: "разные стороны Адыгеи", emoji: "✨" },
+        views: { label: "Горы и виды", img: "views" },
+        water: { label: "Водопады", img: "water" },
+        caves: { label: "Пещеры", img: "caves" },
+        culture: { label: "Культура", img: "culture" },
+        thermal: { img: "thermal" },
+        familyfun: { label: "Для детей", img: "familyfun" },
+      },
+    },
+  };
+  /* Имена и кадры — как в прототипе. id мест живого каталога (в engine.js их нет,
+     там только подписи и файлы). Обложка и ссылка берутся из каталога, если место есть. */
+  const PREVIEW = {
+    views: [
+      { id: 105, name: "Скала Слон", img: "pv_slon", area: "Каменномостский" },
+      { id: 55, name: "Плато Лаго-Наки", img: "lago", area: "Лаго-Наки" },
+      { id: 56, name: "Каменное море", img: "views", area: "Лаго-Наки" },
+    ],
+    water: [
+      { id: 24, name: "Хаджохская теснина", img: "khadzhokh", area: "Хаджох" },
+      { id: 40, name: "Водопады Руфабго", img: "water", area: "Хаджох" },
+    ],
+    caves: [
+      { id: 25, name: "Большая Азишская пещера", img: "caves", area: "Лаго-Наки" },
+      { id: 60, name: "Пещера Нежная", img: "pv_nezh", area: "Хамышки" },
+    ],
+    culture: [
+      { id: 51, name: "Дегуакская поляна дольменов", img: "culture", area: "Даховская" },
+      { id: 45, name: "Музей «Беловодье»", img: "pv_belov", area: "Хаджох" },
+    ],
+    thermal: [
+      { id: 68, name: "«Кедровый бор»", img: "thermal", area: "Цветочный" },
+      { id: 67, name: "«АкваТермо»", img: "pv_aqua", area: "Тульский" },
+    ],
+    familyfun: [
+      { id: 48, name: "Савранская канатка", img: "dakhovskaya", area: "Даховская" },
+      { id: 43, name: "Экстрим-парк «Мишоко»", img: "pv_mishoko", area: "Каменномостский" },
+    ],
+  };
+  function pimg(name) {
+    return "/assets/podbor/" + name + ".webp" + (IMG_V ? "?v=" + encodeURIComponent(IMG_V) : "");
+  }
+  function photoTag(name, mode) {
+    if (!name) return "";
+    const extra = mode === "high" ? ' fetchpriority="high"' : (mode === "eager" ? "" : ' loading="lazy"');
+    return '<img src="' + esc(pimg(name)) + '" alt="" decoding="async"' + extra + ">";
+  }
+  function visOf(q, id) {
+    return (VISUAL[q.key] && VISUAL[q.key].opts[id]) || {};
+  }
+  function shownLabel(q, id) {
+    const v = visOf(q, id);
+    if (v.label) return v.label;
+    const hit = q.options.find((o) => o[0] === id);
+    return (hit && hit[1]) || "";
+  }
+  function chosen(q, id) {
+    if (q.key === "interests") {
+      if (id === "any") return state.interests.length === 0 && state.answers.interests !== undefined;
+      return state.interests.includes(id);
     }
-    const inRefine = refining && state.step >= MAIN_N;
-    const list = inRefine ? QUESTIONS.slice(MAIN_N) : QUESTIONS.slice(0, MAIN_N);
-    const pos = inRefine ? state.step - MAIN_N : state.step;
-    const choices = q.options.map((o) => {
-      const sel = q.key === "interests"
-        ? (o[0] === "any" ? state.interests.length === 0 && state.answers.interests !== undefined : state.interests.includes(o[0]))
-        : state.answers[q.key] === o[0];
-      const exp = q.key === "pace" ? paceExplain(o[0]) : o[2];
-      return '<button type="button" data-act="choose" data-q="' + q.key + '" data-answer="' + o[0] + '" class="podbor-choice' + (o[0] === "any" ? " is-any" : "") + (sel ? " is-on" : "") + '" aria-pressed="' + sel + '">' + (o[3] ? '<span class="podbor-choice-icon" aria-hidden="true">' + esc(o[3]) + "</span>" : "") + "<span><b>" + esc(o[1]) + "</b>" + (exp ? "<small>" + esc(exp) + "</small>" : "") + "</span></button>";
+    return state.answers[q.key] === id;
+  }
+  function btnOpen(q, id, cls) {
+    const on = chosen(q, id);
+    return '<button type="button" class="' + cls + (on ? " is-on" : "") + '" data-act="choose" data-q="' + q.key + '" data-answer="' + id + '" aria-pressed="' + on + '">';
+  }
+  function stepChrome(pos, total, count) {
+    const pct = Math.round(((pos + 1) / total) * 100);
+    return '<header class="a2-bar"><span class="a2-brand"><span class="a2-mark" aria-hidden="true">▲</span>АдыГид</span><span class="a2-count">' + esc(count || ((pos + 1) + " / " + total)) + '</span></header><div class="a2-prog" aria-hidden="true"><i style="width:' + pct + '%"></i></div>';
+  }
+  function navHtml(atStart) {
+    return '<nav class="a2-nav"><button type="button" class="a2-btn-ghost" data-act="back"' + (atStart ? " disabled" : "") + '>← Назад</button><button type="button" class="a2-skip" data-act="skip">Пропустить</button></nav>';
+  }
+  function creditsHtml(v) {
+    if (!v || !v.credits || !v.credits.length) return "";
+    return '<p class="a2-credits">Фото: ' + esc(v.credits.join("; ")) + " · Wikimedia Commons</p>";
+  }
+  function pill(q, o) {
+    const v = visOf(q, o[0]);
+    return btnOpen(q, o[0], "a2-pill") + (v.emoji ? v.emoji + " " : "") + esc(shownLabel(q, o[0])) + "</button>";
+  }
+  function seasonOpts(q) {
+    return '<div class="a2-banners">' + q.options.map((o, i) => {
+      const v = visOf(q, o[0]);
+      return btnOpen(q, o[0], "a2-sb a2-sb-" + (v.tone || "any")) + photoTag(v.img, i === 0 ? "high" : "eager") + '<span class="a2-shade"></span><span class="a2-sb-txt"><b>' + esc(shownLabel(q, o[0])) + "</b><small>" + esc(v.sub || "") + "</small></span>" + (v.emoji ? '<span class="a2-emoji">' + v.emoji + "</span>" : "") + TICK + "</button>";
+    }).join("") + "</div>";
+  }
+  function daysOpts(q) {
+    return '<div class="a2-tl-list">' + q.options.map((o) => {
+      const v = visOf(q, o[0]);
+      const n = v.n || 0;
+      const cells = Array.from({ length: 7 }, (_, i) => '<i class="' + (n && i < n ? "f" : "") + '"></i>').join("");
+      const bar = '<span class="a2-tl-bar' + (n ? "" : " a2-tl-q") + '">' + cells + "</span>";
+      return btnOpen(q, o[0], "a2-tl") + '<span class="a2-tl-top"><b>' + esc(shownLabel(q, o[0])) + "</b><small>" + esc(v.sub || "") + "</small></span>" + bar + TICK + "</button>";
+    }).join("") + "</div>";
+  }
+  function baseOpts(q) {
+    return '<div class="a2-mini3">' + q.options.map((o) => {
+      const v = visOf(q, o[0]);
+      const ph = v.img
+        ? '<span class="a2-mc-ph">' + photoTag(v.img, "lazy") + "</span>"
+        : '<span class="a2-mc-ph a2-mc-em">' + (v.emoji || "") + "</span>";
+      return btnOpen(q, o[0], "a2-mc" + (v.img ? "" : " a2-mc-any")) + ph + "<b>" + esc(shownLabel(q, o[0])) + "</b>" + TICK + "</button>";
+    }).join("") + "</div>";
+  }
+  function photo2Opts(q) {
+    const photos = q.options.filter((o) => visOf(q, o[0]).img);
+    const rest = q.options.filter((o) => !visOf(q, o[0]).img);
+    return '<div class="a2-ph2">' + photos.map((o) => {
+      return btnOpen(q, o[0], "a2-pc") + photoTag(visOf(q, o[0]).img, "lazy") + '<span class="a2-shade"></span><b>' + esc(shownLabel(q, o[0])) + "</b>" + TICK + "</button>";
+    }).join("") + "</div>" + rest.map((o) => pill(q, o)).join("");
+  }
+  function photo3Opts(q) {
+    const photos = q.options.filter((o) => visOf(q, o[0]).img);
+    const rest = q.options.filter((o) => !visOf(q, o[0]).img);
+    return '<div class="a2-ph3">' + photos.map((o) => {
+      const v = visOf(q, o[0]);
+      return btnOpen(q, o[0], "a2-pc a2-pc-v") + photoTag(v.img, "lazy") + '<span class="a2-shade"></span><span class="a2-pc-txt"><b>' + esc(shownLabel(q, o[0])) + "</b><small>" + esc(v.sub || "") + "</small></span>" + TICK + "</button>";
+    }).join("") + "</div>" + rest.map((o) => pill(q, o)).join("");
+  }
+  function paceOpts(q) {
+    const photos = q.options.filter((o) => visOf(q, o[0]).img);
+    const rest = q.options.filter((o) => !visOf(q, o[0]).img);
+    return '<div class="a2-banners a2-pace">' + photos.map((o) => {
+      const v = visOf(q, o[0]);
+      const bars = [1, 2, 3].map((i) => '<i class="' + (i <= v.lvl ? "f" : "") + '"></i>').join("");
+      return btnOpen(q, o[0], "a2-sb a2-sb-pace a2-sb-l" + v.lvl) + photoTag(v.img, "lazy") + '<span class="a2-shade"></span><span class="a2-sb-txt"><b>' + v.emoji + " " + esc(shownLabel(q, o[0])) + "</b><small>" + esc(v.sub || "") + '</small></span><span class="a2-lvl">' + bars + "<em>" + esc(v.hrs || "") + "</em></span>" + TICK + "</button>";
+    }).join("") + "</div>" + rest.map((o) => pill(q, o)).join("");
+  }
+  function interestsOpts(q) {
+    const any = q.options.find((o) => o[0] === "any");
+    const rest = q.options.filter((o) => o[0] !== "any");
+    const vAny = visOf(q, any[0]);
+    const mosaic = '<span class="a2-mosaic">' + ["s2", "water", "caves", "s3"].map((n) => photoTag(n, "lazy")).join("") + "</span>";
+    const top = btnOpen(q, any[0], "a2-surprise") + mosaic + '<span class="a2-sp-txt"><b>' + vAny.emoji + " " + esc(shownLabel(q, any[0])) + "</b><small>" + esc(vAny.sub || "") + "</small></span>" + TICK + "</button>";
+    const grid = '<div class="a2-mini3 a2-ints">' + rest.map((o) => {
+      const v = visOf(q, o[0]);
+      return btnOpen(q, o[0], "a2-mc") + '<span class="a2-mc-ph">' + photoTag(v.img, "lazy") + "</span><b>" + esc(shownLabel(q, o[0])) + "</b>" + TICK + "</button>";
+    }).join("") + "</div>";
+    return top + '<div class="a2-or"><span>или выберите темы</span></div>' + grid;
+  }
+  function renderRefine(q) {
+    const list = QUESTIONS.slice(MAIN_N);
+    const pos = Math.max(0, state.step - MAIN_N);
+    const rows = q.options.map((o) => {
+      return btnOpen(q, o[0], "a2-row" + (o[0] === "any" ? " a2-row-quiet" : "")) + '<span class="a2-row-txt"><b>' + esc(o[1]) + "</b>" + (o[2] ? "<small>" + esc(o[2]) + "</small>" : "") + "</span>" + TICK + "</button>";
     }).join("");
-    const finishBtn = q.key === "interests" ? '<button type="button" class="podbor-btn" data-act="finish">Проверить пожелания →</button>' : "";
-    return '<div class="podbor-step"><span>' + (inRefine ? "Уточнение " + (pos + 1) + " из " + list.length : "Вопрос " + (pos + 1) + " из " + MAIN_N) + '</span><div class="podbor-dots">' + list.map((_, i) => '<i class="' + (i <= pos ? "is-on" : "") + '"></i>').join("") + '</div></div><div class="podbor-qicon" aria-hidden="true">' + esc(q.icon || "✦") + "</div><h2>" + esc(q.title || q.copy) + '</h2><p class="podbor-why-q">' + esc(q.why || "") + '</p><div class="podbor-choices">' + choices + "</div>" + finishBtn + '<div class="podbor-nav"><button type="button" class="podbor-btn podbor-btn-ghost" data-act="back"' + (state.step === 0 ? " disabled" : "") + '>← Назад</button><button type="button" class="podbor-skip" data-act="skip">' + (q.key === "interests" ? "Пропустить и посмотреть" : "Пропустить вопрос") + "</button></div>";
+    return stepChrome(pos, Math.max(1, list.length), "уточнение " + (pos + 1) + " / " + list.length) + '<main class="a2-q"><p class="a2-kicker">Уточнение</p><h1>' + esc(q.title || q.copy) + '</h1><p class="a2-hint">' + esc(q.why || "") + '</p><div class="a2-opts"><div class="a2-rows">' + rows + "</div></div></main>" + navHtml(false);
+  }
+  function renderA2(q) {
+    const v = VISUAL[q.key];
+    const body = { season: seasonOpts, duration: daysOpts, base: baseOpts, party: photo2Opts, been: photo3Opts, pace: paceOpts, interests: interestsOpts }[q.key](q);
+    const n = state.interests.length;
+    const cta = q.key === "interests"
+      ? '<div class="a2-sticky"><button type="button" class="a2-btn" data-act="finish">' + (n ? "Готово · " + n + " ✓" : "Дальше") + " →</button></div>"
+      : "";
+    return stepChrome(state.step, MAIN_N) + '<main class="a2-q"><h1>' + esc(v.title) + '</h1><p class="a2-hint">' + esc(v.hint) + '</p><div class="a2-opts">' + body + "</div>" + creditsHtml(v) + "</main>" + cta + navHtml(state.step === 0);
+  }
+  function tileIcon(q) {
+    if (q.key === "interests") return state.interests.length ? "📸" : "✨";
+    const id = state.answers[q.key] || "any";
+    const v = visOf(q, id);
+    if (v.emoji) return v.emoji;
+    if (q.key === "duration") return "📅";
+    if (q.key === "base") return "🏡";
+    return "•";
+  }
+  function tileValue(q) {
+    if (q.key === "interests") {
+      if (!state.interests.length) return "Удивите меня";
+      return state.interests.map((t) => shownLabel(q, t) || LABELS[t]).join(", ");
+    }
+    const id = state.answers[q.key] || "any";
+    return shownLabel(q, id) || "Не указано";
+  }
+  function flowSummary() {
+    const parts = [];
+    ["season", "duration", "party"].forEach((k) => {
+      const id = state.answers[k];
+      if (!id || id === "any") return;
+      const q = QUESTIONS[idx(k)];
+      const v = visOf(q, id);
+      const label = shownLabel(q, id).toLowerCase();
+      if (!label) return;
+      parts.push((v.emoji ? v.emoji + " " : "") + label);
+    });
+    return parts.length ? parts.join(" · ") : "Осталось нажать одну кнопку";
+  }
+  function previewPlaces() {
+    let keys = state.interests.filter((k) => PREVIEW[k]);
+    if (!keys.length) keys = ["water", "views", "caves", "thermal"];
+    const lists = keys.map((k) => PREVIEW[k].slice());
+    const out = [];
+    while (out.length < 4 && lists.some((l) => l.length)) {
+      lists.forEach((l) => { if (l.length && out.length < 4) out.push(l.shift()); });
+    }
+    return out.map((spec) => {
+      const live = DATA.find((x) => x && x.type === "place" && Number(x.id) === spec.id);
+      const fallback = pimg(spec.img);
+      return {
+        name: spec.name,
+        area: spec.area,
+        url: (live && live.url) || ("/mesta/" + spec.id),
+        image: (live && live.image) || fallback,
+        fallback: fallback,
+      };
+    });
+  }
+  function renderPreview() {
+    const cards = previewPlaces().map((x) => {
+      return '<a class="a2-pv" href="' + esc(x.url) + '"><img src="' + esc(x.image) + '" alt="" width="112" height="112" loading="lazy" decoding="async" data-fallback="' + esc(x.fallback) + '"><b>' + esc(x.name) + "</b><small>" + esc(x.area) + "</small></a>";
+    }).join("");
+    const tiles = detailsOpen
+      ? '<div class="a2-params">' + QUESTIONS.map((q, i) => '<button type="button" class="a2-param" data-act="edit" data-i="' + i + '"><span class="a2-p-ic">' + tileIcon(q) + '</span><span class="a2-p-t"><small>' + esc((VISUAL[q.key] && VISUAL[q.key].tile) || q.copy) + "</small><b>" + esc(tileValue(q)) + '</b></span><span class="a2-p-ed" aria-hidden="true">✎</span></button>').join("") + "</div>"
+      : "";
+    const toggle = detailsOpen ? "Скрыть детали ▴" : "Изменить детали";
+    return '<section class="a2-fin"><div class="a2-hero"><img src="' + esc(pimg("hero")) + '" alt="" decoding="async" loading="lazy"><span class="a2-hero-shade"></span><header class="a2-bar a2-bar-light"><span class="a2-brand"><span class="a2-mark" aria-hidden="true">▲</span>АдыГид</span></header><div class="a2-fin-copy"><span class="a2-kick">Всё готово</span><h1>План по Адыгее<br>почти собран</h1><p>' + esc(flowSummary()) + '</p></div></div><div class="a2-sheet"><div class="a2-pv-head"><h2>Например, вас ждут:</h2><small>подберём ещё и разложим по дням</small></div><div class="a2-pv-row">' + cards + '</div><div class="a2-final-btns"><button type="button" class="a2-btn" data-act="confirm">Сформировать план →</button><button type="button" class="a2-btn-ghost' + (detailsOpen ? " is-on" : "") + '" data-act="details">' + toggle + "</button></div>" + tiles + "</div></section>";
+  }
+  function wizard() {
+    if (reviewOpen && !state.final) return renderPreview();
+    const q = QUESTIONS[state.step] || QUESTIONS[0];
+    if (state.final) return "";
+    if (refining && state.step >= MAIN_N) return renderRefine(q);
+    if (VISUAL[q.key]) return renderA2(q);
+    return renderRefine(q);
   }
   function hiddenBar() {
     return state.seen.length ? '<div class="podbor-hidden">Скрыто как «уже был»: ' + state.seen.length + ' <button type="button" data-act="unseen">вернуть все</button></div>' : "";
@@ -681,8 +957,14 @@
     if (old) animateCards(old);
   }
   function syncWizard() {
-    document.getElementById("wizard").classList.toggle("hidden", reviewOpen || state.final);
-    document.getElementById("podbor-layout").classList.toggle("is-wide", reviewOpen || state.final);
+    root.classList.add("is-app");
+    root.classList.toggle("is-flow", !state.final);
+    root.classList.toggle("is-preview", !!(reviewOpen && !state.final));
+    root.classList.toggle("is-plan", !!state.final);
+    document.getElementById("wizard").classList.toggle("hidden", !!state.final);
+    const layout = document.getElementById("podbor-layout");
+    layout.classList.toggle("is-wide", !!state.final);
+    layout.classList.toggle("is-preview", !!(reviewOpen && !state.final));
   }
   function render() {
     document.getElementById("wizard").innerHTML = wizard();
@@ -770,7 +1052,8 @@
   function edit(i) {
     if (busy || !QUESTIONS[i]) return;
     goal("podbor_edit", { q: QUESTIONS[i].key });
-    if (reviewOpen) { closeReview(); returnToReview = true; }
+    if (reviewOpen) returnToReview = true;
+    reviewOpen = false;
     state.final = false;
     state.step = i;
     render();
@@ -778,19 +1061,21 @@
   }
   function closeReview() {
     reviewOpen = false;
-    syncWizard();
-    document.getElementById("review-sheet").classList.add("hidden");
+    detailsOpen = false;
+    const sheet = document.getElementById("review-sheet");
+    if (sheet) sheet.classList.add("hidden");
+    render();
   }
   function showReview() {
     if (busy) return;
     returnToReview = false;
     reviewOpen = true;
     goal("podbor_summary", {});
-    syncWizard();
-    document.getElementById("review-panel").innerHTML = '<div class="podbor-kicker">Остался один шаг</div><h2 id="review-title">' + esc(copyLine(COPY.summary, "Готово, все ваши пожелания собраны ✅")) + '</h2><p>Если нужно что-то поменять — нажмите на параметр. Если всё верно — формируем план.</p><button type="button" id="confirm-plan" class="podbor-btn" data-act="confirm">Сформировать план →</button><div class="podbor-kicker">Ваши параметры · нажмите, чтобы изменить</div>' + QUESTIONS.map((q, i) => '<button type="button" class="podbor-review-row" data-act="edit" data-i="' + i + '"><span><small>' + esc(q.copy) + "</small><b>" + esc(answerLabel(q)) + '</b></span><span>✎ изменить</span></button>').join("") + '<button type="button" class="podbor-skip" data-act="closereview">Вернуться к вопросам</button>';
-    document.getElementById("review-sheet").classList.remove("hidden");
-    renderResults();
-    document.getElementById("results").scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" });
+    const sheet = document.getElementById("review-sheet");
+    if (sheet) sheet.classList.add("hidden");
+    render();
+    const wiz = document.getElementById("wizard");
+    if (wiz) wiz.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" });
   }
   function finish(opts) {
     opts = opts || {};
@@ -801,8 +1086,11 @@
   }
   function confirmPlan() {
     if (busy) return;
-    closeReview();
+    reviewOpen = false;
+    detailsOpen = false;
     returnToReview = false;
+    const sheet = document.getElementById("review-sheet");
+    if (sheet) sheet.classList.add("hidden");
     state.planId = C.contextId();
     const ranked = rankNow();
     const days = C.planDays(ranked, answers(), { days: state.days });
@@ -847,6 +1135,15 @@
     render();
   }
 
+  document.addEventListener("error", (e) => {
+    const img = e.target;
+    if (!img || img.tagName !== "IMG" || !root.contains(img)) return;
+    const fb = img.getAttribute("data-fallback");
+    if (!fb || img.dataset.fbUsed === "1" || img.getAttribute("src") === fb) return;
+    img.dataset.fbUsed = "1";
+    img.setAttribute("src", fb);
+  }, true);
+
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-act]");
     if (!b || !root.contains(b)) return;
@@ -859,6 +1156,7 @@
       case "edit": edit(+d.i); break;
       case "finish": finish(); break;
       case "confirm": confirmPlan(); break;
+      case "details": detailsOpen = !detailsOpen; render(); break;
       case "closereview": closeReview(); break;
       case "restart": restart(); break;
       case "tab": state.tab = d.t; state.limit = 6; renderResults(); break;
@@ -932,7 +1230,11 @@
     }
   });
   window.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && reviewOpen) { closeReview(); return; }
+    if (e.key === "Escape" && reviewOpen) {
+      if (detailsOpen) { detailsOpen = false; render(); return; }
+      closeReview();
+      return;
+    }
     if (e.key === "Escape" && busy) {
       clearTimeout(timer);
       stopPhotoReel();

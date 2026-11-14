@@ -215,6 +215,58 @@ def test_missing_table_returns_202(client):
             conn.execute(text("ALTER TABLE podbor_answers_hidden RENAME TO podbor_answers"))
 
 
+def test_podbor_a2_visual_keeps_answers_and_ships_photos():
+    """Фото-карточки A2: короткие подписи на экране, ключи и реакции прежние, фото WebP."""
+    js = (ROOT / "site_app" / "static" / "podbor.js").read_text(encoding="utf-8")
+    css = (ROOT / "site_app" / "static" / "podbor.css").read_text(encoding="utf-8")
+    page = (ROOT / "site_app" / "templates" / "podbor.html").read_text(encoding="utf-8")
+    for key in (
+        "winter", "summer", "one", "short", "long", "maykop", "khadzhokh", "dakhovskaya",
+        "guzeripl", "lago", "solo", "couple", "family", "small", "first", "some", "often",
+        "calm", "balanced", "active", "views", "water", "caves", "culture", "thermal", "familyfun",
+    ):
+        assert f'"{key}"' in js, key
+    for label in (
+        "Каменномостский (Хаджох)", "Лаго-Наки / Азишский перевал", "С маленькими детьми",
+        "Нет, впервые", "Был(а) 1–2 раза", "Виды и горы", "Водопады и ущелья",
+        "Пещеры и гроты", "Культура и музеи", "Семейные развлечения",
+    ):
+        assert label in js, label
+    for label in (
+        "Когда едете?", "Сколько дней?", "С кем едете?", "Уже бывали в Адыгее?",
+        "Какой темп?", "Например, вас ждут:", "Изменить детали", "Сформировать план",
+        "Удивите меня", "Горы и виды", "С малышами", "Для детей",
+    ):
+        assert label in js, label
+    assert "a2-badge" not in js
+    assert "a2-badge" not in css
+    assert 'loading="lazy"' in js
+    assert 'fetchpriority="high"' in js
+    assert "Wikimedia Commons" in js
+    assert "Max Dawncat, CC BY 2.0" in js
+    assert "NPS/Patrick Myers, CC BY 2.0" in js
+    assert "R. Laubenstein (USFWS), PD" in js
+    assert "/assets/podbor/" in js
+    for pid in (105, 55, 56, 24, 40, 25, 60, 51, 45, 68, 67, 48, 43):
+        assert f"id: {pid}" in js, pid
+    assert 'href="/mesta/"' in js or '"/mesta/"' in js
+    assert "/assets/podbor/winter.webp" in page
+    folder = ROOT / "site_app" / "static" / "podbor"
+    needed = (
+        "winter.webp", "summer.webp", "anyseason.webp", "hero.webp",
+        "maykop.webp", "khadzhokh.webp", "dakhovskaya.webp", "guzeripl.webp", "lago.webp",
+        "who_solo.webp", "who_couple.webp", "who_family.webp", "who_small.webp",
+        "been_first.webp", "been_some.webp", "been_often.webp",
+        "pace_calm.webp", "pace_bal.webp", "pace_act.webp",
+        "views.webp", "water.webp", "caves.webp", "culture.webp", "thermal.webp", "familyfun.webp",
+        "s2.webp", "s3.webp", "pv_slon.webp", "pv_nezh.webp", "pv_belov.webp", "pv_aqua.webp", "pv_mishoko.webp",
+    )
+    for name in needed:
+        data = (folder / name).read_bytes()
+        assert data[:4] == b"RIFF" and data[8:12] == b"WEBP", name
+        assert 500 < len(data) < 200_000, name
+
+
 def test_metrica_goals_are_wired_without_money_events():
     js = "\n".join([
         (ROOT / "site_app" / "static" / "site.js").read_text(encoding="utf-8"),

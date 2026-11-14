@@ -5,10 +5,13 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="/assets/podbor.css?v={{ asset_version }}">
+<link rel="preload" as="image" href="/assets/podbor/winter.webp?v={{ asset_version }}">
+<link rel="preload" as="image" href="/assets/podbor/summer.webp?v={{ asset_version }}">
+<link rel="preload" as="image" href="/assets/podbor/anyseason.webp?v={{ asset_version }}">
 {% endblock %}
 
 {% block content %}
-<div class="podbor" id="podbor-root">
+<div class="podbor" id="podbor-root" data-asset="{{ asset_version }}">
   <div class="wrap">
     <div class="podbor-hero">
       <div>
