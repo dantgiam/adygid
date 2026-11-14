@@ -14,7 +14,7 @@
   <div class="wrap hero-grid">
     {% if page.cover %}
     <figure class="hero-photo">
-      <img src="{{ page.cover }}" alt="Автор клуба АдыГид" style="{{ page.cover_style }}" width="800" height="800">
+      {% set ss = page.cover|img_srcset %}<img src="{{ page.cover|img_src(800) }}"{% if ss %} srcset="{{ ss }}" sizes="{{ img_sizes.home_photo }}"{% endif %} alt="Автор клуба АдыГид" style="{{ page.cover_style }}" width="800" height="800" fetchpriority="high" decoding="async">
     </figure>
     {% endif %}
 

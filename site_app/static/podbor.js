@@ -73,6 +73,14 @@
   function esc(s) {
     return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
+  function photoSrc(url, width) {
+    try { if (url && window.adygidImg) return window.adygidImg(url, width || 800); } catch (e) {}
+    return url || "";
+  }
+  function photoSrcset(url) {
+    try { if (url && window.adygidSrcset) return window.adygidSrcset(url); } catch (e) {}
+    return "";
+  }
   function copyLine(v, fallback) {
     if (Array.isArray(v)) return v.find((x) => typeof x === "string" && x.trim()) || fallback;
     return typeof v === "string" && v.trim() ? v : fallback;
@@ -252,7 +260,7 @@
         photoInflight -= 1;
         pumpPhotos();
       };
-      img.src = item.image;
+      img.src = photoSrc(item.image, 480);
     }
   }
 
@@ -325,13 +333,14 @@
         else show();
       };
       incoming.onerror = fail;
-      const abs = new URL(photo.image, window.location.href).href;
+      const shown = photoSrc(photo.image, 480);
+      const abs = new URL(shown, window.location.href).href;
       if (incoming.src === abs && incoming.complete) {
         if (incoming.naturalWidth) incoming.onload();
         else fail();
         return;
       }
-      incoming.src = photo.image;
+      incoming.src = shown;
     });
   }
   function startPhotoReel() {
@@ -434,7 +443,7 @@
     return '<a class="podbor-source" href="' + esc(x.url) + '" target="_blank" rel="noopener" data-act="open" data-item="' + keyOf(x) + '" data-pos="' + pos + '" data-block="' + block + '">' + label + " ↗</a>";
   }
   function card(x, block, pos) {
-    const photo = x.image ? '<img src="' + esc(x.image) + '" alt="' + esc(x.name) + '" loading="lazy">' : "";
+    const photo = x.image ? '<img src="' + esc(photoSrc(x.image, 800)) + '"' + (photoSrcset(x.image) ? ' srcset="' + esc(photoSrcset(x.image)) + '" sizes="(max-width: 640px) 92vw, 420px"' : "") + ' alt="' + esc(x.name) + '" loading="lazy" decoding="async">' : "";
     const diff = DIFF[x.difficulty] ? "<span>" + DIFF[x.difficulty] + " · по карточке</span>" : "";
     const winter = state.answers.season === "winter" && x.winter_ok === "unknown" ? "<span>Зимой — уточнить подход</span>" : "";
     const because = block === "also" ? "Не из выбранных тем — для разнообразия" : why(x);
@@ -653,7 +662,9 @@
     const src = catalogImage(v.pid);
     if (!src) return photoTag(v.img, mode);
     const fb = v.img ? pimg(v.img) : "";
-    return '<img src="' + esc(src) + '" alt="" decoding="async"' + (mode === "lazy" ? ' loading="lazy"' : "") + (fb ? ' data-fallback="' + esc(fb) + '"' : "") + ">";
+    const shown = photoSrc(src, mode === "high" ? 800 : 480);
+    const extra = mode === "high" ? ' fetchpriority="high"' : (mode === "lazy" ? ' loading="lazy"' : "");
+    return '<img src="' + esc(shown) + '" alt="" decoding="async"' + extra + (fb ? ' data-fallback="' + esc(fb) + '"' : "") + ">";
   }
   function visOf(q, id) {
     return (VISUAL[q.key] && VISUAL[q.key].opts[id]) || {};
@@ -864,7 +875,7 @@
   }
   function renderPreview() {
     const cards = previewPlaces().map((x) => {
-      return '<a class="a2-pv" href="' + esc(x.url) + '" target="_blank" rel="noopener" data-act="open" data-item="place:' + esc(x.id) + '" data-pos="0" data-block="preview"><img src="' + esc(x.image) + '" alt="" width="112" height="112" loading="lazy" decoding="async" data-fallback="' + esc(x.fallback) + '"><b>' + esc(x.name) + "</b><small>" + esc(x.area) + "</small></a>";
+      return '<a class="a2-pv" href="' + esc(x.url) + '" target="_blank" rel="noopener" data-act="open" data-item="place:' + esc(x.id) + '" data-pos="0" data-block="preview"><img src="' + esc(photoSrc(x.image, 240)) + '" alt="" width="112" height="112" loading="lazy" decoding="async" data-fallback="' + esc(x.fallback) + '"><b>' + esc(x.name) + "</b><small>" + esc(x.area) + "</small></a>";
     }).join("");
     const tiles = detailsOpen
       ? '<div class="a2-params">' + QUESTIONS.map((q, i) => '<button type="button" class="a2-param" data-act="edit" data-i="' + i + '"><span class="a2-p-ic">' + tileIcon(q) + '</span><span class="a2-p-t"><small>' + esc((VISUAL[q.key] && VISUAL[q.key].tile) || q.copy) + "</small><b>" + esc(tileValue(q)) + '</b></span><span class="a2-p-ed" aria-hidden="true">✎</span></button>').join("") + "</div>"
@@ -956,7 +967,7 @@
   function stopRow(z, i) {
     const x = z.x;
     const link = ' href="' + esc(x.url) + '" title="' + esc(x.name) + '" target="_blank" rel="noopener" data-act="open" data-item="' + keyOf(x) + '" data-pos="' + i + '" data-block="plan"';
-    const photo = x.image ? '<img src="' + esc(x.image) + '" alt="' + esc(x.name) + '" width="800" height="500" loading="lazy" decoding="async">' : "";
+    const photo = x.image ? '<img src="' + esc(photoSrc(x.image, 800)) + '"' + (photoSrcset(x.image) ? ' srcset="' + esc(photoSrcset(x.image)) + '" sizes="(max-width: 640px) 92vw, 420px"' : "") + ' alt="' + esc(x.name) + '" width="800" height="500" loading="lazy" decoding="async">' : "";
     const kind = x.type === "route" ? "маршрут" : "место";
     const drive = z.drive == null ? "" : '<span class="a3-drive">' + (z.drive === 0 ? "рядом с базой" : (i === 0 ? "от базы" : "в дороге") + " <b>≈ " + esc(C.fmtMin(z.drive)) + "</b> <em>(по расчёту сайта)</em>") + "</span>";
     const winter = state.answers.season === "winter" && x.winter_ok === "unknown" ? '<p class="a3-warn">Зимой уточнить подход</p>' : "";

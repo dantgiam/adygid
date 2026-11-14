@@ -28,6 +28,7 @@ from site_app.content import (
 )
 from site_app.icons import category_svg
 from site_app.podbor_catalog import catalog_items, invalidate_podbor_cache, load_copy, script_json
+from site_app import images as site_images
 from site_app import seo
 from site_app.autolink import autolink
 
@@ -101,6 +102,16 @@ def _abs_url(url: Optional[str]) -> str:
 
 
 templates.env.filters["abs_url"] = _abs_url
+templates.env.filters["img_src"] = site_images.default_src
+templates.env.filters["img_srcset"] = site_images.srcset
+templates.env.globals["img_sizes"] = {
+    "card": site_images.CARD_SIZES,
+    "hero": site_images.HERO_SIZES,
+    "article": site_images.ARTICLE_SIZES,
+    "faq": site_images.FAQ_SIZES,
+    "home_photo": site_images.HOME_PHOTO_SIZES,
+    "seasonal": site_images.SEASONAL_SIZES,
+}
 
 # start-параметр бота отзывов: rv_ + m|r|s + id или slug из URL.
 # В параметре только [A-Za-z0-9-], не длиннее 80 символов — так бот
@@ -253,6 +264,12 @@ def _ru_plural(n: int, one: str, few: str, many: str) -> str:
     if 2 <= n1 <= 4:
         return few
     return many
+
+
+def _with_responsive_images(html: str) -> str:
+    """srcset для фото из хранилища в HTML описаний и статей. Подписи и набор
+    кадров не меняются — только адрес доставки."""
+    return site_images.enhance_html_images(html)
 
 
 def _rich_text_html(text: Optional[str]) -> str:
@@ -412,7 +429,7 @@ def _faq_html(f) -> str:
     rows = "".join(
         '<details class="faq-item">'
         f'<summary>{escape(item.get("question", ""))}</summary>'
-        f'<div class="faq-answer">{_rich_text_html(item.get("answer", ""))}</div>'
+        f'<div class="faq-answer">{_with_responsive_images(_rich_text_html(item.get("answer", "")))}</div>'
         '</details>'
         for item in items
     )
@@ -466,7 +483,7 @@ def _faq_items_html(items: list) -> list:
     """Ответы в наборах вопросов бывают и простым текстом, и HTML из
     редактора — в шаблон отдаём уже готовый HTML."""
     return [
-        {"question": i.get("question", ""), "answer_html": _rich_text_html(i.get("answer", ""))}
+        {"question": i.get("question", ""), "answer_html": _with_responsive_images(_rich_text_html(i.get("answer", "")))}
         for i in (items or []) if i.get("question") and i.get("answer")
     ]
 
@@ -1030,6 +1047,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
     # <div data-...> без разметки.
     description_html = _render_article_gallery(_rich_text_html(cp.description))
     description_html, _faq = _render_embeds(db, description_html)
+    description_html = _with_responsive_images(description_html)
     return {
         "id": cp.id,
         "name": cp.name,
@@ -1068,6 +1086,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         weather_url = _weather_url(shp.y, shp.x)
     description_html = _render_article_gallery(_rich_text_html(t.description))
     description_html, _faq = _render_embeds(db, description_html)
+    description_html = _with_responsive_images(description_html)
     return {
         "id": t.id,
         "name": t.name,
@@ -1779,6 +1798,7 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     lead_html = _render_article_gallery(_rich_text_html(sc.lead))
     lead_html, toc = _add_toc_anchors(lead_html)
     lead_html, embedded_faq = _render_embeds(db, lead_html)
+    lead_html = _with_responsive_images(lead_html)
     auto_faq = _auto_faq(db, f"kuda-{sc.slug}")
 
     scenario = {
@@ -1973,6 +1993,7 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     # Вставленные в текст блоки подставляем последними: их разметка не должна
     # попасть ни в галереи, ни в оглавление.
     body_html, embedded_faq = _render_embeds(db, body_html)
+    body_html = _with_responsive_images(body_html)
 
     # В сниппет поиска отдаём и «хвостовой» FAQ статьи, и все вопросы из
     # вставленных в текст наборов — для поисковика это одна страница.

@@ -26,7 +26,7 @@
     <div class="mentioned-list">
       {% for p in pages %}
       <a class="mentioned-item" href="{{ p.url }}">
-        {% if p.cover %}<img src="{{ p.cover }}" alt="" width="72" height="56" loading="lazy" decoding="async"{% if p.cover_style %} style="{{ p.cover_style }}"{% endif %}>{% endif %}
+        {% if p.cover %}{% set ss = p.cover|img_srcset %}<img src="{{ p.cover|img_src(240) }}"{% if ss %} srcset="{{ p.cover|img_src(160) }} 160w, {{ p.cover|img_src(240) }} 240w"{% endif %} sizes="{{ img_sizes.faq }}" alt="" width="72" height="56" loading="lazy" decoding="async"{% if p.cover_style %} style="{{ p.cover_style }}"{% endif %}>{% endif %}
         <span class="mentioned-text">
           <span class="mentioned-kind">{{ 'Гид' if p.kind == 'scenario' else 'Статья' }}</span>
           <span class="mentioned-title">{{ p.title }}</span>

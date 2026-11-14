@@ -31,7 +31,7 @@
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    {% if article.cover_url %}<div class="detail-hero"><img class="hero-img" style="{{ article.cover_style }}" src="{{ article.cover_url }}" alt="{{ article.title }}" width="1600" height="900" fetchpriority="high" decoding="async"></div>{% endif %}
+    {% if article.cover_url %}<div class="detail-hero">{{ cards.rimg(article.cover_url, alt=article.title, class="hero-img", sizes=img_sizes.hero, width=1600, height=900, loading="", fetchpriority="high", style=article.cover_style, src_width=800) }}</div>{% endif %}
     <p class="eyebrow">Статья{% if article.district_label %} · {{ article.district_label }}{% endif %}</p>
     <h1 class="article-title">{{ article.title }}</h1>
 

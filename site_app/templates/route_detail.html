@@ -29,7 +29,7 @@
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    <div class="detail-hero">{% if route.cover %}<img class="hero-img" style="{{ route.cover_style }}" src="{{ route.cover }}" alt="{{ route.name }}" width="1600" height="900" fetchpriority="high" decoding="async">{% endif %}</div>
+    <div class="detail-hero">{% if route.cover %}{{ cards.rimg(route.cover, alt=route.name, class="hero-img", sizes=img_sizes.hero, width=1600, height=900, loading="", fetchpriority="high", style=route.cover_style, src_width=800) }}{% endif %}</div>
 
     <div class="detail-grid">
       <div class="detail-body">

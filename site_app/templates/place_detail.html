@@ -31,7 +31,7 @@
 {% block content %}
 <section class="section" style="padding-top:32px">
   <div class="wrap">
-    <div class="detail-hero">{% if place.cover %}<img class="hero-img" style="{{ place.cover_style }}" src="{{ place.cover }}" alt="{{ place.name }}" width="1600" height="900" fetchpriority="high" decoding="async">{% endif %}</div>
+    <div class="detail-hero">{% if place.cover %}{{ cards.rimg(place.cover, alt=place.name, class="hero-img", sizes=img_sizes.hero, width=1600, height=900, loading="", fetchpriority="high", style=place.cover_style, src_width=800) }}{% endif %}</div>
 
     <div class="detail-grid">
       <div class="detail-body">
