@@ -895,20 +895,48 @@
     fewKey = key;
     goal("podbor_result_few", { mode: R.mode, interests: state.interests.join(",") });
   }
+  /* Короткое имя для карточки плана: полное — в title/alt.
+     «Посёлок: что посмотреть» → вторая часть (посёлок уже в шапке дня);
+     «Место: пояснение» → само место; дальше срезаем хвост «в Майкопе» и
+     перечисления. Остальное добирает обрезка в две строки в CSS. */
+  const CTX_PREFIX = /^(Победа|Каменномостский|Гузерипль|Хамышки|Тульский|Хаджох|Новосвободная|Даховская|Уна-Коз понизу|Равнинная Адыгея|Лаго-Наки летом)$/;
+  function shortName(name) {
+    let t = String(name || "").replace(/\s*\([^)]*\)/g, "").trim();
+    if (t.length <= 38) return t;
+    const ci = t.indexOf(":");
+    if (ci > 0) {
+      const l = t.slice(0, ci).trim();
+      const r = t.slice(ci + 1).trim();
+      t = CTX_PREFIX.test(l) && r ? r.charAt(0).toUpperCase() + r.slice(1) : l;
+    }
+    if (t.length > 36 && t.indexOf(" — ") > 0) {
+      const parts = t.split(" — ");
+      t = /^«[^»]+»$/.test(parts[1]) ? "«" + parts[1].charAt(1).toUpperCase() + parts[1].slice(2) : parts[0];
+    }
+    if (t.length > 40) {
+      const cut = t.replace(/\s(по дороге\s)?(в|у|на|над|под)\s\S+(\s\S+)?$/, "");
+      if (cut.length >= 15) t = cut;
+    }
+    if (t.length > 42) {
+      const m = t.slice(12).search(/,\s|\sи\s|\s\+\s/);
+      if (m >= 0) t = t.slice(0, 12 + m);
+    }
+    return t;
+  }
   function stopId(x) { return "stop-" + x.type + "-" + x.id; }
   /* Карточка точки дня: фото с названием — ссылка на карточку места/маршрута,
      текст ниже не кликается (чтобы не промахиваться мимо 👍/👎). */
   function stopRow(z, i) {
     const x = z.x;
-    const link = ' href="' + esc(x.url) + '" target="_blank" rel="noopener" data-act="open" data-item="' + keyOf(x) + '" data-pos="' + i + '" data-block="plan"';
-    const photo = x.image ? '<img src="' + esc(x.image) + '" alt="" loading="lazy" decoding="async">' : "";
+    const link = ' href="' + esc(x.url) + '" title="' + esc(x.name) + '" target="_blank" rel="noopener" data-act="open" data-item="' + keyOf(x) + '" data-pos="' + i + '" data-block="plan"';
+    const photo = x.image ? '<img src="' + esc(x.image) + '" alt="' + esc(x.name) + '" loading="lazy" decoding="async">' : "";
     const kind = x.type === "route" ? "маршрут" : "место";
     const drive = z.drive == null ? "" : '<span class="a3-drive">' + (z.drive === 0 ? "рядом с базой" : (i === 0 ? "от базы" : "в дороге") + " <b>≈ " + esc(C.fmtMin(z.drive)) + "</b> <em>(по расчёту сайта)</em>") + "</span>";
     const winter = state.answers.season === "winter" && x.winter_ok === "unknown" ? '<p class="a3-warn">Зимой уточнить подход</p>' : "";
     const also = z.kind === "also" ? '<span class="a3-also">по пути, не из ваших тем</span>' : "";
     const v = x.visit;
     const known = v.source === "card";
-    return '<article class="a3-stop' + (z.kind === "also" ? " is-also" : "") + '" id="' + stopId(x) + '" data-type="' + x.type + '" data-id="' + x.id + '"><a class="a3-stop-ph"' + link + ">" + photo + '<span class="a3-stop-shade"></span><span class="a3-stop-n">' + (i + 1) + '</span><span class="a3-stop-cap"><small>' + kind + " · ⏱ ≈ " + esc(C.fmtRange(v)) + (known ? "" : " (оценка)") + "</small><h4>" + esc(x.name) + '</h4></span></a><div class="a3-stop-body">' + (drive || also ? '<p class="a3-stop-meta">' + drive + also + "</p>" : "") + '<p class="a3-why">' + esc(why(x)) + "</p>" + winter + '<div class="a3-stop-acts">' + acts(x).replace(">✓ Уже был тут<", ">✓ Был тут<") + '<a class="a3-more"' + link + ">" + (x.type === "route" ? "Маршрут" : "Подробнее") + " ↗</a></div></div></article>";
+    return '<article class="a3-stop' + (z.kind === "also" ? " is-also" : "") + '" id="' + stopId(x) + '" data-type="' + x.type + '" data-id="' + x.id + '"><a class="a3-stop-ph"' + link + ">" + photo + '<span class="a3-stop-shade"></span><span class="a3-stop-n">' + (i + 1) + '</span><span class="a3-stop-cap"><small>' + kind + " · ⏱ ≈ " + esc(C.fmtRange(v)) + (known ? "" : " (оценка)") + "</small><h4>" + esc(shortName(x.name)) + '</h4></span></a><div class="a3-stop-body"><p class="a3-why">' + esc(why(x)) + "</p>" + winter + (drive || also ? '<p class="a3-stop-meta">' + drive + also + "</p>" : "") + '<div class="a3-stop-acts">' + acts(x).replace(">✓ Уже был тут<", ">✓ Был тут<") + '<a class="a3-more"' + link + ">" + (x.type === "route" ? "Маршрут" : "Подробнее") + " ↗</a></div></div></article>";
   }
   const NOTE_ICON = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h8l4 4v12.5A1.5 1.5 0 0 1 17.5 21h-11A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3Z"/><path d="M15 3v4h4M8.5 11h7M8.5 14.5h7M8.5 18h4"/></svg>';
   function clubBlock(afterOnly) {
