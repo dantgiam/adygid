@@ -495,3 +495,177 @@
 @media (prefers-reduced-motion: reduce) {
   .podbor .a2-opts button:active { transform: none; }
 }
+
+/* ── A3: «Бывали» и доп. вопросы — карточки-иллюстрации ── */
+.podbor .a3-vc {
+  position: relative; display: flex; flex-direction: column; gap: 6px; padding: 0; border: 0; background: none;
+  text-align: center; color: var(--text); min-width: 0; cursor: pointer;
+}
+.podbor .a3-vc-art {
+  position: relative; display: block; aspect-ratio: 1 / 1.05; border-radius: 16px; overflow: hidden;
+  background: radial-gradient(120% 90% at 30% 20%, #f4f8ec, #e2ecd6); border: 1px solid #dfe7d3;
+}
+.podbor .a3-vc.is-on .a3-vc-art { box-shadow: 0 0 0 3px var(--accent), 0 8px 20px rgba(0, 0, 0, .12); border-color: transparent; }
+.podbor .a3-vc-txt b { display: block; font-size: 14px; line-height: 1.15; }
+.podbor .a3-vc-txt small { display: block; font-size: 11.5px; color: var(--text-muted); line-height: 1.2; margin-top: 2px; }
+.podbor .a3-vc.is-on .a3-vc-txt b { color: var(--accent-dark); }
+.podbor .a3-vc .a2-tick { top: 6px; right: 6px; }
+.podbor .a3-map { position: absolute; inset: 8% 8% 6%; width: 84%; height: 86%; overflow: visible; }
+.podbor .a3-land { fill: #fff; stroke: #9fb98c; stroke-width: 1.1; stroke-linejoin: round; }
+.podbor .a3-pin path { fill: #c94f2c; stroke: #fff; stroke-width: .9; }
+.podbor .a3-pin circle { fill: #fff; }
+.podbor .a3-trail { fill: none; stroke: var(--gold); stroke-width: 1.3; stroke-dasharray: 2.5 2.5; stroke-linecap: round; }
+.podbor .a3-start circle:first-child { fill: rgba(39, 140, 62, .12); stroke: var(--accent); stroke-width: .9; stroke-dasharray: 2 2; }
+.podbor .a3-start circle:last-child { fill: var(--accent); }
+.podbor .a3-zone { fill: rgba(39, 140, 62, .18); stroke: var(--accent); stroke-width: 1; stroke-dasharray: 2.5 2; }
+.podbor .a3-zone-all { stroke-dasharray: none; }
+.podbor .a3-base { fill: var(--accent-dark); stroke: #fff; stroke-width: 1.2; }
+/* вариант «открытки»: 1 / 3 / 6 кадров стопкой */
+.podbor .a3-cards { position: absolute; inset: 0; }
+.podbor .a3-pcard {
+  position: absolute; left: 50%; top: 52%; width: 56%; aspect-ratio: 4 / 3; background: #fff; padding: 3px 3px 7px;
+  border-radius: 4px; box-shadow: 0 3px 8px rgba(30, 40, 20, .22); overflow: hidden;
+  transform: translate(-50%, -50%) rotate(var(--r, 0deg)) translate(var(--x, 0), var(--y, 0));
+}
+.podbor .a3-pcard img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 2px; max-width: none; }
+.podbor .a3-cards-1 .a3-pcard { width: 66%; --r: -3deg; }
+.podbor .a3-cards-3 .a3-pcard:nth-child(1) { --r: -12deg; --x: -14%; --y: -10%; }
+.podbor .a3-cards-3 .a3-pcard:nth-child(2) { --r: 9deg; --x: 14%; --y: -4%; }
+.podbor .a3-cards-3 .a3-pcard:nth-child(3) { --r: -2deg; --x: 0; --y: 16%; }
+.podbor .a3-cards-6 .a3-pcard { width: 46%; }
+.podbor .a3-cards-6 .a3-pcard:nth-child(1) { --r: -16deg; --x: -30%; --y: -34%; }
+.podbor .a3-cards-6 .a3-pcard:nth-child(2) { --r: 12deg; --x: 30%; --y: -38%; }
+.podbor .a3-cards-6 .a3-pcard:nth-child(3) { --r: 6deg; --x: -32%; --y: 22%; }
+.podbor .a3-cards-6 .a3-pcard:nth-child(4) { --r: -10deg; --x: 34%; --y: 20%; }
+.podbor .a3-cards-6 .a3-pcard:nth-child(5) { --r: 18deg; --x: 2%; --y: -12%; }
+.podbor .a3-cards-6 .a3-pcard:nth-child(6) { --r: -4deg; --x: 0; --y: 34%; }
+/* «Чего не хочется»: фото с мягким перечёркиванием */
+.podbor .a3-x { position: absolute; inset: 0; background: rgba(250, 251, 246, .0); transition: background .2s; }
+.podbor .a3-x::before, .podbor .a3-x::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 46%; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, .92);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .35); transform: translate(-50%, -50%) rotate(45deg); opacity: 0; transition: opacity .2s;
+}
+.podbor .a3-x::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.podbor .a3-nope .is-on .a3-x { background: rgba(120, 40, 20, .38); }
+.podbor .a3-nope .is-on .a3-x::before, .podbor .a3-nope .is-on .a3-x::after { opacity: 1; }
+.podbor .a3-nope .a2-mc.is-on .a2-mc-ph { box-shadow: 0 0 0 3px #c94f2c; }
+.podbor .a3-nope .a2-mc.is-on b { color: #a03d20; }
+.podbor .a3-nope .is-on > .a2-tick { background: #c94f2c; }
+.podbor .a3-ref .a2-sb { height: 84px; }
+.podbor .a3-ref .a2-sb-txt { padding-right: 34px; }
+.podbor .a3-been + .a2-pill, .podbor .a2-ph2 + .a2-pill, .podbor .a2-mini3 + .a2-pill, .podbor .a2-banners + .a2-pill { margin-top: 10px; }
+
+/* ── A3: экран плана ── */
+.podbor .a3-plan-top { margin-bottom: 6px; }
+.podbor .a3-plan-top .podbor-final-title { margin: 2px 0 12px; }
+.podbor .a3-share {
+  display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 12px; padding: 13px 16px;
+  border: 0; border-radius: 14px; background: var(--accent); color: #fff; font: inherit; text-align: left; cursor: pointer;
+  box-shadow: 0 8px 20px rgba(39, 140, 62, .28);
+}
+.podbor .a3-share:hover { background: var(--accent-dark); }
+.podbor .a3-share svg { flex: none; width: 26px; height: 26px; padding: 7px; box-sizing: content-box; background: rgba(255, 255, 255, .16); border-radius: 10px; }
+.podbor .a3-share span { display: flex; flex-direction: column; font-weight: 700; font-size: 16.5px; line-height: 1.2; }
+.podbor .a3-share small { font-weight: 500; font-size: 12.5px; opacity: .88; margin-top: 2px; }
+.podbor .a3-plan-top .podbor-daycount { margin: 0 0 4px; align-items: center; font-size: 14px; color: var(--text-muted); }
+.podbor .a3-day { padding: 14px 14px 12px; }
+.podbor .a3-toc { list-style: none; margin: 10px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.podbor .a3-toc a {
+  display: flex; align-items: baseline; gap: 8px; padding: 5px 0; color: var(--accent-dark); font-weight: 600; font-size: 14.5px;
+  text-decoration: none; line-height: 1.25;
+}
+.podbor .a3-toc a:hover { text-decoration: underline; }
+.podbor .a3-toc i {
+  flex: none; font-style: normal; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-dark);
+  font-size: 11.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; transform: translateY(-1px);
+}
+.podbor .a3-day .podbor-bud { height: 6px; margin: 10px 0 3px; }
+.podbor .a3-day .podbor-bud-label { font-size: 12px; margin: 0; }
+.podbor .a3-stops { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.podbor .a3-stop { scroll-margin-top: 80px; border-radius: 16px; background: #fff; border: 1px solid var(--border); overflow: hidden; }
+.podbor .a3-stop.is-also { border-style: dashed; }
+.podbor .a3-stop-ph { position: relative; display: block; height: 164px; background: var(--accent-soft); color: #fff; text-decoration: none; }
+.podbor .a3-stop-ph img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; max-width: none; transition: transform .4s; }
+.podbor .a3-stop-ph:hover img { transform: scale(1.03); }
+.podbor .a3-stop-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0) 38%, rgba(8, 20, 12, .82)); }
+.podbor .a3-stop-n {
+  position: absolute; top: 10px; left: 10px; width: 26px; height: 26px; border-radius: 50%; background: rgba(255, 255, 255, .92);
+  color: var(--accent-dark); font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center;
+}
+.podbor .a3-stop-cap { position: absolute; left: 14px; right: 14px; bottom: 11px; }
+.podbor .a3-stop-cap small { display: block; font-size: 12px; opacity: .9; margin-bottom: 2px; }
+.podbor .a3-stop-cap h4 {
+  margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 21px; line-height: 1.15; color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+}
+.podbor .a3-stop-body { padding: 10px 14px 12px; }
+.podbor .a3-stop-meta { margin: 0 0 4px; font-size: 13px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.podbor .a3-drive b { color: var(--text); }
+.podbor .a3-drive em { font-style: normal; font-size: 12px; }
+.podbor .a3-also { color: #6b604c; }
+.podbor .a3-why { margin: 0; font-size: 14px; color: var(--text); line-height: 1.35; }
+.podbor .a3-warn { margin: 4px 0 0; font-size: 13px; color: #a26b00; }
+.podbor .a3-stop-acts { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.podbor .a3-stop-acts .podbor-acts { margin: 0; flex-wrap: nowrap; }
+.podbor .a3-more { flex: none; font-weight: 700; font-size: 14px; color: var(--accent-dark); text-decoration: none; }
+.podbor .a3-return { margin: 10px 0 0; font-size: 13px; color: var(--text-muted); }
+.podbor .a3-day .podbor-yamaps { margin: 12px 0 0; }
+.podbor .a3-club {
+  margin: 14px 0; padding: 16px; border-radius: 16px; background: linear-gradient(135deg, #fbf1d9, #f6f8ee);
+  border: 1px solid #ecdcb2; display: flex; flex-direction: column; gap: 12px;
+}
+.podbor .a3-club-txt b { display: block; font-family: var(--font-display); font-weight: 400; font-size: 19px; line-height: 1.2; margin-bottom: 4px; }
+.podbor .a3-club-txt p { margin: 0; font-size: 14px; color: var(--text); line-height: 1.4; }
+.podbor .a3-club-btn {
+  display: inline-flex; align-self: flex-start; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 12px;
+  background: #fff; border: 1px solid #e3d3a6; color: var(--text); font-weight: 700; font-size: 14.5px; text-decoration: none;
+}
+.podbor .a3-club-btn:hover { border-color: var(--gold); }
+.podbor .a3-club-btn img { border-radius: 6px; }
+.podbor .a3-stop-acts .podbor-acts button { height: 36px; min-width: 38px; padding: 0 10px; font-size: 13.5px; white-space: nowrap; }
+.podbor .a3-day { padding: 14px 12px 12px; }
+.podbor .a3-stop-body { padding: 9px 12px 11px; }
+/* A3.1: подложка под заголовком — читается на любом фото */
+.podbor .a3-stop-shade { background: linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(8, 20, 12, .55) 70%, rgba(8, 20, 12, .85)); }
+.podbor .a3-stop-cap {
+  left: 10px; right: 10px; bottom: 10px; padding: 8px 12px 9px; border-radius: 12px;
+  background: rgba(14, 26, 18, .5); -webkit-backdrop-filter: blur(8px) saturate(1.2); backdrop-filter: blur(8px) saturate(1.2);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+}
+.podbor .a3-stop-cap h4 { font-size: 20px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.podbor .a3-stop-meta { margin: 6px 0 0; }
+.podbor .a3-club { align-items: center; text-align: center; }
+.podbor .a3-club-txt b { font-family: var(--font-body); font-weight: 800; font-size: 18px; color: #1d2a20; }
+.podbor .a3-club-btn { align-self: center; }
+/* A3.2: на фото — только название; мета под описанием; клуб — коротко и с воздухом */
+.podbor .a3-stop-cap {
+  right: auto; max-width: calc(100% - 20px); width: fit-content; padding: 5px 11px 6px; border-radius: 10px;
+  background: rgba(14, 26, 18, .38); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: none;
+}
+.podbor .a3-stop-cap h4 { font-size: 19px; line-height: 1.18; }
+.podbor .a3-stop-shade { background: linear-gradient(180deg, rgba(0, 0, 0, 0) 45%, rgba(8, 20, 12, .5)); }
+.podbor .a3-stop-meta { margin: 7px 0 0; font-size: 12.5px; gap: 2px 0; }
+.podbor .a3-stop-meta > span + span::before { content: "·"; margin: 0 6px; color: var(--text-muted); }
+.podbor .a3-kind { color: var(--text-muted); }
+.podbor .a3-return { text-align: center; margin: 12px 0 0; }
+.podbor .a3-day .podbor-yamaps { display: flex; justify-content: center; width: fit-content; margin: 10px auto 0; }
+.podbor .a3-club { padding: 26px 20px 24px; gap: 16px; margin: 18px 0; align-items: center; text-align: center; }
+.podbor .a3-club-txt { max-width: 290px; }
+.podbor .a3-club-txt b { font-size: 19px; margin-bottom: 8px; }
+.podbor .a3-club-txt p { font-size: 15px; line-height: 1.45; color: #3b4a3f; }
+.podbor .a3-club-btn { background: var(--accent); color: #fff; border: 0; padding: 12px 20px; box-shadow: 0 6px 16px rgba(39, 140, 62, .25); }
+.podbor .a3-club-btn:hover { background: var(--accent-dark); border: 0; }
+.podbor .a3-stop-meta { flex-direction: column; gap: 2px; }
+.podbor .a3-stop-meta > span + span::before { content: none; }
+.podbor .a3-club-txt { max-width: none; }
+.podbor .a3-club-txt b { font-size: 18px; }
+.podbor .a3-club-txt p { max-width: 280px; margin: 0 auto; }
+.podbor .a3-club { padding: 26px 14px 24px; }
+.podbor .a3-club-txt b { font-size: 17px; letter-spacing: -.005em; }
+/* A3.3: плашка названия на всю ширину фото, заголовок всегда по центру */
+.podbor .a3-stop-cap {
+  left: 0; right: 0; bottom: 0; width: auto; max-width: none; padding: 7px 14px 8px; border-radius: 0;
+  text-align: center;
+  background: rgba(14, 26, 18, .38); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: none;
+}
+.podbor .a3-stop-cap h4 { text-align: center; }
