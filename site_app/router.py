@@ -505,6 +505,54 @@ def _next_hub(db: Session, article_slug: str) -> Optional[dict]:
     return {"url": f"/kuda/{sc.slug}", "title": sc.title}
 
 
+def _place_links(db: Session, ids: list) -> list:
+    """[{name, url}] опубликованных карточек в заданном порядке — для
+    текстовых ссылок с настоящим названием места."""
+    if not ids:
+        return []
+    rows = {
+        cp.id: cp for cp in db.execute(
+            select(Checkpoint).where(
+                Checkpoint.id.in_(ids), Checkpoint.is_published == True, Checkpoint.show_as_place == True
+            )
+        ).scalars().all()
+    }
+    return [{"name": rows[i].name, "url": f"/mesta/{i}"} for i in ids if i in rows]
+
+
+def _place_practical(db: Session, cp: Checkpoint) -> list:
+    """«Коротко для поездки»: [{label, text, source?, links?}] только по
+    заполненным полям (site_app/seo.py, PLACE_PRACTICAL). Время посещения
+    без ручного текста — из duration_minutes карточки."""
+    cfg = seo.PLACE_PRACTICAL.get(cp.id)
+    if not cfg:
+        return []
+    rows = []
+    for key, label in seo.PRACTICAL_LABELS:
+        if key == "combine":
+            links = _place_links(db, [i for i in cfg.get("combine", []) if i != cp.id])
+            if cfg.get("route"):
+                t = db.execute(
+                    select(Trail).where(Trail.id == cfg["route"], Trail.is_published == True)
+                ).scalars().first()
+                if t:
+                    links.append({"name": f"маршрут «{t.name}»", "url": f"/marshruty/{t.id}"})
+            if links:
+                rows.append({"key": key, "label": label, "links": links})
+            continue
+        value = cfg.get(key)
+        if key == "visit" and not value:
+            dur = _duration_label(cp.duration_minutes)
+            value = f"Ориентир — {dur} без спешки." if dur else None
+        if not value:
+            continue
+        if isinstance(value, dict):
+            rows.append({"key": key, "label": label, "text": value["text"], "source": value.get("source")})
+        else:
+            rows.append({"key": key, "label": label, "text": value})
+    return rows
+
+
 def _render_embeds(db: Session, html: str) -> tuple[str, list]:
     """Подставляет в текст статьи содержимое вставленных блоков — лид-магнитов
     и наборов вопросов. В самой статье хранится только ссылка на id, поэтому
@@ -969,7 +1017,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "trail": {"name": cp.trail.name, "url": f"/marshruty/{cp.trail.id}"} if cp.trail else None,
         "district_url": f"/okrugi/{cp.district}" if cp.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(cp.checked_at),
-        "seo_title": seo.place_title(cp.name, cp.district),
+        "seo_title": seo.place_title(cp.name, cp.district, cp.id),
     }
 
 
@@ -1066,7 +1114,7 @@ def _club_url(db: Session) -> str:
 _DISTRICT_CACHE: dict = {"value": None, "at": 0.0}
 # Подписи округов для карточек: _place_card_dict и соседи вызываются без
 # сессии, поэтому берут готовый словарь, а не ходят в базу сами.
-_DISTRICT_LABELS: dict = dict(DISTRICTS)
+_DISTRICT_LABELS: dict = {k: seo.district_display(k, v) for k, v in DISTRICTS.items()}
 
 
 def _districts(db: Session) -> list:
@@ -1079,7 +1127,7 @@ def _districts(db: Session) -> list:
     rows = db.execute(select(District).order_by(District.order_index, District.id)).scalars().all()
     _DISTRICT_CACHE["value"] = [
         {
-            "slug": d.slug, "label": d.name, "lead": d.lead or "", "facts": d.facts or [],
+            "slug": d.slug, "label": seo.district_display(d.slug, d.name), "lead": d.lead or "", "facts": d.facts or [],
             "cover": d.cover_url, "cover_thumb": d.cover_thumb_url or d.cover_url,
             "cover_style": _crop_style(d.cover_focus),
             "published": d.is_published,
@@ -1286,7 +1334,7 @@ def _seasonal_block(db: Session) -> Optional[dict]:
         cards.append(dict(item, cover=cover, cover_style=style))
     if len(cards) < 2:
         return None
-    return dict(cfg, items=cards[:4])
+    return dict(cfg, items=cards[:4], place_links=_place_links(db, cfg.get("places", [])))
 
 
 @router.get("/")
@@ -1461,6 +1509,7 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
             faq=faq, faq_items=_faq_items_html(faq["items"]), faq_ld=_faq_ld(faq["items"]),
             breadcrumbs_ld=seo.breadcrumbs_ld(SITE_URL, crumbs),
             mentioned_in=_mentioned_in(db, "mesta", cp.id),
+            practical=_place_practical(db, cp),
             like=_like_info(db, request, "checkpoint", cp.id),
         ),
     )
@@ -1638,25 +1687,43 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     if not sc:
         raise HTTPException(404, "Сценарий не найден")
 
-    place_conditions = [Checkpoint.show_as_place == True] + _scenario_conditions(Checkpoint, sc)
-    places = [
-        _place_card_dict(cp)
-        for cp in db.execute(
-            _with_place_relations(select(Checkpoint))
-            .where(*place_conditions)
-            .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc())
-        ).scalars().all()
-    ]
+    curated = seo.SCENARIO_CURATED.get(sc.slug)
+    if curated:
+        # Ручная подборка (site_app/seo.py): хаб ведёт в 10–15 главных
+        # карточек, а не повторяет весь каталог.
+        by_id = {
+            cp.id: cp for cp in db.execute(
+                _with_place_relations(select(Checkpoint))
+                .where(Checkpoint.show_as_place == True, Checkpoint.id.in_(curated["places"]))
+            ).scalars().all()
+        }
+        places = [_place_card_dict(by_id[i]) for i in curated["places"] if i in by_id]
+        by_id_t = {
+            t.id: t for t in db.execute(
+                _with_route_relations(select(Trail)).where(Trail.id.in_(curated["routes"]))
+            ).scalars().all()
+        }
+        routes = [_route_card_dict(by_id_t[i]) for i in curated["routes"] if i in by_id_t]
+    else:
+        place_conditions = [Checkpoint.show_as_place == True] + _scenario_conditions(Checkpoint, sc)
+        places = [
+            _place_card_dict(cp)
+            for cp in db.execute(
+                _with_place_relations(select(Checkpoint))
+                .where(*place_conditions)
+                .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc())
+            ).scalars().all()
+        ]
 
-    route_conditions = _scenario_conditions(Trail, sc)
-    routes = [
-        _route_card_dict(t)
-        for t in db.execute(
-            _with_route_relations(select(Trail))
-            .where(*route_conditions)
-            .order_by(_POPULARITY_ORDER_TRAIL)
-        ).scalars().all()
-    ]
+        route_conditions = _scenario_conditions(Trail, sc)
+        routes = [
+            _route_card_dict(t)
+            for t in db.execute(
+                _with_route_relations(select(Trail))
+                .where(*route_conditions)
+                .order_by(_POPULARITY_ORDER_TRAIL)
+            ).scalars().all()
+        ]
 
     article_ids = sc.featured_article_ids or []
     articles = []
@@ -1689,6 +1756,7 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "faq_ld": _faq_ld(embedded_faq + auto_faq["items"]),
         "faq": auto_faq,
         "faq_items": _faq_items_html(auto_faq["items"]),
+        "curated": bool(curated),
         "seo_title": seo.SCENARIO_TITLES.get(sc.slug),
         "updated_iso": (getattr(sc, "updated_at", None) or sc.created_at).date().isoformat() if (getattr(sc, "updated_at", None) or sc.created_at) else None,
         "breadcrumbs_ld": seo.breadcrumbs_ld(SITE_URL, [("Куда поехать", "/kuda"), (sc.title, f"/kuda/{sc.slug}")]),
@@ -1749,7 +1817,7 @@ def districts_index(request: Request, db: Session = Depends(get_db)):
 def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     page = next((d for d in _districts(db) if d["slug"] == slug and d["published"]), None)
     if not page:
-        raise HTTPException(404, "Округ не найден")
+        raise HTTPException(404, "Район не найден")
 
     places = [
         _place_card_dict(cp)
@@ -1798,7 +1866,8 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "faq": faq,
         "faq_items": _faq_items_html(faq["items"]),
         "faq_ld": _faq_ld(faq["items"]),
-        "breadcrumbs_ld": seo.breadcrumbs_ld(SITE_URL, [("Округа", "/okrugi"), (page["label"], f"/okrugi/{slug}")]),
+        "breadcrumbs_ld": seo.breadcrumbs_ld(SITE_URL, [("Районы", "/okrugi"), (page["label"], f"/okrugi/{slug}")]),
+        "start_links": _place_links(db, seo.DISTRICT_START.get(slug, [])),
     }
     return templates.TemplateResponse(
         "district.html", _ctx(request, db, active_nav="districts", district=district)

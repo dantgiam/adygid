@@ -7,8 +7,9 @@
 
 Для --live нужны переменные окружения ADYGID_API (например,
 https://www.adygid.ru/api), ADMIN_USER и ADMIN_PASSWORD. Маршрут 11 и место 50
-скрипт не трогает: он работает только со статьями, наборами вопросов и
-сценарием zimoy.
+скрипт не трогает: он работает только со статьями, наборами вопросов,
+сценарием zimoy и точечными правками text_patches (ссылки на карточки и
+«округ» → «район» в уже опубликованных текстах).
 """
 import base64
 import json
@@ -39,6 +40,51 @@ def api(method, path, data=None):
         return json.loads(body) if body else None
 
 
+# PATCH /api/scenarios/{id} перезаписывает сценарий целиком (форма админки
+# всегда шлёт всё): частичный payload стёр бы иконку, обложки, фильтры и
+# порядок. Поэтому берём текущую запись из GET и меняем только нужные поля.
+SCENARIO_FIELDS = ("slug", "icon", "door", "hint", "title", "lead", "cover_url", "cover_thumb_url", "cover_focus",
+                   "tile_cover_url", "tile_cover_thumb_url", "tile_cover_focus", "seo_description",
+                   "featured_article_ids", "filter_kid_friendly", "filter_popularity", "filter_difficulty",
+                   "filter_seasonality", "filter_access", "order_index", "is_published")
+
+
+def scenario_payload(current: dict, **over) -> dict:
+    data = {k: current.get(k) for k in SCENARIO_FIELDS if k in current}
+    data.update(over)
+    return data
+
+
+def apply_text_patch(text: str, pairs: list, label: str) -> tuple:
+    """Возвращает (новый текст, число применённых замен). Пара пропускается,
+    если «было» уже нет, а «стало» есть (повторный запуск); если нет ни
+    того ни другого или «было» встречается не один раз — правка не
+    делается вовсе, чтобы не испортить текст, который успели поменять."""
+    text = text or ""
+    done = 0
+    for old, new in pairs:
+        if new in text:  # уже применено (повторный запуск)
+            continue
+        n = text.count(old)
+        if n == 1:
+            text = text.replace(old, new)
+            done += 1
+        else:
+            raise SystemExit(f"text_patch {label}: «{old[:60]}» найдено {n} раз — текст изменился, правку надо пересобрать")
+    return text, done
+
+
+def patch_faq_items(items: list, pairs: list, label: str) -> tuple:
+    """Та же замена, но внутри ответов набора вопросов (список JSON)."""
+    enc = lambda v: json.dumps(v, ensure_ascii=False)[1:-1]  # noqa: E731
+    text, done = apply_text_patch(json.dumps(items or [], ensure_ascii=False),
+                                  [(enc(o), enc(n)) for o, n in pairs], label)
+    return json.loads(text), done
+
+
+FAQ_SET_FIELDS = ("slug", "name", "title", "items", "on_faq_page", "order_index", "is_published")
+
+
 def via_api():
     articles = {a["slug"]: a for a in api("GET", "/articles")}
     for a in CONTENT["articles"]:
@@ -59,9 +105,33 @@ def via_api():
     articles = {a["slug"]: a for a in api("GET", "/articles")}
     sc = next(s for s in api("GET", "/scenarios") if s["slug"] == "zimoy")
     z = CONTENT["scenario_zimoy"]
-    payload = {k: z[k] for k in ("title", "door", "hint", "seo_description", "lead", "cover_url", "tile_cover_url", "tile_cover_focus", "is_published")}
+    payload = scenario_payload(sc, **{k: z[k] for k in ("title", "door", "hint", "seo_description", "lead", "cover_url", "tile_cover_url", "tile_cover_focus", "is_published")})
     payload["featured_article_ids"] = [articles[s]["id"] for s in z["featured_article_slugs"] if s in articles]
+    # Обложки задаём новые — старые миниатюры от прежних картинок не нужны.
+    payload["cover_thumb_url"] = None
+    payload["tile_cover_thumb_url"] = None
     print("PATCH scenario zimoy", sc["id"]); LIVE and api("PATCH", f"/scenarios/{sc['id']}", payload)
+
+    by_kind = {"article": {a["slug"]: a for a in api("GET", "/articles")},
+               "scenario": {x["slug"]: x for x in api("GET", "/scenarios")}}
+    by_kind["faq_set"] = {x["slug"]: x for x in api("GET", "/faq-sets")}
+    for pch in CONTENT.get("text_patches", []):
+        row = by_kind[pch["kind"]].get(pch["slug"])
+        if row and pch["kind"] == "faq_set":
+            items, done = patch_faq_items(row.get("items"), pch["replace"], f"faq:{pch['slug']}")
+            print(f"PATCH faq-set {pch['slug']}: {done} правок")
+            if done and LIVE:
+                # PATCH наборов тоже перезаписывает всё — шлём набор целиком.
+                api("PATCH", f"/faq-sets/{row['id']}", dict({k: row.get(k) for k in FAQ_SET_FIELDS}, items=items))
+            continue
+        if not row:
+            print("SKIP  text_patch", pch["kind"], pch["slug"], "— нет на сайте"); continue
+        new, done = apply_text_patch(row.get(pch["field"]), pch["replace"], f"{pch['slug']}.{pch['field']}")
+        print(f"PATCH {pch['kind']} {pch['slug']}.{pch['field']}: {done} правок")
+        if done and LIVE:
+            data = scenario_payload(row, **{pch["field"]: new}) if pch["kind"] == "scenario" else {pch["field"]: new}
+            api("PATCH", f"/{pch['kind']}s/{row['id']}", data)
+            row[pch["field"]] = new
 
 
 def via_db():
@@ -90,13 +160,25 @@ def via_db():
         setattr(sc, k, z[k])
     by_slug = {a.slug: a.id for a in db.execute(select(Article)).scalars().all()}
     sc.featured_article_ids = [by_slug[s] for s in z["featured_article_slugs"] if s in by_slug]
+    for pch in CONTENT.get("text_patches", []):
+        model = {"article": Article, "scenario": Scenario, "faq_set": FaqSet}[pch["kind"]]
+        row = db.execute(select(model).where(model.slug == pch["slug"])).scalars().first()
+        if not row:
+            print("SKIP  text_patch", pch["slug"]); continue
+        if pch["kind"] == "faq_set":
+            row.items, done = patch_faq_items(row.items, pch["replace"], f"faq:{pch['slug']}")
+            print(f"text_patch faq:{pch['slug']}: {done}")
+            continue
+        new, done = apply_text_patch(getattr(row, pch["field"]), pch["replace"], f"{pch['slug']}.{pch['field']}")
+        setattr(row, pch["field"], new)
+        print(f"text_patch {pch['slug']}.{pch['field']}: {done}")
     db.commit()
     print("written to", os.environ.get("DATABASE_URL", "default DB"))
 
 
-if DB:
+if __name__ == "__main__" and DB:
     via_db()
-else:
+elif __name__ == "__main__":
     via_api()
     if not LIVE:
         print("\nСухой прогон. Для записи: --live (админ-API) или --db (локальная БД превью).")

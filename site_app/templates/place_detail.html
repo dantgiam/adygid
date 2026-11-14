@@ -47,6 +47,20 @@
            сложность, сезон и стоимость оказывались в самом низу страницы,
            за описанием и галереей. Заголовок при этом остаётся наверху. #}
         <div class="detail-text">
+          {% if practical %}
+          <section class="practical" aria-labelledby="practical-title">
+            <h2 class="practical-title" id="practical-title">Коротко для поездки</h2>
+            <dl class="practical-list">
+              {% for row in practical %}
+              <div class="practical-row practical-{{ row.key }}">
+                <dt>{{ row.label }}</dt>
+                <dd>{% if row.links %}{% for l in row.links %}<a href="{{ l.url }}">{{ l.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ row.text }}{% if row.source %} <a class="practical-src" href="{{ row.source }}" target="_blank" rel="noopener">источник</a>{% endif %}{% endif %}</dd>
+              </div>
+              {% endfor %}
+            </dl>
+            <p class="practical-note">Цены и часы меняются — перед выездом проверь у объекта.</p>
+          </section>
+          {% endif %}
           {% if place.description_html %}{{ place.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
           {{ cards.photo_carousel(place.gallery) }}

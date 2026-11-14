@@ -2,7 +2,7 @@
 {% import "_cards.html" as cards %}
 
 {% block title %}Места Адыгеи — АдыГид{% endblock %}
-{% block meta_description %}Водопады, пещеры, каньоны и другие места Адыгеи с фильтром по округу и типу.{% endblock %}
+{% block meta_description %}Водопады, пещеры, каньоны и другие места Адыгеи с фильтром по району и типу.{% endblock %}
 
 {% block content %}
 <section class="section" style="padding-top:40px">
@@ -19,7 +19,7 @@
         {% endfor %}
       </select>
       <select name="district">
-        <option value="">Любой округ</option>
+        <option value="">Любой район</option>
         {% for slug, label in districts.items() %}
         <option value="{{ slug }}" {{ 'selected' if selected.district == slug else '' }}>{{ label }}</option>
         {% endfor %}

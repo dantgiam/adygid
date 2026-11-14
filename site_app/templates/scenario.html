@@ -61,7 +61,7 @@
 {% if scenario.places %}
 <section class="section">
   <div class="wrap">
-    <div class="section-head"><h2>Места:</h2></div>
+    <div class="section-head"><h2>Места:</h2>{% if scenario.curated %}<a class="see-all" href="/mesta">Весь каталог мест →</a>{% endif %}</div>
     <div class="grid">{% for p in scenario.places %}{{ cards.place_card(p) }}{% endfor %}</div>
   </div>
 </section>

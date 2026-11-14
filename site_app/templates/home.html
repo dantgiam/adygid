@@ -83,6 +83,9 @@
         </a>
         {% endfor %}
       </div>
+      {% if seasonal.place_links %}
+      <p class="seasonal-places">Карточки мест: {% for l in seasonal.place_links %}<a href="{{ l.url }}" data-seasonal-click data-target="{{ l.url }}">{{ l.name }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+      {% endif %}
     </div>
   </div>
 </section>

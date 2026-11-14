@@ -2,7 +2,7 @@
 {% import "_cards.html" as cards %}
 
 {% block title %}Маршруты по Адыгее — АдыГид{% endblock %}
-{% block meta_description %}Пешие, конные, джип- и сплав-маршруты по Адыгее с фильтром по округу и сложности.{% endblock %}
+{% block meta_description %}Пешие, конные, джип- и сплав-маршруты по Адыгее с фильтром по району и сложности.{% endblock %}
 
 {% block content %}
 <section class="section" style="padding-top:40px">
@@ -19,7 +19,7 @@
         {% endfor %}
       </select>
       <select name="district">
-        <option value="">Любой округ</option>
+        <option value="">Любой район</option>
         {% for slug, label in districts.items() %}
         <option value="{{ slug }}" {{ 'selected' if selected.district == slug else '' }}>{{ label }}</option>
         {% endfor %}
