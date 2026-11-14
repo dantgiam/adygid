@@ -84,6 +84,7 @@ COVERS = {
     "tesnina": _U + "448c4b816ebf4e748411e4320a874734.jpeg",
     "rufabgo": _U + "e82354484518437b90d9f59160f1924a.webp",
     "plato_late": _U + "aeb9c66353d84bb9a14e5113041d416e_thumb.webp",
+    "lago_snow": _U + "698466db34694c4ea3145fbeaf81dff6_thumb.webp",
     "bison_snow": _U + "9ea554c07beb49c1ab4486b36dae0576.webp",
     "akvatermo": _U + "d92838921a9740db92fb5f597f25f17c.webp",
 }
@@ -104,7 +105,7 @@ _WINTER = {
 }
 _LATE_AUTUMN = dict(_WINTER, title="Поздняя осень", lead="Ноябрь — тихо и без толп, на плато уже бывает первый снег. Что работает и куда ехать.", items=[
     {"url": "/stati/adygeya-v-noyabre", "label": "Адыгея в ноябре", "note": "куда реально ехать", "cover": COVERS["rufabgo"]},
-    {"url": "/stati/adygeya-v-dekabre", "label": "Адыгея в декабре", "note": "погода и что открыто", "cover": COVERS["plato_late"]},
+    {"url": "/stati/adygeya-v-dekabre", "label": "Адыгея в декабре", "note": "погода и что открыто", "cover": COVERS["lago_snow"]},
     {"url": "/kuda/zimoy", "label": "Что открыто зимой", "note": "теснина, Руфабго, термы", "cover": COVERS["tesnina"]},
     {"url": "/stati/novyy-god-v-adygee", "label": "Новый год 2027", "note": "каникулы 31.12–10.01", "cover": COVERS["bison_snow"]},
 ])
