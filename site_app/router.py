@@ -8,7 +8,7 @@ from html import escape, unescape
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from geoalchemy2.shape import to_shape
 from sqlalchemy import case, func, or_, select
@@ -1843,6 +1843,35 @@ def robots_txt():
         "Clean-param: type&district&paid&kid&difficulty\n"
         f"\nSitemap: {SITE_URL}/sitemap.xml\n"
     )
+
+
+# Подтверждение прав в Яндекс Вебмастере. Кабинет показывает два точных адреса;
+# в индекс и sitemap эти файлы не входят.
+_YANDEX_VERIFICATION_HTML = (
+    "<html>\n"
+    "    <head>\n"
+    '        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">\n'
+    "    </head>\n"
+    "    <body>Verification: {code}</body>\n"
+    "</html>"
+)
+
+
+def _yandex_verification_page(code: str) -> HTMLResponse:
+    return HTMLResponse(
+        _YANDEX_VERIFICATION_HTML.format(code=code),
+        media_type="text/html; charset=UTF-8",
+    )
+
+
+@router.get("/yandex_eb29101ea5533cf1.html", response_class=HTMLResponse)
+def yandex_verification_eb29101ea5533cf1():
+    return _yandex_verification_page("eb29101ea5533cf1")
+
+
+@router.get("/yandex_30c724c08ddd1bbd.html", response_class=HTMLResponse)
+def yandex_verification_30c724c08ddd1bbd():
+    return _yandex_verification_page("30c724c08ddd1bbd")
 
 
 @router.get("/sitemap.xml")
