@@ -1,0 +1,14 @@
+{
+  "_comment": "Цифры аудитории для /partners. Источник — Яндекс Метрика (счётчик 111028002). Обновлять: python scripts/partners_audience_metrika.py --write или вкладка «Цифры для /partners» в /admin/partners (она перекрывает этот файл).",
+  "period_from": "2026-10-16",
+  "period_to": "2026-11-14",
+  "users_30d": 303,
+  "visits_30d": 398,
+  "pageviews_30d": 772,
+  "users_prev_30d": 335,
+  "users_total": 1027,
+  "total_since": "2026-07",
+  "search_share_visits": 72,
+  "top_regions": "Краснодарский край, Ростовская область, Москва и область, Адыгея",
+  "updated": "2026-11-15"
+}

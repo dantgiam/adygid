@@ -1,4 +1,4 @@
-/* Анкета партнёра на /partneram: подкатегории по направлению, отправка JSON,
+/* Анкета партнёра на /partners: подкатегории по направлению, отправка JSON,
    цель Метрики partner_form_submit (через adygidGoal — только после согласия на cookie). */
 (function () {
   var form = document.getElementById("partner-form");
@@ -22,8 +22,25 @@
   });
 
   document.querySelectorAll('[data-goal="partner_cta_click"]').forEach(function (a) {
-    a.addEventListener("click", function () { goal("partner_cta_click", { place: "hero" }); });
+    a.addEventListener("click", function () { goal("partner_cta_click", { place: a.getAttribute("data-place") || "hero" }); });
   });
+
+  // Направления: на десктопе раскрыты все, на телефоне — по тапу (короче страница).
+  if (window.matchMedia && window.matchMedia("(min-width: 1000px)").matches) {
+    document.querySelectorAll("details.pt-cat").forEach(function (d) { d.open = true; });
+  }
+
+  // Липкая кнопка на телефоне: появляется после первого экрана и прячется,
+  // когда анкета на экране (на десктопе скрыта в CSS).
+  var sticky = document.getElementById("pt-sticky"), hero = document.querySelector(".pt-hero");
+  var anketa = document.getElementById("anketa");
+  if (sticky && hero && anketa && "IntersectionObserver" in window) {
+    sticky.hidden = false;
+    var heroOut = false, formIn = false;
+    var sync = function () { sticky.classList.toggle("on", heroOut && !formIn); };
+    new IntersectionObserver(function (e) { heroOut = !e[0].isIntersecting; sync(); }).observe(hero);
+    new IntersectionObserver(function (e) { formIn = e[0].isIntersecting; sync(); }, { rootMargin: "0px 0px -20% 0px" }).observe(anketa);
+  }
 
   function val(name) { var el = form.elements[name]; return el ? (el.value || "").trim() : ""; }
   function list(name) {
@@ -49,7 +66,7 @@
       location: val("location"), services: val("services"), prices: val("prices") || null,
       seasons: list("seasons"), discount: val("discount"), booking_terms: val("booking_terms") || null,
       website: val("website") || null, socials: val("socials") || null, lead_channels: list("lead_channels"),
-      comment: val("comment") || null, consent: true, source: "partneram", website_hp: val("website_hp") || null
+      comment: val("comment") || null, consent: true, source: "partners", website_hp: val("website_hp") || null
     };
     ["contact_name", "contact_phone", "contact_messenger"].forEach(function (k) { if (form.elements[k]) body[k] = val(k) || null; });
     btn.disabled = true; btn.textContent = "Отправляем…";

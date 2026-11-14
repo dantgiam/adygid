@@ -1769,7 +1769,7 @@ from site_app.plan_store import router as plan_router
 app.include_router(podbor_router)
 app.include_router(plan_router)
 
-# Партнёры: /partneram, анкета и /admin/partners (за тем же HTTP Basic).
+# Партнёры: /partners (301 со старого /partneram), анкета и /admin/partners (за тем же HTTP Basic).
 from site_app.partners import ensure_partner_tables, router as partners_router
 from app.partners_admin import router as partners_admin_router
 

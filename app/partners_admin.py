@@ -18,6 +18,7 @@ from app.bot_admin import (
 )
 from app.database import get_db
 from app.models import Checkpoint, Partner, PartnerApplication, PartnerLead, Trail
+from site_app import partners_audience
 from site_app import partners_taxonomy as tx
 from site_app.partners import bot_links, pd_in_site_db
 
@@ -85,9 +86,9 @@ def _lead_totals(rows) -> dict:
 
 
 @router.get("/admin/partners")
-def partners_home(request: Request, tab: str = "applications", status: str = "",
+def partners_home(request: Request, tab: str = "applications", status: str = "", saved: str = "",
                   db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
-    tab = tab if tab in ("applications", "partners", "leads") else "applications"
+    tab = tab if tab in ("applications", "partners", "leads", "audience") else "applications"
     counts = dict(db.execute(select(PartnerApplication.status, func.count()).group_by(PartnerApplication.status)).all())
     ctx = _ctx(request, tab=tab, status=status if status in APP_MAP else "", counts=counts)
     if tab == "applications":
@@ -95,6 +96,8 @@ def partners_home(request: Request, tab: str = "applications", status: str = "",
         if ctx["status"]:
             q = q.where(PartnerApplication.status == ctx["status"])
         ctx["applications"] = db.execute(q).scalars().all()
+    elif tab == "audience":
+        ctx.update(audience_raw=partners_audience.load_raw(db), audience=partners_audience.view(db), saved=saved)
     elif tab == "partners":
         partners = db.execute(select(Partner).order_by(Partner.is_active.desc(), Partner.name)).scalars().all()
         lead_counts = dict(db.execute(select(PartnerLead.partner_id, func.count()).group_by(PartnerLead.partner_id)).all())
@@ -104,6 +107,15 @@ def partners_home(request: Request, tab: str = "applications", status: str = "",
         names = dict(db.execute(select(Partner.id, Partner.name)).all())
         ctx.update(leads=rows, names=names, totals=_lead_totals(rows))
     return _page("partners_list.html", ctx)
+
+
+@router.post("/admin/partners/audience")
+async def audience_save(request: Request, db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
+    """Цифры аудитории для /partners — переписать вручную из Метрики."""
+    form = await request.form()
+    values = {k: _s(form, k, 300) for k in partners_audience.INT_FIELDS + partners_audience.STR_FIELDS}
+    partners_audience.save(db, values)
+    return RedirectResponse("/admin/partners?tab=audience&saved=1", status_code=303)
 
 
 async def _bot_matches(code: str) -> tuple[list[dict], str]:

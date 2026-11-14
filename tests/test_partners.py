@@ -1,4 +1,4 @@
-"""Партнёры: /partneram, анкета и админка /admin/partners.
+"""Партнёры: /partners (301 с /partneram), анкета и админка /admin/partners.
 
 Главное: партнёр ничего не платит; без PARTNER_PD_IN_SITE_DB телефон и имя
 в базу сайта не пишутся (152-ФЗ, база не в РФ); в лидах нет ПД туриста;
@@ -47,14 +47,75 @@ def test_taxonomy_shape():
     assert tx.valid_pair("rental", "tubing") and not tx.valid_pair("rental", "rafting")
 
 
-def test_page_is_public_and_not_in_nav(client):
-    r = client.get("/partneram")
+def test_page_is_public_noindex_and_sells(client):
+    r = client.get("/partners")
     assert r.status_code == 200
-    assert "ничего не платите" in r.text
+    assert "ничего не платите" in r.text or "не платите" in r.text
+    assert "без оплаты за рекламу" in r.text
+    assert '<meta name="robots" content="noindex, follow">' in r.text
     assert 'id="partner-form"' in r.text and "/soglasie" in r.text and "/privacy" in r.text
     assert 'name="contact_phone"' not in r.text  # по умолчанию телефон — через бота
-    home = client.get("/")
-    assert "/partneram" not in home.text
+    assert "5 000 ₽" in r.text and "4 750 ₽" in r.text and "−250 ₽" in r.text
+    assert "Реклама" in r.text and "Рекомендуем" in r.text  # тизер с маркировкой
+    assert 'id="pt-sticky"' in r.text
+    assert "partners.css" in r.text and "partners.js" in r.text
+    for c in tx.CATEGORIES:
+        assert c["short"] in r.text
+    assert 'rel="canonical" href="' in r.text and '/partners"' in r.text
+
+
+def test_old_url_redirects(client):
+    for path in ("/partneram", "/partneram/"):
+        r = client.get(path, follow_redirects=False)
+        assert r.status_code == 301 and r.headers["location"] == "/partners"
+
+
+def test_page_hidden_from_rest_of_site(client):
+    sm = client.get("/sitemap.xml").text
+    assert "/partners" not in sm and "/partneram" not in sm
+    pages = ["/", "/mesta", "/marshruty", "/stati", "/kuda", "/okrugi", "/voprosy", "/klub", "/podbor", "/robots.txt"]
+    pages += [loc.split("</loc>")[0].split("://", 1)[1].split("/", 1)[1] for loc in sm.split("<loc>")[1:40]]
+    for path in pages:
+        path = path if path.startswith("/") else "/" + path
+        r = client.get(path)
+        if r.status_code != 200:
+            continue
+        assert "/partners" not in r.text and "/partneram" not in r.text, path
+
+
+def test_audience_numbers_are_real_and_rounded_down(client):
+    from site_app import partners_audience as pa
+    assert pa.round_down(303) == 300 and pa.round_down(1027) == 1000 and pa.round_down(87) == 87
+    assert pa.round_down(398) == 350 and pa.round_down(12345) == 12000
+    v = pa.view(None)
+    raw = pa.load_raw(None)
+    assert v["users_30d"] == raw["users_30d"]
+    assert int(v["users_30d_label"].rstrip("+").replace("\u00a0", "")) <= raw["users_30d"]
+    assert int(v["users_total_label"].rstrip("+").replace("\u00a0", "")) <= raw["users_total"]
+    if raw.get("users_prev_30d", 0) >= raw["users_30d"]:
+        assert v["growth_pct"] == 0  # роста нет — не показываем
+    page = client.get("/partners").text
+    assert v["users_30d_label"] in page and v["users_total_label"] in page
+    assert "Яндекс Метрики" in page
+
+
+def test_admin_audience_override(client):
+    assert client.get("/admin/partners?tab=audience").status_code == 401
+    r = client.get("/admin/partners?tab=audience", auth=AUTH)
+    assert r.status_code == 200 and "Цифры для /partners" in r.text
+    r = client.post("/admin/partners/audience", auth=AUTH, follow_redirects=False, data={
+        "users_30d": "1234", "users_prev_30d": "1000", "users_total": "5678", "visits_30d": "1500",
+        "period_from": "2026-12-01", "period_to": "2026-12-30", "search_share_visits": "70",
+        "total_since": "2026-07", "top_regions": "Краснодарский край",
+    })
+    assert r.status_code == 303
+    try:
+        page = client.get("/partners").text
+        assert "1\u00a0200+" in page and "5\u00a0600+" in page and "+23%" in page
+    finally:
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM partner_settings"))
+    assert "1\u00a0200+" not in client.get("/partners").text
 
 
 def test_apply_does_not_store_pd_by_default(client):

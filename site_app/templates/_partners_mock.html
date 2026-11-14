@@ -1,0 +1,14 @@
+{# Пример заявки партнёру из бота — для /partners. #}
+{% macro booking_mock() %}<div class="pt-mock">
+  <div class="pt-mock-top"><span class="pt-mock-dot"></span>Бот АдыГида · новая бронь</div>
+  <div class="pt-mock-body">
+    <div class="pt-mock-title">Рафтинг по Белой, 8 км</div>
+    <ul class="pt-mock-list">
+      <li><span>📅</span>Суббота, 23 мая · 10:00</li>
+      <li><span>👥</span>4 человека, 2 из них дети</li>
+      <li><span>📍</span>Даховская, ваша точка сбора</li>
+      <li><span>%</span>Скидка клиенту АдыГида: 5%</li>
+    </ul>
+    <div class="pt-mock-btns"><span class="pt-mock-yes">✓ Подтвердить</span><span class="pt-mock-alt">Другое время</span></div>
+  </div>
+</div>{% endmacro %}

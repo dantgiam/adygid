@@ -392,7 +392,7 @@ class PodborAnswer(Base):
 
 
 class PartnerApplication(Base):
-    """Анкета поставщика с /partneram. Контакты-ПД — только при PARTNER_PD_IN_SITE_DB=1."""
+    """Анкета поставщика с /partners. Контакты-ПД — только при PARTNER_PD_IN_SITE_DB=1."""
     __tablename__ = "partner_applications"
 
     id                = Column(Integer, primary_key=True)

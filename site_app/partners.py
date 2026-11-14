@@ -1,4 +1,8 @@
-"""Партнёрский раздел: страница /partneram и приём анкеты поставщика.
+"""Партнёрский раздел: страница /partners и приём анкеты поставщика.
+
+Страница доступна только по прямой ссылке (решение Frank 15.11): её нет в меню,
+подвале, sitemap.xml и перелинковке, в <head> стоит noindex, follow. Старый
+адрес /partneram отдаёт 301 на /partners.
 
 Модель (решение 15.11.2026): партнёр ничего не платит ни за размещение, ни за
 клиентов. Турист бронирует через АдыГид и платит АдыГиду собственный сервисный
@@ -16,15 +20,17 @@ import logging
 import os
 import re
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.database import engine, get_db
 from app.models import Article, District, Scenario, PartnerApplication
+from site_app import partners_audience
 from site_app import partners_taxonomy as tx
 from site_app.router import REVIEW_BOT, REVIEW_BOT_TG, _ctx, _footer_stats, templates
 
@@ -86,13 +92,23 @@ def _facts(db: Session) -> dict:
             "districts": districts, "scenarios": scenarios}
 
 
+PAGE_PATH = "/partners"
+
+
 @router.get("/partneram")
+@router.get("/partneram/")
+def partners_old_url():
+    return RedirectResponse(PAGE_PATH, status_code=301)
+
+
+@router.get("/partners")
 def partners_page(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(
-        "partneram.html",
+        "partners.html",
         _ctx(
             request, db, active_nav=None,
             facts=_facts(db),
+            audience=partners_audience.view(db),
             categories=tx.CATEGORIES,
             taxonomy_json=tx.as_json(),
             seasons=tx.SEASONS,
@@ -175,7 +191,7 @@ def save_application(db: Session, body: PartnerApplyIn) -> dict:
         contact_phone=(body.contact_phone or None) if store_pd else None,
         contact_messenger=(body.contact_messenger or None) if store_pd else None,
         consent_version=CONSENT_VERSION,
-        consent_at=datetime.utcnow(),
+        consent_at=datetime.now(timezone.utc).replace(tzinfo=None),
         status="new",
     )
     db.add(app_row)

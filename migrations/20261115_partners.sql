@@ -82,3 +82,10 @@ CREATE TABLE IF NOT EXISTS partner_leads (
 );
 
 CREATE INDEX IF NOT EXISTS ix_partner_leads_partner_id ON partner_leads (partner_id);
+
+-- Настройки партнёрского раздела (цифры аудитории для /partners и т.п.).
+CREATE TABLE IF NOT EXISTS partner_settings (
+    key VARCHAR(60) PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP NOT NULL DEFAULT now()
+);
