@@ -637,3 +637,28 @@
 .podbor .a3-club { align-items: center; text-align: center; }
 .podbor .a3-club-txt b { font-family: var(--font-body); font-weight: 800; font-size: 18px; color: #1d2a20; }
 .podbor .a3-club-btn { align-self: center; }
+/* A3.2: на фото — только название; мета под описанием; клуб — коротко и с воздухом */
+.podbor .a3-stop-cap {
+  right: auto; max-width: calc(100% - 20px); width: fit-content; padding: 5px 11px 6px; border-radius: 10px;
+  background: rgba(14, 26, 18, .38); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: none;
+}
+.podbor .a3-stop-cap h4 { font-size: 19px; line-height: 1.18; }
+.podbor .a3-stop-shade { background: linear-gradient(180deg, rgba(0, 0, 0, 0) 45%, rgba(8, 20, 12, .5)); }
+.podbor .a3-stop-meta { margin: 7px 0 0; font-size: 12.5px; gap: 2px 0; }
+.podbor .a3-stop-meta > span + span::before { content: "·"; margin: 0 6px; color: var(--text-muted); }
+.podbor .a3-kind { color: var(--text-muted); }
+.podbor .a3-return { text-align: center; margin: 12px 0 0; }
+.podbor .a3-day .podbor-yamaps { display: flex; justify-content: center; width: fit-content; margin: 10px auto 0; }
+.podbor .a3-club { padding: 26px 20px 24px; gap: 16px; margin: 18px 0; align-items: center; text-align: center; }
+.podbor .a3-club-txt { max-width: 290px; }
+.podbor .a3-club-txt b { font-size: 19px; margin-bottom: 8px; }
+.podbor .a3-club-txt p { font-size: 15px; line-height: 1.45; color: #3b4a3f; }
+.podbor .a3-club-btn { background: var(--accent); color: #fff; border: 0; padding: 12px 20px; box-shadow: 0 6px 16px rgba(39, 140, 62, .25); }
+.podbor .a3-club-btn:hover { background: var(--accent-dark); border: 0; }
+.podbor .a3-stop-meta { flex-direction: column; gap: 2px; }
+.podbor .a3-stop-meta > span + span::before { content: none; }
+.podbor .a3-club-txt { max-width: none; }
+.podbor .a3-club-txt b { font-size: 18px; }
+.podbor .a3-club-txt p { max-width: 280px; margin: 0 auto; }
+.podbor .a3-club { padding: 26px 14px 24px; }
+.podbor .a3-club-txt b { font-size: 17px; letter-spacing: -.005em; }
