@@ -1193,7 +1193,11 @@
       });
       if (code) logEvent("answer", { question_id: "interests", answer_code: "any", skipped: false });
       else logEvent("answer", { question_id: "interests", answer_code: state.interests.join(",") || "any", skipped: false });
-      animateAnswer(key, value, () => { if (value === "any") finish({ immediate: true, fromAny: true }); else render(); });
+      // Переключение тем на шаге остаётся мгновенным: реакция/лоадер только
+      // при уходе со шага («Удивите меня», «Готово» / «Дальше», «Пропустить»).
+      if (value === "any") {
+        animateAnswer(key, value, () => finish({ immediate: true, fromAny: true }));
+      }
       return;
     }
     markStart();

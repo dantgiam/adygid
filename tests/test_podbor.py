@@ -62,6 +62,7 @@ def test_home_widget_nav_and_sitemap(client):
     home = client.get("/")
     assert home.status_code == 200
     assert "Хотите, подберём для вас маршрут поездки" in home.text
+    assert "прямо на&nbsp;сайте?" in home.text or "прямо на сайте?" in home.text
     # «абсолютно бесплатно» выделено маркером, чипы сезонов под плашкой убраны.
     assert '<mark class="podbor-free">абсолютно бесплатно,</mark>' in home.text
     assert "podbor-widget-chips" not in home.text
@@ -70,6 +71,18 @@ def test_home_widget_nav_and_sitemap(client):
     assert 'href="/podbor"' in home.text
     site = client.get("/sitemap.xml")
     assert "/podbor" in site.text
+
+
+
+def test_interest_theme_toggle_skips_loader_animation():
+    """Выбор тем на шаге «Что хочется увидеть» не запускает реакцию/лоадер."""
+    src = (ROOT / "site_app" / "static" / "podbor.js").read_text(encoding="utf-8")
+    start = src.index("function choose(key, value, skipped)")
+    end = src.index("function skip()")
+    chunk = src[start:end]
+    assert 'animateAnswer(key, value, () => { if (value === "any") finish({ immediate: true, fromAny: true }); else render(); });' not in chunk
+    assert "if (value === \"any\")" in chunk
+    assert "animateAnswer(key, value, () => finish({ immediate: true, fromAny: true }))" in chunk
 
 
 def test_podbor_page_renders_shell(client):
