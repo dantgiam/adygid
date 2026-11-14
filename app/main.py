@@ -85,6 +85,10 @@ async def _cache_policy(request, call_next):
 # Текст страниц сжимается — HTML со списками карточек ужимается в несколько раз
 app.add_middleware(GZipMiddleware, minimum_size=800)
 
+# Самый внешний слой (добавлен последним): редирект голого домена на www и HEAD без 405.
+from app.edge import EdgeMiddleware  # noqa: E402
+app.add_middleware(EdgeMiddleware)
+
 
 # Служебные ветки, которым нужен машинный ответ: админка ходит в /api и разбирает
 # JSON, статика отдаётся файловым мидлварём. Всё остальное запрашивает человек
