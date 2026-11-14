@@ -56,6 +56,13 @@ def _asset_version() -> str:
             stamp = max(stamp, int(os.path.getmtime(os.path.join("site_app", "static", name))))
         except OSError:
             pass
+    podbor_dir = os.path.join("site_app", "static", "podbor")
+    try:
+        for name in os.listdir(podbor_dir):
+            if name.endswith(".webp"):
+                stamp = max(stamp, int(os.path.getmtime(os.path.join(podbor_dir, name))))
+    except OSError:
+        pass
     return str(stamp or 1)
 
 
