@@ -86,6 +86,7 @@
     if (started) return;
     started = true;
     goal("podbor_start", { src: SRC });
+    preloadPlacePhotos();
   }
   function logEvent(type, fields, immediate) {
     const ev = C.makeEvent(SESSION, type, Object.assign({ plan_id: state.planId }, fields || {}));
@@ -206,7 +207,19 @@
     }
     return a;
   }
-  function preloadPlacePhotos() {
+  // Реакция между вопросами показывает случайные фото мест. Раньше все
+  // карточки качались сразу (десятки файлов, несколько мегабайт) и тормозили
+  // первый экран на телефоне. Теперь: сначала небольшой набор, остальное —
+  // после первого ответа. Чужой план по ссылке ленту не грузит.
+  let photoQueue = [];
+  let photoCursor = 0;
+  let photoInflight = 0;
+  let photoLimit = 0;
+  let photoBuilt = false;
+
+  function enqueuePlacePhotos() {
+    if (photoBuilt) return;
+    photoBuilt = true;
     const seen = new Set();
     DATA.forEach((x) => {
       if (!x || x.type !== "place" || !x.image || seen.has(x.image)) return;
@@ -218,30 +231,43 @@
         failed: false,
       });
     });
-    const queue = shuffle(PLACE_PHOTOS);
-    let inflight = 0;
-    let cursor = 0;
-    const pump = () => {
-      while (inflight < 4 && cursor < queue.length) {
-        const item = queue[cursor++];
-        inflight += 1;
-        const img = new Image();
-        img.decoding = "async";
-        img.onload = () => {
-          item.ready = img.naturalWidth > 0;
-          item.failed = !item.ready;
-          inflight -= 1;
-          pump();
-        };
-        img.onerror = () => {
-          item.failed = true;
-          inflight -= 1;
-          pump();
-        };
-        img.src = item.image;
-      }
-    };
-    pump();
+    photoQueue = shuffle(PLACE_PHOTOS.slice());
+  }
+
+  function pumpPhotos() {
+    while (photoInflight < 3 && photoCursor < photoQueue.length && photoCursor < photoLimit) {
+      const item = photoQueue[photoCursor++];
+      if (item.ready || item.failed) continue;
+      photoInflight += 1;
+      const img = new Image();
+      img.decoding = "async";
+      img.onload = () => {
+        item.ready = img.naturalWidth > 0;
+        item.failed = !item.ready;
+        photoInflight -= 1;
+        pumpPhotos();
+      };
+      img.onerror = () => {
+        item.failed = true;
+        photoInflight -= 1;
+        pumpPhotos();
+      };
+      img.src = item.image;
+    }
+  }
+
+  function preloadPlacePhotos(limit) {
+    enqueuePlacePhotos();
+    const nextLimit = limit == null ? photoQueue.length : Math.max(photoLimit, limit);
+    if (nextLimit <= photoLimit && photoInflight) return;
+    photoLimit = nextLimit;
+    pumpPhotos();
+  }
+
+  function startInitialPhotoPreload() {
+    const run = function () { preloadPlacePhotos(8); };
+    if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 2500 });
+    else setTimeout(run, 600);
   }
   function showSpinner() {
     const stage = document.getElementById("podbor-flash");
@@ -827,6 +853,7 @@
       const live = DATA.find((x) => x && x.type === "place" && Number(x.id) === spec.id);
       const fallback = pimg(spec.img);
       return {
+        id: spec.id,
         name: spec.name,
         area: spec.area,
         url: (live && live.url) || ("/mesta/" + spec.id),
@@ -837,7 +864,7 @@
   }
   function renderPreview() {
     const cards = previewPlaces().map((x) => {
-      return '<a class="a2-pv" href="' + esc(x.url) + '"><img src="' + esc(x.image) + '" alt="" width="112" height="112" loading="lazy" decoding="async" data-fallback="' + esc(x.fallback) + '"><b>' + esc(x.name) + "</b><small>" + esc(x.area) + "</small></a>";
+      return '<a class="a2-pv" href="' + esc(x.url) + '" target="_blank" rel="noopener" data-act="open" data-item="place:' + esc(x.id) + '" data-pos="0" data-block="preview"><img src="' + esc(x.image) + '" alt="" width="112" height="112" loading="lazy" decoding="async" data-fallback="' + esc(x.fallback) + '"><b>' + esc(x.name) + "</b><small>" + esc(x.area) + "</small></a>";
     }).join("");
     const tiles = detailsOpen
       ? '<div class="a2-params">' + QUESTIONS.map((q, i) => '<button type="button" class="a2-param" data-act="edit" data-i="' + i + '"><span class="a2-p-ic">' + tileIcon(q) + '</span><span class="a2-p-t"><small>' + esc((VISUAL[q.key] && VISUAL[q.key].tile) || q.copy) + "</small><b>" + esc(tileValue(q)) + '</b></span><span class="a2-p-ed" aria-hidden="true">✎</span></button>').join("") + "</div>"
@@ -929,7 +956,7 @@
   function stopRow(z, i) {
     const x = z.x;
     const link = ' href="' + esc(x.url) + '" title="' + esc(x.name) + '" target="_blank" rel="noopener" data-act="open" data-item="' + keyOf(x) + '" data-pos="' + i + '" data-block="plan"';
-    const photo = x.image ? '<img src="' + esc(x.image) + '" alt="' + esc(x.name) + '" loading="lazy" decoding="async">' : "";
+    const photo = x.image ? '<img src="' + esc(x.image) + '" alt="' + esc(x.name) + '" width="800" height="500" loading="lazy" decoding="async">' : "";
     const kind = x.type === "route" ? "маршрут" : "место";
     const drive = z.drive == null ? "" : '<span class="a3-drive">' + (z.drive === 0 ? "рядом с базой" : (i === 0 ? "от базы" : "в дороге") + " <b>≈ " + esc(C.fmtMin(z.drive)) + "</b> <em>(по расчёту сайта)</em>") + "</span>";
     const winter = state.answers.season === "winter" && x.winter_ok === "unknown" ? '<p class="a3-warn">Зимой уточнить подход</p>' : "";
@@ -1344,7 +1371,11 @@
       case "edit": edit(+d.i); break;
       case "finish": finish(); break;
       case "confirm": confirmPlan(); break;
-      case "details": detailsOpen = !detailsOpen; render(); break;
+      case "details":
+        if (!detailsOpen) goal("podbor_edit_click", {});
+        detailsOpen = !detailsOpen;
+        render();
+        break;
       case "closereview": closeReview(); break;
       case "restart": restart(); break;
       case "tab": state.tab = d.t; state.limit = 6; renderResults(); break;
@@ -1411,8 +1442,14 @@
         goal("podbor_card_open", { item: d.item, position: Number(d.pos) || 0, block: d.block || "main" });
         break;
       case "refine": startRefine(); break;
-      case "share": sharePlan(); break;
-      case "club": goal("podbor_club_click", {}); break;
+      case "share":
+        goal("podbor_save_click", {});
+        sharePlan();
+        break;
+      case "club":
+        goal("podbor_club_click", {});
+        goal("club_click", { placement: "podbor" });
+        break;
       case "toc": {
         const el = document.getElementById(d.target);
         if (el) { e.preventDefault(); el.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" }); }
@@ -1440,10 +1477,12 @@
   window.addEventListener("pagehide", flush);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
 
-  preloadPlacePhotos();
   const sharedPlan = readSharedPlan();
   if (sharedPlan) applySharedPlan(sharedPlan);
-  else if (!boot.fresh) restore();
+  else {
+    if (!boot.fresh) restore();
+    startInitialPhotoPreload();
+  }
   let preset = "";
   if (boot.fresh && ["winter", "summer", "any"].includes(boot.season) && !state.answers.season) {
     state.answers.season = boot.season;

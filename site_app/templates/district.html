@@ -23,7 +23,7 @@
 {% block content %}
 <section class="section" style="padding-top:40px">
   <div class="wrap">
-    {% if district.cover %}<div class="detail-hero"><img class="hero-img" style="{{ district.cover_style }}" src="{{ district.cover }}" alt="{{ district.label }}" fetchpriority="high" decoding="async"></div>{% endif %}
+    {% if district.cover %}<div class="detail-hero"><img class="hero-img" style="{{ district.cover_style }}" src="{{ district.cover }}" alt="{{ district.label }}" width="1600" height="900" fetchpriority="high" decoding="async"></div>{% endif %}
     <p class="eyebrow"><a href="/okrugi" style="color:inherit">Районы</a></p>
     <h1 class="page-title">{{ district.label }}</h1>
     <p class="lede district-lead">{{ district.lead_html }}</p>
