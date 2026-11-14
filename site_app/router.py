@@ -1465,7 +1465,7 @@ def home(request: Request, db: Session = Depends(get_db)):
 def podbor_page(request: Request, db: Session = Depends(get_db), src: str = "", season: str = ""):
     """Подбор маршрута. Каталог собирается из опубликованных мест и маршрутов."""
     items = catalog_items(db)
-    known_src = src if src in ("home_widget", "direct", "max") else "direct"
+    known_src = src if src in ("home_widget", "direct", "max", "bot_max", "bot_tg") else "direct"
     known_season = season if season in ("winter", "summer", "any") else ""
     packed = load_copy()
     boot = {

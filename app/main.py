@@ -1764,8 +1764,10 @@ app.mount("/assets", StaticFiles(directory="site_app/static"), name="site_static
 app.include_router(site_router)
 
 from site_app.podbor_api import router as podbor_router, podbor_stats
+from site_app.plan_store import router as plan_router
 
 app.include_router(podbor_router)
+app.include_router(plan_router)
 
 
 @app.get("/api/podbor/stats")

@@ -57,6 +57,11 @@
   let started = false;
   let fewKey = "";
   let toastTimer = 0;
+  /* «Сохранить план в бота»: план кладём на сайт (/api/podbor/plans), бот берёт его по id из start=plan_<id>. */
+  let saveOpen = false;
+  let lastPlanPayload = null;
+  let savedPlan = null;
+  let savingPlan = null;
   const queue = [];
   let flushTimer = 0;
 
@@ -1033,13 +1038,105 @@
     const R = rankNow();
     noteFew(R);
     const days = C.planDays(R, answers(), { days: state.days });
+    lastPlanPayload = planPayload(days);
     const dur = state.answers.duration;
     const opts = dur === "short" ? [2, 3] : dur === "long" ? [4, 5, 6, 7] : [1];
     const dayBtns = opts.length > 1 ? '<div class="podbor-daycount">Сколько дней показать? ' + opts.map((n) => '<button type="button" class="podbor-tab' + (C.daysFor(answers(), state.days) === n ? " is-on" : "") + '" data-act="days" data-n="' + n + '">' + n + "</button>").join("") + "</div>" : "";
     const n = days.length;
     const dword = n === 1 ? "день" : n < 5 ? "дня" : "дней";
     const daysHtml = days.map((d, i) => dayHtml(d, i) + (i === 0 ? clubBlock() : "")).join("");
-    return '<div class="a3-plan-top"><div class="podbor-kicker">Ваш план</div><h2 class="podbor-final-title">' + n + " " + dword + ' по Адыгее</h2><button type="button" class="a3-share" data-act="share">' + NOTE_ICON + '<span>Сохранить план<small>ссылкой — откроется на любом устройстве</small></span></button>' + dayBtns + "</div>" + (R.mode === "few" || R.mode === "none" ? modeNotice(R) : "") + hiddenBar() + daysHtml + (R.mode === "few" || R.mode === "none" ? "" : modeNotice(R)) + altBlock(R) + feedback() + '<div class="podbor-again"><h3>Хотите подстроить ещё точнее?</h3><p>Возраст детей, ходьба, непогода, что исключить. Всё необязательно.</p><div class="podbor-nav"><button type="button" class="podbor-btn" data-act="refine">Сделать точнее — ещё пара вопросов</button><button type="button" class="podbor-btn podbor-btn-ghost" data-act="enough">Достаточно</button></div></div><p class="podbor-fine">Ничего не забронировано. Подборка не обещает безопасность или выполнимость. Стоимость: уточняем, скоро появится :)</p>';
+    return '<div class="a3-plan-top"><div class="podbor-kicker">Ваш план</div><h2 class="podbor-final-title">' + n + " " + dword + ' по Адыгее</h2><button type="button" class="a3-share" data-act="save" aria-expanded="' + (saveOpen ? "true" : "false") + '" aria-controls="a3-save">' + NOTE_ICON + '<span>Сохранить план<small>в MAX или Telegram — бот пришлёт по дням</small></span></button>' + (saveOpen ? saveChooser() : "") + dayBtns + "</div>" + (R.mode === "few" || R.mode === "none" ? modeNotice(R) : "") + hiddenBar() + daysHtml + (R.mode === "few" || R.mode === "none" ? "" : modeNotice(R)) + altBlock(R) + feedback() + '<div class="podbor-again"><h3>Хотите подстроить ещё точнее?</h3><p>Возраст детей, ходьба, непогода, что исключить. Всё необязательно.</p><div class="podbor-nav"><button type="button" class="podbor-btn" data-act="refine">Сделать точнее — ещё пара вопросов</button><button type="button" class="podbor-btn podbor-btn-ghost" data-act="enough">Достаточно</button></div></div><p class="podbor-fine">Ничего не забронировано. Подборка не обещает безопасность или выполнимость. Стоимость: уточняем, скоро появится :)</p>';
+  }
+  function planPayload(days) {
+    return {
+      session_id: SESSION,
+      hash: planHash(),
+      season: ["winter", "summer", "any"].includes(state.answers.season) ? state.answers.season : null,
+      days: days.slice(0, 7).map((d) => ({
+        area: d.area && /^[a-z_]{1,24}$/.test(d.area) ? d.area : null,
+        empty: !!d.empty,
+        total_min: Number.isFinite(d.totalMin) ? Math.round(d.totalMin) : null,
+        return_drive: Number.isFinite(d.returnDrive) ? Math.round(d.returnDrive) : null,
+        stops: (d.stops || []).slice(0, 12).map((z) => ({ k: keyOf(z.x), drive: Number.isFinite(z.drive) ? Math.round(z.drive) : null, also: z.kind === "also" })),
+      })),
+    };
+  }
+  function planSig(p) { return p ? JSON.stringify(p) : ""; }
+  function savedFor(p) { return savedPlan && savedPlan.sig === planSig(p) ? savedPlan : null; }
+  /* Сохраняем план один раз на его состав: повторный клик не плодит записи. */
+  function ensureSaved() {
+    const payload = lastPlanPayload;
+    const sig = planSig(payload);
+    if (!payload) return Promise.reject(new Error("no plan"));
+    const ready = savedFor(payload);
+    if (ready) return Promise.resolve(ready);
+    if (savingPlan && savingPlan.sig === sig) return savingPlan.promise;
+    const promise = fetch("/api/podbor/plans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "same-origin",
+    }).then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))).then((data) => {
+      if (!data || !data.id) throw new Error("bad response");
+      savedPlan = { sig: sig, id: data.id, max: data.max_url, tg: data.tg_url };
+      if (savingPlan && savingPlan.sig === sig) savingPlan = null;
+      syncSaveLinks();
+      return savedPlan;
+    }).catch((err) => {
+      if (savingPlan && savingPlan.sig === sig) savingPlan = null;
+      throw err;
+    });
+    savingPlan = { sig: sig, promise: promise };
+    return promise;
+  }
+  function syncSaveLinks() {
+    const ready = savedFor(lastPlanPayload);
+    document.querySelectorAll('[data-act="savebot"]').forEach((a) => {
+      const url = ready ? (a.dataset.ch === "tg" ? ready.tg : ready.max) : "";
+      if (url) { a.href = url; a.dataset.ready = "1"; a.classList.remove("is-wait"); }
+      else { a.removeAttribute("href"); a.dataset.ready = ""; a.classList.add("is-wait"); }
+    });
+  }
+  function saveChooser() {
+    const ready = savedFor(lastPlanPayload);
+    const btn = (ch, label, sub, icon) => '<a class="a3-save-btn is-' + ch + (ready ? "" : " is-wait") + '"' + (ready ? ' href="' + esc(ch === "tg" ? ready.tg : ready.max) + '" data-ready="1"' : "") + ' target="_blank" rel="noopener" role="button" data-act="savebot" data-ch="' + ch + '"><img src="/assets/' + icon + '" alt="" width="28" height="28"><span>' + label + "<small>" + sub + "</small></span></a>";
+    return '<div class="a3-save" id="a3-save"><p class="a3-save-t">Куда прислать план?</p><p class="a3-save-s">Бот пришлёт план по дням со ссылками на места и Яндекс Карты. Можно указать дату поездки, и мы напомним за пару дней.</p><div class="a3-save-btns">' + btn("max", "В MAX", "основной бот АдыГида", "magnet-max.png") + btn("tg", "В Telegram", "тот же бот в Telegram", "magnet-tg.png") + '</div><button type="button" class="a3-save-link" data-act="share">или просто скопировать ссылку на план</button></div>';
+  }
+  function openSaveChooser() {
+    saveOpen = !saveOpen;
+    const top = document.querySelector(".a3-plan-top");
+    const btn = top && top.querySelector('[data-act="save"]');
+    const old = document.getElementById("a3-save");
+    if (old) old.remove();
+    if (btn) btn.setAttribute("aria-expanded", saveOpen ? "true" : "false");
+    if (!saveOpen) return;
+    goal("podbor_save_click", {});
+    if (btn) btn.insertAdjacentHTML("afterend", saveChooser());
+    ensureSaved().catch(() => { /* покажем ошибку при клике по кнопке */ });
+  }
+  function saveToBot(e, a) {
+    const ch = a.dataset.ch === "tg" ? "tg" : "max";
+    const goalName = ch === "tg" ? "plan_save_tg" : "plan_save_max";
+    const ready = savedFor(lastPlanPayload);
+    const params = { days: lastPlanPayload ? lastPlanPayload.days.length : 0 };
+    if (ready && a.dataset.ready === "1") {
+      goal(goalName, Object.assign({ plan_id: ready.id }, params));
+      logEvent(goalName, { plan_id: ready.id }, true);
+      return; /* обычный переход по ссылке */
+    }
+    e.preventDefault();
+    let w = null;
+    try { w = window.open("", "_blank"); } catch (err) { w = null; }
+    ensureSaved().then((r) => {
+      const url = ch === "tg" ? r.tg : r.max;
+      goal(goalName, Object.assign({ plan_id: r.id }, params));
+      logEvent(goalName, { plan_id: r.id }, true);
+      if (w && !w.closed) w.location.href = url;
+      else window.location.href = url;
+    }).catch(() => {
+      if (w && !w.closed) w.close();
+      showToast("Не получилось сохранить план. Попробуйте ещё раз или скопируйте ссылку");
+    });
   }
   const SHARE_ORDER = ["season", "duration", "base", "party", "been", "pace"];
   const REFINE_KEYS = ["childage", "walking", "distance", "rain", "exclude"];
@@ -1113,7 +1210,7 @@
       state.step = QUESTIONS.length - 1;
     }
     started = true;
-    goal("podbor_shared_open", {});
+    goal("podbor_shared_open", SRC === "bot_max" || SRC === "bot_tg" ? { src: SRC } : {});
   }
   function copyShareLink(url) {
     const done = () => showToast("Ссылка скопирована");
@@ -1177,6 +1274,7 @@
     pendingCapture = null;
     document.getElementById("results").innerHTML = state.final ? finalResults() : liveResults();
     if (old) animateCards(old);
+    if (saveOpen && state.final) ensureSaved().catch(() => { /* ошибка — при клике */ });
   }
   function syncWizard() {
     root.classList.add("is-app");
@@ -1453,8 +1551,9 @@
         goal("podbor_card_open", { item: d.item, position: Number(d.pos) || 0, block: d.block || "main" });
         break;
       case "refine": startRefine(); break;
+      case "save": openSaveChooser(); break;
+      case "savebot": saveToBot(e, b); break;
       case "share":
-        goal("podbor_save_click", {});
         sharePlan();
         break;
       case "club":
