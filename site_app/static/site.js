@@ -1,3 +1,41 @@
+// Адаптивные фото из Supabase: тот же кадр, но WebP нужной ширины.
+// resize=contain обязателен — иначе трансформатор ломает пропорции.
+window.adygidImg = function (url, width) {
+  width = width || 800;
+  if (!url || typeof url !== "string") return url || "";
+  const objectMark = "/storage/v1/object/public/";
+  const renderMark = "/storage/v1/render/image/public/";
+  let origin = "";
+  let rest = "";
+  const objectAt = url.indexOf(objectMark);
+  const renderAt = url.indexOf(renderMark);
+  if (objectAt !== -1) {
+    origin = url.slice(0, objectAt);
+    rest = url.slice(objectAt + objectMark.length).split("?")[0].split("#")[0];
+  } else if (renderAt !== -1) {
+    origin = url.slice(0, renderAt);
+    rest = url.slice(renderAt + renderMark.length).split("?")[0].split("#")[0];
+  } else {
+    return url;
+  }
+  if (!rest) return url;
+  return origin + renderMark + rest + "?width=" + width + "&resize=contain&quality=70&format=webp";
+};
+window.adygidSrcset = function (url, widths) {
+  widths = widths || [480, 800, 1280];
+  if (!url || window.adygidImg(url, 800) === url) return "";
+  return widths.map(function (w) { return window.adygidImg(url, w) + " " + w + "w"; }).join(", ");
+};
+window.adygidApplyImg = function (img, url, sizes, srcWidth) {
+  if (!img || !url) return;
+  img.src = window.adygidImg(url, srcWidth || 800);
+  const srcset = window.adygidSrcset(url);
+  if (srcset) {
+    img.srcset = srcset;
+    if (sizes) img.sizes = sizes;
+  }
+};
+
 // Общая обёртка целей Яндекс.Метрики и плашка cookie.
 // Номер счётчика приходит из шаблона. Без номера (локальная разработка)
 // цели ничего не делают и не бросают. tag.js и ym('init') запускаются
@@ -197,8 +235,11 @@ document.addEventListener("click", (e) => {
       img.className = "cover-img";
       img.alt = "";
       img.decoding = "async";
+      img.loading = "lazy";
+      img.width = 900;
+      img.height = 600;
       if (data.cover_style) img.style.cssText = data.cover_style;
-      img.src = data.cover;
+      window.adygidApplyImg(img, data.cover, "(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 400px", 800);
       cover.prepend(img);
     }
   }
@@ -463,8 +504,10 @@ document.querySelectorAll("form.filters").forEach((form) => {
         const url = item.kind === "route" ? `/marshruty/${item.id}` : `/mesta/${item.id}`;
         // Разметка обложки — та же, что у серверных карточек (_cards.html:cover_img):
         // картинка внутри .cover, чтобы работала ленивая загрузка и object-fit.
+        const coverSrc = item.cover ? window.adygidImg(item.cover, 800) : "";
+        const coverSet = item.cover ? window.adygidSrcset(item.cover) : "";
         const cover = item.cover
-          ? `<img class="cover-img" src="${escapeHtml(item.cover)}" alt="" loading="lazy" decoding="async">`
+          ? `<img class="cover-img" src="${escapeHtml(coverSrc)}"${coverSet ? ` srcset="${escapeHtml(coverSet)}" sizes="(max-width: 640px) 92vw, (max-width: 1024px) 45vw, 400px"` : ""} alt="" width="900" height="600" loading="lazy" decoding="async">`
           : "";
         return `<a class="card" href="${url}">
           <div class="cover">${cover}</div>

@@ -41,12 +41,12 @@ def test_base_template_has_optional_media_preconnect():
 
 def test_home_hero_is_prioritized_and_sized(client):
     src = (ROOT / "site_app" / "templates" / "home.html").read_text(encoding="utf-8")
-    assert 'fetchpriority="high"' in src
-    assert 'width="800" height="800"' in src
-    assert 'width="800" height="500"' in src
+    assert "fetchpriority='high'" in src or 'fetchpriority="high"' in src
+    assert "width=800, height=800" in src
+    assert "width=800, height=500" in src
     covers = (ROOT / "site_app" / "templates" / "_cards.html").read_text(encoding="utf-8")
-    assert 'width="900" height="600"' in covers
-    assert 'width="1600" height="1000"' in covers
+    assert "width=900, height=600" in covers
+    assert "width=1600, height=1000" in covers
     home = client.get("/")
     assert home.status_code == 200
 
