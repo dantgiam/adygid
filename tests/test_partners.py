@@ -161,3 +161,14 @@ def test_convert_and_leads(client):
     assert "phone" not in contacts and contacts["bot_ref"].startswith("partner_")
     page = client.get("/admin/partners?tab=leads", auth=AUTH).text
     assert "250 ₽" in page and "4 750 ₽" in page
+
+
+def test_partner_benefits_block_and_no_gold(client):
+    page = client.get("/partners").text
+    for title in ("Бесплатное размещение на adygid.ru", "Бесплатный поток целевых туристов",
+                  "Заявки приходят готовыми", "Без торга и «утечек»", "Отзывы собираем за вас",
+                  "Статус раннего партнёра", "Проект растёт — вы вместе с ним", "Без абонплаты"):
+        assert title in page, title
+    assert "31.12.2026" not in page  # модель без «бесплатно до…»
+    css = open(os.path.join(os.path.dirname(__file__), "..", "site_app", "static", "partners.css"), encoding="utf-8").read()
+    assert "gold" not in css and "FFD86B" not in css
