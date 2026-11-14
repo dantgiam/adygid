@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Boolean, UniqueConstraint, func
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Date, Numeric, Boolean, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from geoalchemy2 import Geometry
@@ -389,3 +389,85 @@ class PodborAnswer(Base):
     plan_id            = Column(String(32), nullable=True)
     algorithm_version  = Column(String(80), nullable=True)
     created_at         = Column(DateTime, server_default=func.now())
+
+
+class PartnerApplication(Base):
+    """Анкета поставщика с /partneram. Контакты-ПД — только при PARTNER_PD_IN_SITE_DB=1."""
+    __tablename__ = "partner_applications"
+
+    id                = Column(Integer, primary_key=True)
+    code              = Column(String(12), nullable=False, unique=True)
+    company           = Column(String(200), nullable=False)
+    category          = Column(String(40), nullable=False)
+    subcategory       = Column(String(40))
+    location          = Column(String(200))
+    services          = Column(Text)
+    prices            = Column(Text)
+    seasons           = Column(String(120))
+    discount          = Column(Text)
+    booking_terms     = Column(Text)
+    website           = Column(String(500))
+    socials           = Column(String(500))
+    lead_channels     = Column(String(120))
+    comment           = Column(Text)
+    contact_name      = Column(String(120))
+    contact_phone     = Column(String(40))
+    contact_messenger = Column(String(120))
+    consent_version   = Column(String(20))
+    consent_at        = Column(DateTime)
+    status            = Column(String(20), nullable=False, default="new")
+    notes             = Column(Text)
+    partner_id        = Column(Integer)
+    created_at        = Column(DateTime, server_default=func.now())
+    updated_at        = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class Partner(Base):
+    """Карточка партнёра. contacts — только для админки, на сайт не выводятся."""
+    __tablename__ = "partners"
+
+    id                 = Column(Integer, primary_key=True)
+    name               = Column(String(200), nullable=False)
+    category           = Column(String(40), nullable=False)
+    subcategory        = Column(String(40))
+    location           = Column(String(200))
+    short              = Column(Text)
+    description        = Column(Text)
+    photos             = Column(JSONB, nullable=False, default=list)
+    price_from         = Column(String(120))
+    seasons            = Column(String(120))
+    discount           = Column(Text)
+    booking_terms      = Column(Text)
+    cancellation_terms = Column(Text)
+    service_fee_pct    = Column(Numeric(5, 2), nullable=False, default=5)
+    place_ids          = Column(JSONB, nullable=False, default=list)
+    route_ids          = Column(JSONB, nullable=False, default=list)
+    contacts           = Column(JSONB, nullable=False, default=dict)
+    agreement          = Column(String(200))
+    is_active          = Column(Boolean, nullable=False, default=False)
+    notes              = Column(Text)
+    application_id     = Column(Integer)
+    created_at         = Column(DateTime, server_default=func.now())
+    updated_at         = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class PartnerLead(Base):
+    """Бронь через АдыГид. Туриста определяет номер обращения в боте, без имени и телефона."""
+    __tablename__ = "partner_leads"
+
+    id                 = Column(Integer, primary_key=True)
+    partner_id         = Column(Integer, ForeignKey("partners.id", ondelete="CASCADE"), nullable=False, index=True)
+    inbox_ref          = Column(String(40))
+    service            = Column(String(200))
+    service_date       = Column(Date)
+    people             = Column(String(60))
+    status             = Column(String(20), nullable=False, default="requested")
+    provider_price     = Column(Numeric(12, 2))
+    discount_amount    = Column(Numeric(12, 2))
+    service_fee_pct    = Column(Numeric(5, 2))
+    service_fee_amount = Column(Numeric(12, 2))
+    fee_status         = Column(String(20), nullable=False, default="not_paid")
+    is_repeat          = Column(Boolean, nullable=False, default=False)
+    notes              = Column(Text)
+    created_at         = Column(DateTime, server_default=func.now())
+    updated_at         = Column(DateTime, server_default=func.now(), onupdate=func.now())

@@ -1769,6 +1769,14 @@ from site_app.plan_store import router as plan_router
 app.include_router(podbor_router)
 app.include_router(plan_router)
 
+# Партнёры: /partneram, анкета и /admin/partners (за тем же HTTP Basic).
+from site_app.partners import ensure_partner_tables, router as partners_router
+from app.partners_admin import router as partners_admin_router
+
+ensure_partner_tables()
+app.include_router(partners_router)
+app.include_router(partners_admin_router)
+
 
 @app.get("/api/podbor/stats")
 def get_podbor_stats(db: Session = Depends(get_db), _: bool = Depends(require_admin)):

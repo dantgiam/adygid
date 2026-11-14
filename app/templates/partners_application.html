@@ -1,0 +1,73 @@
+{% extends "bot_base.html" %}
+{% block title %}Анкета {{ a.company }}{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <a class="muted" href="/admin/partners?tab=applications">← Все анкеты</a>
+      <h1>{{ a.company }}</h1>
+      <div class="sub">Анкета № {{ a.code }} · {{ a.created_at.strftime('%d.%m.%Y %H:%M') if a.created_at else '' }} · согласие {{ a.consent_version or '—' }}</div>
+    </div>
+    <form method="post" action="/admin/partners/applications/{{ a.id }}/convert">
+      <button class="btn btn-primary" type="submit">{% if a.partner_id %}Открыть карточку партнёра →{% else %}Сделать карточкой партнёра{% endif %}</button>
+    </form>
+  </div>
+  {% if saved %}<div class="psaved">Сохранено.</div>{% endif %}
+  <div class="pcols">
+    <div>
+      <div class="pbox">
+        <h2>Что предлагает</h2>
+        <dl class="pdl">
+          <dt>Категория</dt><dd>{{ tx.CATEGORY_BY_CODE[a.category].icon }} {{ tx.category_title(a.category) }}{% if a.subcategory %} → {{ tx.sub_title(a.category, a.subcategory) }}{% endif %}</dd>
+          <dt>Где</dt><dd>{{ a.location or '—' }}</dd>
+          <dt>Услуги</dt><dd>{{ a.services or '—' }}</dd>
+          <dt>Цены</dt><dd>{{ a.prices or '—' }}</dd>
+          <dt>Сезон</dt><dd>{% for s in (a.seasons or '').split(',') if s %}{{ tx.SEASON_TITLES.get(s, s) }}{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}</dd>
+          <dt>Скидка клиентам АдыГида</dt><dd><b>{{ a.discount or '—' }}</b></dd>
+          <dt>Бронь и отмена</dt><dd>{{ a.booking_terms or '—' }}</dd>
+          <dt>Сайт</dt><dd>{{ a.website or '—' }}</dd>
+          <dt>Соцсети</dt><dd>{{ a.socials or '—' }}</dd>
+          <dt>Как получать клиентов</dt><dd>{% for c in (a.lead_channels or '').split(',') if c %}{{ tx.LEAD_CHANNEL_TITLES.get(c, c) }}{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}</dd>
+          <dt>Комментарий</dt><dd>{{ a.comment or '—' }}</dd>
+        </dl>
+      </div>
+      <div class="pbox">
+        <h2>Контакты</h2>
+        {% if pd_in_site_db %}
+        <dl class="pdl">
+          <dt>Имя</dt><dd>{{ a.contact_name or '—' }}</dd>
+          <dt>Телефон</dt><dd>{{ a.contact_phone or '—' }}</dd>
+          <dt>Мессенджер</dt><dd>{{ a.contact_messenger or '—' }}</dd>
+        </dl>
+        {% else %}
+        <p class="muted">Телефон и имя на сайте не хранятся (152-ФЗ: база сайта не в РФ). Партнёр отправляет их боту по ссылке с кодом <b>partner_{{ a.code }}</b> — обращение лежит в YDB и пришло уведомлением в рабочий чат.</p>
+        {% endif %}
+        <h2 style="margin-top:14px">Обращения в боте по этой анкете</h2>
+        {% if bot_note %}<div class="pnote">{{ bot_note }}</div>{% endif %}
+        {% for m in matches %}
+          <a class="row inbox-row" href="/admin/inbox/{{ m.id }}"><div class="row-main">
+            <div class="row-title"><span class="badge {{ m.platform_badge }}">{{ m.platform_title }}</span><span>№ {{ m.short_id }}</span><span>{{ m.created_at }} МСК</span></div>
+            <div class="inbox-preview">{{ m.preview }}</div>
+          </div></a>
+        {% else %}
+          {% if not bot_note %}<p class="muted">Пока нет. Ссылки для партнёра: <a href="{{ bot.max }}" target="_blank" rel="noopener">MAX</a> · <a href="{{ bot.telegram }}" target="_blank" rel="noopener">Telegram</a></p>{% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <form class="pbox" method="post" action="/admin/partners/applications/{{ a.id }}">
+        <h2>Обработка</h2>
+        <div class="field"><label>Статус</label>
+          <select name="status">{% for code, label, _b in app_statuses %}<option value="{{ code }}"{% if a.status == code %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+        </div>
+        <div class="field"><label>Заметки</label>
+          <textarea name="notes" rows="8" placeholder="Созвонились, договорились о скидке 5%, ждём фото…">{{ a.notes or '' }}</textarea>
+          <div class="hint">Видно только в админке. Телефоны людей сюда не пишите.</div>
+        </div>
+        <button class="btn btn-primary" type="submit">Сохранить</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% include "_partners_admin_css.html" %}
+{% endblock %}

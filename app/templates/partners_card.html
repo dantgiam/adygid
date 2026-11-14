@@ -1,0 +1,126 @@
+{% extends "bot_base.html" %}
+{% block title %}{{ p.name or 'Новый партнёр' }}{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <a class="muted" href="/admin/partners?tab=partners">← Все партнёры</a>
+      <h1>{{ p.name or 'Новый партнёр' }}</h1>
+      <div class="sub">Карточка видна туристам, только когда включено «Активен». Контакты — только в админке. {% if p.application_id %}<a href="/admin/partners/applications/{{ p.application_id }}">Исходная анкета</a>{% endif %}</div>
+    </div>
+  </div>
+  {% if saved %}<div class="psaved">Сохранено.</div>{% endif %}
+  <form class="pbox" method="post" action="/admin/partners/save">
+    {% if p.id %}<input type="hidden" name="id" value="{{ p.id }}">{% endif %}
+    <div class="pcols">
+      <div>
+        <div class="field"><label>Название</label><input type="text" name="name" value="{{ p.name }}" required></div>
+        <div class="field-row">
+          <div class="field"><label>Категория</label>
+            <select name="category" id="pc-cat">{% for c in tx.CATEGORIES %}<option value="{{ c.code }}"{% if p.category == c.code %} selected{% endif %}>{{ c.icon }} {{ c.title }}</option>{% endfor %}</select>
+          </div>
+          <div class="field"><label>Подкатегория</label>
+            <select name="subcategory" id="pc-sub">
+              <option value="">—</option>
+              {% for c in tx.CATEGORIES %}{% for code, title in c.subs %}<option value="{{ code }}" data-cat="{{ c.code }}"{% if p.category == c.code and p.subcategory == code %} selected{% endif %}>{{ title }}</option>{% endfor %}{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Где</label><input type="text" name="location" value="{{ p.location or '' }}" placeholder="Даховская, у старого моста"></div>
+        <div class="field"><label>Коротко (в карточке «Рядом можно»)</label><textarea name="short" rows="2">{{ p.short or '' }}</textarea></div>
+        <div class="field"><label>Описание</label><textarea name="description" rows="5">{{ p.description or '' }}</textarea></div>
+        <div class="field"><label>Фото — по ссылке на строку (только https)</label><textarea name="photos" rows="3" placeholder="https://…">{{ (p.photos or [])|join('\n') }}</textarea><div class="hint">Только настоящие фото этого партнёра в Адыгее.</div></div>
+        <div class="field-row">
+          <div class="field"><label>Места (id через запятую)</label><input type="text" name="place_ids" value="{{ (p.place_ids or [])|join(', ') }}" placeholder="24, 54"><div class="hint">{% for i in p.place_ids or [] %}{{ place_names.get(i, '?' ~ i) }}{% if not loop.last %} · {% endif %}{% endfor %}</div></div>
+          <div class="field"><label>Маршруты (id через запятую)</label><input type="text" name="route_ids" value="{{ (p.route_ids or [])|join(', ') }}"><div class="hint">{% for i in p.route_ids or [] %}{{ route_names.get(i, '?' ~ i) }}{% if not loop.last %} · {% endif %}{% endfor %}</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="field-row">
+          <div class="field"><label>Цена от</label><input type="text" name="price_from" value="{{ p.price_from or '' }}" placeholder="2 500 ₽ с человека"></div>
+          <div class="field"><label>Сервисный сбор АдыГида, %</label><input type="number" step="0.5" min="0" max="50" name="service_fee_pct" value="{{ '%g'|format((p.service_fee_pct or 0)|float) }}"></div>
+        </div>
+        <div class="field"><label>Скидка клиентам АдыГида</label><input type="text" name="discount" value="{{ p.discount or '' }}" placeholder="5% — равна сервисному сбору"><div class="hint">Решение партнёра, а не зачёт предоплаты. По умолчанию — в размере сбора.</div></div>
+        <div class="field"><label>Сезон</label>
+          <div>{% set ss = (p.seasons or '').split(',') %}{% for code, title in tx.SEASONS %}<label style="display:inline-flex;gap:4px;margin-right:10px;font-weight:400"><input type="checkbox" name="seasons" value="{{ code }}"{% if code in ss %} checked{% endif %}>{{ title }}</label>{% endfor %}</div>
+        </div>
+        <div class="field"><label>Как бронировать</label><textarea name="booking_terms" rows="2">{{ p.booking_terms or '' }}</textarea></div>
+        <div class="field"><label>Условия отмены</label><textarea name="cancellation_terms" rows="2">{{ p.cancellation_terms or '' }}</textarea></div>
+        <div class="field"><label>Договорённость / договор</label><input type="text" name="agreement" value="{{ p.agreement or '' }}" placeholder="Оферта партнёра от 20.11.2026"></div>
+        <div class="pbox" style="background:#FAFCF9">
+          <h2>Контакты (только админка)</h2>
+          {% set c = p.contacts or {} %}
+          <div class="field"><label>Сайт</label><input type="text" name="contact_website" value="{{ c.get('website', '') }}"></div>
+          <div class="field"><label>Соцсети</label><input type="text" name="contact_socials" value="{{ c.get('socials', '') }}"></div>
+          <div class="field"><label>Код в боте</label><input type="text" name="contact_bot_ref" value="{{ c.get('bot_ref', '') }}" placeholder="partner_ab12cd34"></div>
+          {% if pd_in_site_db %}
+          <div class="field"><label>Контактное лицо</label><input type="text" name="contact_name" value="{{ c.get('name', '') }}"></div>
+          <div class="field"><label>Телефон</label><input type="text" name="contact_phone" value="{{ c.get('phone', '') }}"></div>
+          <div class="field"><label>Мессенджер</label><input type="text" name="contact_messenger" value="{{ c.get('messenger', '') }}"></div>
+          {% else %}
+          <div class="hint">Телефон и имя — в обращении партнёра в боте (YDB, РФ), на сайте не хранятся.</div>
+          {% endif %}
+        </div>
+        <div class="field"><label>Заметки</label><textarea name="notes" rows="3">{{ p.notes or '' }}</textarea></div>
+        <label style="display:flex;gap:8px;align-items:center;margin:6px 0 12px"><input type="checkbox" name="is_active" value="1"{% if p.is_active %} checked{% endif %}> <b>Активен</b> — показывать туристам</label>
+        <button class="btn btn-primary" type="submit">Сохранить карточку</button>
+      </div>
+    </div>
+  </form>
+
+  {% if p.id %}
+  <div class="pbox" id="leads">
+    <h2>Брони через АдыГид</h2>
+    <div class="kpis">
+      <div><b>{{ totals.count }}</b>броней</div>
+      <div><b>{{ totals.completed }}</b>оказано</div>
+      <div><b>{{ rub(totals.fee_paid) }}</b>сборов получено</div>
+      <div><b>{{ rub(totals.fee_pending) }}</b>сборов ждём</div>
+      <div><b>{{ totals.repeat }}</b>повторных</div>
+    </div>
+    <p class="muted">Клиент — номер обращения в боте (имя и телефон остаются в боте). Сбор можно не вводить: посчитается от цены партнёра × %.</p>
+    <div class="tablewrap"><table class="ptable">
+      <thead><tr><th>№ в боте</th><th>Услуга</th><th>Дата</th><th>Люди</th><th>Статус</th><th>Цена партнёра</th><th>Скидка</th><th>Сбор %</th><th>Сбор ₽</th><th>Сбор</th><th>Повтор</th><th></th></tr></thead>
+      <tbody>
+      {% for l in leads %}
+        <tr>
+          <td><input form="lf{{ l.id }}" name="inbox_ref" value="{{ l.inbox_ref or '' }}"></td>
+          <td><input form="lf{{ l.id }}" name="service" value="{{ l.service or '' }}"></td>
+          <td><input form="lf{{ l.id }}" type="date" name="service_date" value="{{ l.service_date.isoformat() if l.service_date else '' }}"></td>
+          <td><input form="lf{{ l.id }}" name="people" value="{{ l.people or '' }}"></td>
+          <td><select form="lf{{ l.id }}" name="status">{% for code, t, _b in lead_statuses %}<option value="{{ code }}"{% if l.status == code %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></td>
+          <td><input form="lf{{ l.id }}" name="provider_price" value="{{ '%g'|format(l.provider_price|float) if l.provider_price is not none else '' }}"></td>
+          <td><input form="lf{{ l.id }}" name="discount_amount" value="{{ '%g'|format(l.discount_amount|float) if l.discount_amount is not none else '' }}"></td>
+          <td><input form="lf{{ l.id }}" name="service_fee_pct" value="{{ '%g'|format(l.service_fee_pct|float) if l.service_fee_pct is not none else '' }}"></td>
+          <td><input form="lf{{ l.id }}" name="service_fee_amount" value="{{ '%g'|format(l.service_fee_amount|float) if l.service_fee_amount is not none else '' }}"></td>
+          <td><select form="lf{{ l.id }}" name="fee_status">{% for code, t, _b in fee_statuses %}<option value="{{ code }}"{% if l.fee_status == code %} selected{% endif %}>{{ t }}</option>{% endfor %}</select></td>
+          <td><input form="lf{{ l.id }}" type="checkbox" name="is_repeat" value="1"{% if l.is_repeat %} checked{% endif %}></td>
+          <td><button form="lf{{ l.id }}" class="btn btn-ghost btn-sm" type="submit">OK</button></td>
+        <td style="display:none"><form id="lf{{ l.id }}" method="post" action="/admin/partners/leads/{{ l.id }}"></form></td></tr>
+      {% endfor %}
+        <tr>
+          <td><input form="lfnew" name="inbox_ref" placeholder="3f0c9a52"></td>
+          <td><input form="lfnew" name="service" placeholder="Рафтинг 8 км"></td>
+          <td><input form="lfnew" type="date" name="service_date"></td>
+          <td><input form="lfnew" name="people" placeholder="2 взр."></td>
+          <td><select form="lfnew" name="status">{% for code, t, _b in lead_statuses %}<option value="{{ code }}">{{ t }}</option>{% endfor %}</select></td>
+          <td><input form="lfnew" name="provider_price" placeholder="5000"></td>
+          <td><input form="lfnew" name="discount_amount" placeholder="250"></td>
+          <td><input form="lfnew" name="service_fee_pct" placeholder="{{ '%g'|format(p.service_fee_pct|float) }}"></td>
+          <td><input form="lfnew" name="service_fee_amount" placeholder="авто"></td>
+          <td><select form="lfnew" name="fee_status">{% for code, t, _b in fee_statuses %}<option value="{{ code }}">{{ t }}</option>{% endfor %}</select></td>
+          <td><input form="lfnew" type="checkbox" name="is_repeat" value="1"></td>
+          <td><button form="lfnew" class="btn btn-primary btn-sm" type="submit">+ Бронь</button></td>
+        <td style="display:none"><form id="lfnew" method="post" action="/admin/partners/{{ p.id }}/leads"></form></td></tr>
+      </tbody>
+    </table></div>
+  </div>
+  {% endif %}
+</div>
+<script>
+(function(){var c=document.getElementById('pc-cat'),s=document.getElementById('pc-sub');if(!c||!s)return;
+function f(){Array.prototype.forEach.call(s.options,function(o){if(!o.value)return;var ok=o.dataset.cat===c.value;o.hidden=!ok;o.disabled=!ok;if(!ok&&o.selected)s.value='';});}
+c.addEventListener('change',f);f();})();
+</script>
+{% include "_partners_admin_css.html" %}
+{% endblock %}
