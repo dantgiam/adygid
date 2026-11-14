@@ -239,6 +239,7 @@ class Scenario(Base):
     order_index  = Column(Integer, nullable=False, default=0)
     is_published = Column(Boolean, nullable=False, default=True)
     created_at   = Column(DateTime, server_default=func.now())
+    updated_at   = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class Article(Base):
@@ -267,6 +268,8 @@ class Article(Base):
     featured_trail_ids      = Column(ARRAY(Integer), nullable=False, default=list)
     is_published           = Column(Boolean, nullable=False, default=True)
     created_at             = Column(DateTime, server_default=func.now())
+    # Дата последней правки — нужна sitemap (lastmod) и Article.dateModified.
+    updated_at             = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
 class Photo(Base):

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
 {% import "_difficulty.html" as difficulty %}
+{% import "_faq.html" as faqui %}
 
 {% block title %}{{ route.name }}{% if route.duration_label %} — {{ route.duration_label }}{% endif %}, маршрут по Адыгее{% endblock %}
 {% block meta_description %}{{ route.excerpt or route.name }}{% endblock %}
@@ -21,6 +22,8 @@
   }
 } | tojson }}
 </script>
+{{ faqui.ld(faq_ld) }}
+{{ faqui.ld(breadcrumbs_ld) }}
 {% endblock %}
 
 {% block content %}
@@ -59,6 +62,8 @@
         </div>
         {% endif %}
 
+        {{ faqui.faq_block(faq_items, faq.title) }}
+
         <div class="like-row">
           <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="trail" data-id="{{ route.id }}">
             {{ cards.heart_icon() }} <span class="like-text">{{ "Вам понравилось" if like.liked else "Понравилось" }}</span>
@@ -90,6 +95,8 @@
 {% endwith %}
 
 {% include "_club_cta.html" %}
+
+{{ faqui.mentioned_block(mentioned_in, "Где ещё про этот маршрут") }}
 
 {% if nearby %}
 <section class="section">

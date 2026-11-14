@@ -52,18 +52,41 @@
   <div class="wrap">
     <div class="podbor-widget-card">
       <div class="podbor-widget-text">
-        <p class="podbor-widget-title">Хотите, подберём для вас маршрут поездки абсолютно бесплатно, прямо на сайте</p>
+        {# «абсолютно бесплатно» — маркер-заливка, как выделение от руки: заметно,
+           но тем же шрифтом и цветом, что и весь заголовок. Чипы сезонов убраны:
+           сезон человек выбирает в самом подборе. #}
+        <p class="podbor-widget-title">Хотите, подберём для вас маршрут поездки <mark class="podbor-free">абсолютно бесплатно,</mark> прямо на&nbsp;сайте</p>
         <p class="podbor-widget-sub">под ваши интересы, с учётом времени пребывания</p>
-        <div class="podbor-widget-chips">
-          <a href="/podbor?src=home_widget&amp;season=winter" data-podbor-cta data-season="winter">❄ Ноябрь–декабрь</a>
-          <a href="/podbor?src=home_widget&amp;season=summer" data-podbor-cta data-season="summer">☀ Лето</a>
-          <a href="/podbor?src=home_widget&amp;season=any" data-podbor-cta data-season="any">↗ Ещё не знаю</a>
-        </div>
       </div>
       <a class="podbor-widget-go" href="/podbor?src=home_widget" data-podbor-cta>Подобрать маршрут →</a>
     </div>
   </div>
 </section>
+
+{% if seasonal %}
+<section class="section seasonal" aria-labelledby="seasonal-title">
+  <div class="wrap">
+    <div class="seasonal-card">
+      <div class="seasonal-head">
+        <p class="seasonal-kicker">{{ seasonal.kicker }}</p>
+        <h2 id="seasonal-title" class="seasonal-title">{{ seasonal.title }}</h2>
+        <p class="seasonal-lead">{{ seasonal.lead }}</p>
+      </div>
+      <div class="seasonal-grid">
+        {% for item in seasonal["items"] %}
+        <a class="seasonal-item" href="{{ item.url }}" data-seasonal-click data-target="{{ item.url }}">
+          <span class="seasonal-cover">{% if item.cover %}<img src="{{ item.cover }}" alt="" loading="lazy" decoding="async"{% if item.cover_style %} style="{{ item.cover_style }}"{% endif %}>{% endif %}</span>
+          <span class="seasonal-text">
+            <span class="seasonal-label">{{ item.label }}</span>
+            <span class="seasonal-note">{{ item.note }}</span>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</section>
+{% endif %}
 
 {{ doors_ui.doors_grid(doors, 'Подборки маршрутов', 'на любой случай и ситуацию', anchor='kuda') }}
 

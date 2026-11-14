@@ -775,9 +775,16 @@ document.addEventListener("click", (e) => {
     const podborCta = e.target.closest("[data-podbor-cta]");
     if (podborCta) {
       goal("podbor_cta_click", {
-        src: "home_widget",
+        src: podborCta.closest(".next-steps") ? "article" : "home_widget",
         season_chip: podborCta.getAttribute("data-season") || "",
       });
+      return;
+    }
+
+    // Сезонный блок на главной: какая карточка уводит людей дальше.
+    const seasonal = e.target.closest("[data-seasonal-click]");
+    if (seasonal) {
+      goal("seasonal_click", { target: seasonal.getAttribute("data-target") || "" });
       return;
     }
 

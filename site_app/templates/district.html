@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
+{% import "_faq.html" as faqui %}
 
-{% block title %}{{ district.label }} — что посмотреть и какие маршруты рядом{% endblock %}
+{% block title %}{{ district.seo_title or (district.label ~ " — что посмотреть и какие маршруты рядом") }}{% endblock %}
 {% block meta_description %}{{ district.lead }}{% endblock %}
 
 {% block extra_ld %}
@@ -15,6 +16,8 @@
   "address": {"@type": "PostalAddress", "addressRegion": "Республика Адыгея", "addressCountry": "RU"}
 } | tojson }}
 </script>
+{{ faqui.ld(district.faq_ld) }}
+{{ faqui.ld(district.breadcrumbs_ld) }}
 {% endblock %}
 
 {% block content %}
@@ -66,6 +69,12 @@
     <div class="section-head"><h2>Статьи про этот округ:</h2></div>
     <div class="grid">{% for a in district.articles %}{{ cards.article_card(a) }}{% endfor %}</div>
   </div>
+</section>
+{% endif %}
+
+{% if district.faq_items %}
+<section class="section">
+  <div class="wrap">{{ faqui.faq_block(district.faq_items, district.faq.title) }}</div>
 </section>
 {% endif %}
 
