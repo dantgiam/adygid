@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
 {% import "_difficulty.html" as difficulty %}
+{% import "_faq.html" as faqui %}
 
-{% block title %}{{ place.name }}{% if place.district_label %}, {{ place.district_label }}{% endif %} — как добраться и что посмотреть{% endblock %}
+{% block title %}{{ place.seo_title }}{% endblock %}
 {% block meta_description %}{{ place.excerpt or place.name }}{% endblock %}
 {% block og_image %}{% if place.cover %}<meta property="og:image" content="{{ place.cover|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 
@@ -23,6 +24,8 @@
 <script type="application/ld+json">
 {{ attraction_ld | tojson }}
 </script>
+{{ faqui.ld(faq_ld) }}
+{{ faqui.ld(breadcrumbs_ld) }}
 {% endblock %}
 
 {% block content %}
@@ -44,9 +47,25 @@
            сложность, сезон и стоимость оказывались в самом низу страницы,
            за описанием и галереей. Заголовок при этом остаётся наверху. #}
         <div class="detail-text">
+          {% if practical %}
+          <section class="practical" aria-labelledby="practical-title">
+            <h2 class="practical-title" id="practical-title">Коротко для поездки</h2>
+            <dl class="practical-list">
+              {% for row in practical %}
+              <div class="practical-row practical-{{ row.key }}">
+                <dt>{{ row.label }}</dt>
+                <dd>{% if row.links %}{% for l in row.links %}<a href="{{ l.url }}">{{ l.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ row.text }}{% if row.source %} <a class="practical-src" href="{{ row.source }}" target="_blank" rel="noopener">источник</a>{% endif %}{% endif %}</dd>
+              </div>
+              {% endfor %}
+            </dl>
+            <p class="practical-note">Цены и часы меняются — перед выездом проверь у объекта.</p>
+          </section>
+          {% endif %}
           {% if place.description_html %}{{ place.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
           {{ cards.photo_carousel(place.gallery) }}
+
+          {{ faqui.faq_block(faq_items, faq.title) }}
 
           <div class="like-row">
             <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="checkpoint" data-id="{{ place.id }}">
@@ -89,6 +108,8 @@
   </div>
 </section>
 {% endif %}
+
+{{ faqui.mentioned_block(mentioned_in, "Где ещё про это место") }}
 
 {% if nearby %}
 <section class="section">

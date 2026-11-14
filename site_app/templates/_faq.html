@@ -1,0 +1,47 @@
+{# «Частые вопросы» — один вид на статье, хабе /kuda, районе, месте и маршруте.
+   Стоит сразу после основного текста и до «Понравилось?»: так ответы видны
+   тем, кто дочитал, а Алиса и сниппеты берут их из FAQPage-разметки.
+   items — [{question, answer_html}], ответы уже прошли _rich_text_html. #}
+{% macro faq_block(items, title=None, id="faq") %}
+{% if items %}
+<section class="faq-block faq-block-seo" id="{{ id }}" aria-labelledby="{{ id }}-title">
+  <h2 class="faq-title" id="{{ id }}-title">{{ title or 'Частые вопросы' }}</h2>
+  {% for item in items %}
+  <details class="faq-item"{% if loop.first %} open{% endif %}>
+    <summary>{{ item.question }}</summary>
+    <div class="faq-answer">{{ item.answer_html | safe }}</div>
+  </details>
+  {% endfor %}
+</section>
+{% endif %}
+{% endmacro %}
+
+{# Обратные ссылки «Где ещё про это место»: хабы /kuda и статьи, которые
+   ссылаются на карточку. Не больше трёх — это навигация, а не ферма ссылок. #}
+{% macro mentioned_block(pages, heading) %}
+{% if pages %}
+<section class="section mentioned-section">
+  <div class="wrap">
+    <div class="section-head"><h2>{{ heading }}</h2></div>
+    <div class="mentioned-list">
+      {% for p in pages %}
+      <a class="mentioned-item" href="{{ p.url }}">
+        {% if p.cover %}<img src="{{ p.cover }}" alt="" loading="lazy" decoding="async"{% if p.cover_style %} style="{{ p.cover_style }}"{% endif %}>{% endif %}
+        <span class="mentioned-text">
+          <span class="mentioned-kind">{{ 'Гид' if p.kind == 'scenario' else 'Статья' }}</span>
+          <span class="mentioned-title">{{ p.title }}</span>
+        </span>
+        <span class="mentioned-arrow" aria-hidden="true">→</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+{% endmacro %}
+
+{% macro ld(obj) %}{% if obj %}
+<script type="application/ld+json">
+{{ obj | tojson }}
+</script>
+{% endif %}{% endmacro %}

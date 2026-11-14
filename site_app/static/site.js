@@ -131,7 +131,7 @@
   }
 })();
 
-// Клик «Оставить отзыв в MAX». Название берём из h1 в момент клика —
+// Клик «Оставить отзыв в MAX» или «… в Telegram». Название берём из h1 в момент клика —
 // тот же текст читает бот. До согласия цель остаётся в очереди adygidGoal.
 document.addEventListener("click", (e) => {
   const link = e.target.closest("[data-review-click]");
@@ -140,6 +140,7 @@ document.addEventListener("click", (e) => {
   window.adygidGoal("review_click", {
     page_type: link.getAttribute("data-page-type") || "",
     page_id: link.getAttribute("data-page-id") || "",
+    messenger: link.getAttribute("data-review-messenger") || "max",
     page_title: heading ? heading.textContent.trim() : "",
   });
 });
@@ -775,9 +776,16 @@ document.addEventListener("click", (e) => {
     const podborCta = e.target.closest("[data-podbor-cta]");
     if (podborCta) {
       goal("podbor_cta_click", {
-        src: "home_widget",
+        src: podborCta.closest(".next-steps") ? "article" : "home_widget",
         season_chip: podborCta.getAttribute("data-season") || "",
       });
+      return;
+    }
+
+    // Сезонный блок на главной: какая карточка уводит людей дальше.
+    const seasonal = e.target.closest("[data-seasonal-click]");
+    if (seasonal) {
+      goal("seasonal_click", { target: seasonal.getAttribute("data-target") || "" });
       return;
     }
 

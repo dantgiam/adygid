@@ -61,7 +61,10 @@ def test_catalog_module_does_not_write():
 def test_home_widget_nav_and_sitemap(client):
     home = client.get("/")
     assert home.status_code == 200
-    assert "Хотите, подберём для вас маршрут поездки абсолютно бесплатно, прямо на сайте" in home.text
+    assert "Хотите, подберём для вас маршрут поездки" in home.text
+    # «абсолютно бесплатно» выделено маркером, чипы сезонов под плашкой убраны.
+    assert '<mark class="podbor-free">абсолютно бесплатно,</mark>' in home.text
+    assert "podbor-widget-chips" not in home.text
     assert "под ваши интересы, с учётом времени пребывания" in home.text
     assert 'href="/podbor?src=home_widget"' in home.text
     assert 'href="/podbor"' in home.text

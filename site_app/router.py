@@ -5,6 +5,7 @@ import re
 import time
 import uuid
 from html import escape, unescape
+from markupsafe import Markup
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -27,6 +28,8 @@ from site_app.content import (
 )
 from site_app.icons import category_svg
 from site_app.podbor_catalog import catalog_items, invalidate_podbor_cache, load_copy, script_json
+from site_app import seo
+from site_app.autolink import autolink
 
 router = APIRouter()
 templates = Jinja2Templates(directory="site_app/templates")
@@ -79,6 +82,9 @@ templates.env.filters["abs_url"] = _abs_url
 _REVIEW_TOKEN_RE = re.compile(r"[^A-Za-z0-9-]")
 _REVIEW_KINDS = {"m", "r", "s"}
 REVIEW_BOT = "https://max.ru/se15002131_bot"
+# Тот же код отзыва для Telegram. У Telegram параметр start — до 64 символов
+# из [A-Za-z0-9_-], поэтому длинный слаг статьи обрезается (бот ищет по началу).
+REVIEW_BOT_TG = "https://t.me/adygid_bot"
 
 
 def review_token(value) -> str:
@@ -92,7 +98,13 @@ def review_bot_url(kind: str, page_id) -> str:
     return f"{REVIEW_BOT}?start=rv_{letter}{review_token(page_id)}"
 
 
+def review_bot_url_tg(kind: str, page_id) -> str:
+    letter = kind if kind in _REVIEW_KINDS else ""
+    return f"{REVIEW_BOT_TG}?start={('rv_' + letter + review_token(page_id))[:64]}"
+
+
 templates.env.globals["review_token"] = review_token
+templates.env.globals["review_bot_url_tg"] = review_bot_url_tg
 templates.env.globals["review_bot_url"] = review_bot_url
 
 
@@ -422,6 +434,134 @@ def _faq_ld(items: list) -> Optional[dict]:
             for item in items
         ],
     }
+
+
+def _faq_items_html(items: list) -> list:
+    """Ответы в наборах вопросов бывают и простым текстом, и HTML из
+    редактора — в шаблон отдаём уже готовый HTML."""
+    return [
+        {"question": i.get("question", ""), "answer_html": _rich_text_html(i.get("answer", ""))}
+        for i in (items or []) if i.get("question") and i.get("answer")
+    ]
+
+
+def _auto_faq(db: Session, slug: str) -> dict:
+    """Набор вопросов, привязанный к странице по слагу: mesta-24,
+    marshruty-12, okrugi-khadzhokh, kuda-zimoy, stati-<slug>. Заводится в
+    админке как обычный набор, вставлять его в текст не нужно — блок
+    «Частые вопросы» сам встаёт после текста, до «Понравилось?»."""
+    f = db.execute(
+        select(FaqSet).where(FaqSet.slug == slug, FaqSet.is_published == True)
+    ).scalars().first()
+    if not f or not f.items:
+        return {"title": None, "items": []}
+    return {"title": f.title, "items": list(f.items)}
+
+
+_MENTION_RE = re.compile(r'href="/(mesta|marshruty)/(\d+)"')
+_MENTIONS_CACHE: dict = {"value": None, "at": 0.0}
+
+
+def _mentions_index(db: Session) -> dict:
+    """Кто ссылается на место или маршрут: статьи и хабы /kuda, в тексте
+    которых есть ссылка или которые вынесли объект карточкой. Отсюда
+    берётся блок «Где ещё про это место» — обратная ссылка со слабых
+    карточек на сильные статьи и наоборот, без ручной разметки."""
+    now = time.monotonic()
+    if _MENTIONS_CACHE["value"] is not None and now - _MENTIONS_CACHE["at"] < 300:
+        return _MENTIONS_CACHE["value"]
+    index: dict = {}
+
+    def add(kind: str, obj_id: int, page: dict) -> None:
+        index.setdefault((kind, obj_id), [])
+        if all(p["url"] != page["url"] for p in index[(kind, obj_id)]):
+            index[(kind, obj_id)].append(page)
+
+    for a in db.execute(select(Article).where(Article.is_published == True)).scalars().all():
+        page = dict(_article_card_dict(a), kind="article")
+        for kind, obj_id in _MENTION_RE.findall(a.body or ""):
+            add(kind, int(obj_id), page)
+        for i in a.featured_checkpoint_ids or []:
+            add("mesta", i, page)
+        for i in a.featured_trail_ids or []:
+            add("marshruty", i, page)
+    for sc in db.execute(select(Scenario).where(Scenario.is_published == True)).scalars().all():
+        page = {
+            "id": sc.id, "url": f"/kuda/{sc.slug}", "title": sc.title, "excerpt": sc.seo_description or "",
+            "cover": sc.cover_thumb_url or sc.cover_url, "cover_style": _crop_style(sc.cover_focus),
+            "district_label": None, "kind": "scenario",
+        }
+        for kind, obj_id in _MENTION_RE.findall(sc.lead or ""):
+            add(kind, int(obj_id), page)
+    # Хабы /kuda — первыми: это самые сильные страницы сайта.
+    for pages in index.values():
+        pages.sort(key=lambda p: 0 if p["kind"] == "scenario" else 1)
+    _MENTIONS_CACHE["value"] = index
+    _MENTIONS_CACHE["at"] = now
+    return index
+
+
+def _mentioned_in(db: Session, kind: str, obj_id: int, limit: int = 3) -> list:
+    return _mentions_index(db).get((kind, obj_id), [])[:limit]
+
+
+def _next_hub(db: Session, article_slug: str) -> Optional[dict]:
+    """Блок «Куда дальше» под статьёй: тематический хаб /kuda и подбор."""
+    slug = seo.next_hub_slug(article_slug)
+    sc = db.execute(
+        select(Scenario).where(Scenario.slug == slug, Scenario.is_published == True)
+    ).scalars().first()
+    if not sc:
+        return None
+    return {"url": f"/kuda/{sc.slug}", "title": sc.title}
+
+
+def _place_links(db: Session, ids: list) -> list:
+    """[{name, url}] опубликованных карточек в заданном порядке — для
+    текстовых ссылок с настоящим названием места."""
+    if not ids:
+        return []
+    rows = {
+        cp.id: cp for cp in db.execute(
+            select(Checkpoint).where(
+                Checkpoint.id.in_(ids), Checkpoint.is_published == True, Checkpoint.show_as_place == True
+            )
+        ).scalars().all()
+    }
+    return [{"name": rows[i].name, "url": f"/mesta/{i}"} for i in ids if i in rows]
+
+
+def _place_practical(db: Session, cp: Checkpoint) -> list:
+    """«Коротко для поездки»: [{label, text, source?, links?}] только по
+    заполненным полям (site_app/seo.py, PLACE_PRACTICAL). Время посещения
+    без ручного текста — из duration_minutes карточки."""
+    cfg = seo.PLACE_PRACTICAL.get(cp.id)
+    if not cfg:
+        return []
+    rows = []
+    for key, label in seo.PRACTICAL_LABELS:
+        if key == "combine":
+            links = _place_links(db, [i for i in cfg.get("combine", []) if i != cp.id])
+            if cfg.get("route"):
+                t = db.execute(
+                    select(Trail).where(Trail.id == cfg["route"], Trail.is_published == True)
+                ).scalars().first()
+                if t:
+                    links.append({"name": f"маршрут «{t.name}»", "url": f"/marshruty/{t.id}"})
+            if links:
+                rows.append({"key": key, "label": label, "links": links})
+            continue
+        value = cfg.get(key)
+        if key == "visit" and not value:
+            dur = _duration_label(cp.duration_minutes)
+            value = f"Ориентир — {dur} без спешки." if dur else None
+        if not value:
+            continue
+        if isinstance(value, dict):
+            rows.append({"key": key, "label": label, "text": value["text"], "source": value.get("source")})
+        else:
+            rows.append({"key": key, "label": label, "text": value})
+    return rows
 
 
 def _render_embeds(db: Session, html: str) -> tuple[str, list]:
@@ -888,6 +1028,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "trail": {"name": cp.trail.name, "url": f"/marshruty/{cp.trail.id}"} if cp.trail else None,
         "district_url": f"/okrugi/{cp.district}" if cp.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(cp.checked_at),
+        "seo_title": seo.place_title(cp.name, cp.district, cp.id),
     }
 
 
@@ -984,7 +1125,7 @@ def _club_url(db: Session) -> str:
 _DISTRICT_CACHE: dict = {"value": None, "at": 0.0}
 # Подписи округов для карточек: _place_card_dict и соседи вызываются без
 # сессии, поэтому берут готовый словарь, а не ходят в базу сами.
-_DISTRICT_LABELS: dict = dict(DISTRICTS)
+_DISTRICT_LABELS: dict = {k: seo.district_display(k, v) for k, v in DISTRICTS.items()}
 
 
 def _districts(db: Session) -> list:
@@ -997,7 +1138,7 @@ def _districts(db: Session) -> list:
     rows = db.execute(select(District).order_by(District.order_index, District.id)).scalars().all()
     _DISTRICT_CACHE["value"] = [
         {
-            "slug": d.slug, "label": d.name, "lead": d.lead or "", "facts": d.facts or [],
+            "slug": d.slug, "label": seo.district_display(d.slug, d.name), "lead": d.lead or "", "facts": d.facts or [],
             "cover": d.cover_url, "cover_thumb": d.cover_thumb_url or d.cover_url,
             "cover_style": _crop_style(d.cover_focus),
             "published": d.is_published,
@@ -1168,7 +1309,43 @@ def invalidate_home_cache() -> None:
     _DIFFICULTY_CACHE["value"] = None
     _DISTRICT_CACHE["value"] = None
     _CLUB_URL_CACHE["value"] = None
+    _MENTIONS_CACHE["value"] = None
     invalidate_podbor_cache()
+
+
+def _seasonal_block(db: Session) -> Optional[dict]:
+    """«Сейчас в Адыгее: зима» — 3–4 карточки по сезону (site_app/seo.py).
+    Обложку и заголовок берём у самой страницы; неопубликованные пропускаем,
+    чтобы блок не вёл в 404."""
+    cfg = seo.seasonal_for()
+    if not cfg:
+        return None
+    cards = []
+    for item in cfg["items"]:
+        url = item["url"]
+        cover = None
+        if url.startswith("/stati/"):
+            a = db.execute(select(Article).where(
+                Article.slug == url.split("/")[-1], Article.is_published == True)).scalars().first()
+            if not a:
+                continue
+            cover = a.cover_thumb_url or a.cover_url
+            style = _crop_style(a.cover_focus)
+        elif url.startswith("/kuda/"):
+            sc = db.execute(select(Scenario).where(
+                Scenario.slug == url.split("/")[-1], Scenario.is_published == True)).scalars().first()
+            if not sc:
+                continue
+            cover = sc.tile_cover_thumb_url or sc.cover_thumb_url or sc.cover_url
+            style = _crop_style(sc.tile_cover_focus or sc.cover_focus)
+        else:
+            style = ""
+        if item.get("cover"):
+            cover, style = item["cover"], ""
+        cards.append(dict(item, cover=cover, cover_style=style))
+    if len(cards) < 2:
+        return None
+    return dict(cfg, items=cards[:4], place_links=_place_links(db, cfg.get("places", [])))
 
 
 @router.get("/")
@@ -1230,6 +1407,7 @@ def home(request: Request, db: Session = Depends(get_db)):
             routes_remaining=routes_remaining, routes_remaining_word=routes_remaining_word,
             articles_remaining=articles_remaining, articles_remaining_word=articles_remaining_word,
             wizard_categories=wizard_categories, doors=doors, page=_site_page(db, "home"),
+            seasonal=_seasonal_block(db),
         ),
     )
     _HOME_CACHE["body"] = response.body
@@ -1329,11 +1507,20 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
     related_routes = _routes_for_place(db, cp)
     similar = _similar_places(db, cp, {p["id"] for p in nearby} | {cp.id})
 
+    crumbs = [("Места", "/mesta")]
+    if place["district_url"]:
+        crumbs.append((place["district_label"], place["district_url"]))
+    crumbs.append((place["name"], f"/mesta/{cp.id}"))
+    faq = _auto_faq(db, f"mesta-{cp.id}")
     return templates.TemplateResponse(
         "place_detail.html",
         _ctx(
             request, db, active_nav="places", place=place, similar=similar, nearby=nearby,
             related_routes=related_routes,
+            faq=faq, faq_items=_faq_items_html(faq["items"]), faq_ld=_faq_ld(faq["items"]),
+            breadcrumbs_ld=seo.breadcrumbs_ld(SITE_URL, crumbs),
+            mentioned_in=_mentioned_in(db, "mesta", cp.id),
+            practical=_place_practical(db, cp),
             like=_like_info(db, request, "checkpoint", cp.id),
         ),
     )
@@ -1403,10 +1590,18 @@ def route_detail(request: Request, route_id: int, db: Session = Depends(get_db))
     # могут, но правило отбора то же: совпадение типа обязательно.
     similar = _similar_routes(db, t, {t.id})
 
+    crumbs = [("Маршруты", "/marshruty")]
+    if route["district_url"]:
+        crumbs.append((route["district_label"], route["district_url"]))
+    crumbs.append((route["name"], f"/marshruty/{t.id}"))
+    faq = _auto_faq(db, f"marshruty-{t.id}")
     return templates.TemplateResponse(
         "route_detail.html",
         _ctx(
             request, db, active_nav="routes", route=route, similar=similar, nearby=nearby,
+            faq=faq, faq_items=_faq_items_html(faq["items"]), faq_ld=_faq_ld(faq["items"]),
+            breadcrumbs_ld=seo.breadcrumbs_ld(SITE_URL, crumbs),
+            mentioned_in=_mentioned_in(db, "marshruty", t.id),
             like=_like_info(db, request, "trail", t.id),
         ),
     )
@@ -1503,25 +1698,43 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     if not sc:
         raise HTTPException(404, "Сценарий не найден")
 
-    place_conditions = [Checkpoint.show_as_place == True] + _scenario_conditions(Checkpoint, sc)
-    places = [
-        _place_card_dict(cp)
-        for cp in db.execute(
-            _with_place_relations(select(Checkpoint))
-            .where(*place_conditions)
-            .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc())
-        ).scalars().all()
-    ]
+    curated = seo.SCENARIO_CURATED.get(sc.slug)
+    if curated:
+        # Ручная подборка (site_app/seo.py): хаб ведёт в 10–15 главных
+        # карточек, а не повторяет весь каталог.
+        by_id = {
+            cp.id: cp for cp in db.execute(
+                _with_place_relations(select(Checkpoint))
+                .where(Checkpoint.show_as_place == True, Checkpoint.id.in_(curated["places"]))
+            ).scalars().all()
+        }
+        places = [_place_card_dict(by_id[i]) for i in curated["places"] if i in by_id]
+        by_id_t = {
+            t.id: t for t in db.execute(
+                _with_route_relations(select(Trail)).where(Trail.id.in_(curated["routes"]))
+            ).scalars().all()
+        }
+        routes = [_route_card_dict(by_id_t[i]) for i in curated["routes"] if i in by_id_t]
+    else:
+        place_conditions = [Checkpoint.show_as_place == True] + _scenario_conditions(Checkpoint, sc)
+        places = [
+            _place_card_dict(cp)
+            for cp in db.execute(
+                _with_place_relations(select(Checkpoint))
+                .where(*place_conditions)
+                .order_by(_POPULARITY_ORDER, Checkpoint.created_at.desc())
+            ).scalars().all()
+        ]
 
-    route_conditions = _scenario_conditions(Trail, sc)
-    routes = [
-        _route_card_dict(t)
-        for t in db.execute(
-            _with_route_relations(select(Trail))
-            .where(*route_conditions)
-            .order_by(_POPULARITY_ORDER_TRAIL)
-        ).scalars().all()
-    ]
+        route_conditions = _scenario_conditions(Trail, sc)
+        routes = [
+            _route_card_dict(t)
+            for t in db.execute(
+                _with_route_relations(select(Trail))
+                .where(*route_conditions)
+                .order_by(_POPULARITY_ORDER_TRAIL)
+            ).scalars().all()
+        ]
 
     article_ids = sc.featured_article_ids or []
     articles = []
@@ -1537,6 +1750,7 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     lead_html = _render_article_gallery(_rich_text_html(sc.lead))
     lead_html, toc = _add_toc_anchors(lead_html)
     lead_html, embedded_faq = _render_embeds(db, lead_html)
+    auto_faq = _auto_faq(db, f"kuda-{sc.slug}")
 
     scenario = {
         "id": sc.id,
@@ -1549,7 +1763,14 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "toc": toc if sum(1 for i in toc if i["level"] == 2) >= 3 else [],
         # Вопросы из вставленных наборов раньше собирались и молча терялись:
         # сценарий с полноценным гайдом внутри оставался без сниппета в поиске.
-        "faq_ld": _faq_ld(embedded_faq),
+        # К ним добавляется набор, привязанный слагом kuda-<slug>.
+        "faq_ld": _faq_ld(embedded_faq + auto_faq["items"]),
+        "faq": auto_faq,
+        "faq_items": _faq_items_html(auto_faq["items"]),
+        "curated": bool(curated),
+        "seo_title": seo.SCENARIO_TITLES.get(sc.slug),
+        "updated_iso": (getattr(sc, "updated_at", None) or sc.created_at).date().isoformat() if (getattr(sc, "updated_at", None) or sc.created_at) else None,
+        "breadcrumbs_ld": seo.breadcrumbs_ld(SITE_URL, [("Куда поехать", "/kuda"), (sc.title, f"/kuda/{sc.slug}")]),
         "seo_description": sc.seo_description or _excerpt(sc.lead, 200) or sc.title,
         "places": places,
         "routes": routes,
@@ -1607,7 +1828,7 @@ def districts_index(request: Request, db: Session = Depends(get_db)):
 def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     page = next((d for d in _districts(db) if d["slug"] == slug and d["published"]), None)
     if not page:
-        raise HTTPException(404, "Округ не найден")
+        raise HTTPException(404, "Район не найден")
 
     places = [
         _place_card_dict(cp)
@@ -1629,17 +1850,37 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
             select(Article).where(Article.is_published == True, Article.district == slug)
         ).scalars().all()
     ]
+    # Статьи и хабы без поля «округ», но про места этого округа (ссылаются
+    # на два и больше его места) — тоже «про этот округ».
+    place_ids = {p["id"] for p in places}
+    hits: dict = {}
+    for (kind, obj_id), pages in _mentions_index(db).items():
+        if kind == "mesta" and obj_id in place_ids:
+            for ref in pages:
+                hits.setdefault(ref["url"], [ref, 0])[1] += 1
+    have = {a["url"] for a in articles}
+    extra = [pg for pg, n in sorted(hits.values(), key=lambda x: -x[1]) if n >= 2 and pg["url"] not in have]
+    articles = articles + extra[: max(0, 6 - len(articles))]
+    faq = _auto_faq(db, f"okrugi-{slug}")
 
     district = {
         "slug": slug,
         "label": page["label"],
         "lead": page["lead"],
+        # Первое упоминание места этого района в тексте — ссылка на карточку.
+        "lead_html": Markup(autolink(str(escape(page["lead"])), place_ids, max_links=4)[0]),
         "facts": page.get("facts", []),
         "cover": page["cover"],
         "cover_style": page["cover_style"],
         "places": places,
         "routes": routes,
         "articles": articles,
+        "seo_title": seo.DISTRICT_TITLES.get(slug),
+        "faq": faq,
+        "faq_items": _faq_items_html(faq["items"]),
+        "faq_ld": _faq_ld(faq["items"]),
+        "breadcrumbs_ld": seo.breadcrumbs_ld(SITE_URL, [("Районы", "/okrugi"), (page["label"], f"/okrugi/{slug}")]),
+        "start_links": _place_links(db, seo.DISTRICT_START.get(slug, [])),
     }
     return templates.TemplateResponse(
         "district.html", _ctx(request, db, active_nav="districts", district=district)
@@ -1706,8 +1947,13 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
 
     # В сниппет поиска отдаём и «хвостовой» FAQ статьи, и все вопросы из
     # вставленных в текст наборов — для поисковика это одна страница.
-    faq = a.faq or []
+    faq = list(a.faq or [])
+    faq_title = None
+    if not faq:
+        auto = _auto_faq(db, f"stati-{a.slug}")
+        faq, faq_title = auto["items"], auto["title"]
     faq_ld = _faq_ld(list(faq) + embedded_faq)
+    modified = getattr(a, "updated_at", None) or a.created_at
 
     article = {
         "title": a.title,
@@ -1719,7 +1965,14 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "body_html": body_html,
         "toc": toc if sum(1 for i in toc if i["level"] == 2) >= 3 else [],
         "faq": faq,
+        "faq_title": faq_title,
+        "faq_items": _faq_items_html(faq),
         "faq_ld": faq_ld,
+        "seo_title": seo.ARTICLE_TITLES.get(a.slug),
+        "published_iso": a.created_at.date().isoformat() if a.created_at else None,
+        "modified_iso": modified.date().isoformat() if modified else None,
+        "next_hub": _next_hub(db, a.slug),
+        "breadcrumbs_ld": seo.breadcrumbs_ld(SITE_URL, [("Статьи", "/stati"), (a.title, f"/stati/{a.slug}")]),
         "featured_places": featured_places,
         "featured_routes": featured_routes,
     }
@@ -1876,34 +2129,63 @@ def yandex_verification_30c724c08ddd1bbd():
 
 @router.get("/sitemap.xml")
 def sitemap_xml(db: Session = Depends(get_db)):
+    """lastmod — дата последней правки (updated_at), а не создания: иначе
+    поисковик не узнаёт, что страницу переписали. У разделов и округов —
+    самая свежая правка среди того, что на них показано."""
+    def day(dt) -> Optional[str]:
+        return dt.date().isoformat() if dt else None
+
+    def latest(*values) -> Optional[str]:
+        vals = [v for v in values if v]
+        return max(vals) if vals else None
+
+    places = db.execute(
+        select(Checkpoint.id, Checkpoint.district, Checkpoint.updated_at, Checkpoint.created_at)
+        .where(Checkpoint.show_as_place == True, Checkpoint.is_published == True)
+    ).all()
+    trails = db.execute(
+        select(Trail.id, Trail.district, Trail.updated_at, Trail.created_at).where(Trail.is_published == True)
+    ).all()
+    articles = db.execute(
+        select(Article.slug, Article.district, Article.updated_at, Article.created_at).where(Article.is_published == True)
+    ).all()
+    scenarios = db.execute(
+        select(Scenario.slug, Scenario.updated_at, Scenario.created_at).where(Scenario.is_published == True)
+    ).all()
+
+    place_urls = [(f"/mesta/{r.id}", day(r.updated_at or r.created_at), "monthly") for r in places]
+    trail_urls = [(f"/marshruty/{r.id}", day(r.updated_at or r.created_at), "monthly") for r in trails]
+    article_urls = [(f"/stati/{r.slug}", day(r.updated_at or r.created_at), "monthly") for r in articles]
+    scenario_urls = [(f"/kuda/{r.slug}", day(r.updated_at or r.created_at), "weekly") for r in scenarios]
+
+    last_places = latest(*[u[1] for u in place_urls])
+    last_trails = latest(*[u[1] for u in trail_urls])
+    last_articles = latest(*[u[1] for u in article_urls])
+    last_scenarios = latest(*[u[1] for u in scenario_urls])
+
+    district_urls = []
+    for d in _districts(db):
+        if not d["published"]:
+            continue
+        mod = latest(
+            *[day(r.updated_at or r.created_at) for r in places if r.district == d["slug"]],
+            *[day(r.updated_at or r.created_at) for r in trails if r.district == d["slug"]],
+            *[day(r.updated_at or r.created_at) for r in articles if r.district == d["slug"]],
+        )
+        district_urls.append((f"/okrugi/{d['slug']}", mod, "monthly"))
+
     urls: list[tuple[str, Optional[str], str]] = [
-        ("/", None, "daily"),
-        ("/mesta", None, "weekly"),
-        ("/marshruty", None, "weekly"),
-        ("/stati", None, "weekly"),
-        ("/kuda", None, "monthly"),
-        ("/okrugi", None, "monthly"),
+        ("/", latest(last_places, last_trails, last_articles, last_scenarios), "daily"),
+        ("/mesta", last_places, "weekly"),
+        ("/marshruty", last_trails, "weekly"),
+        ("/stati", last_articles, "weekly"),
+        ("/kuda", last_scenarios, "monthly"),
+        ("/okrugi", latest(*[u[1] for u in district_urls]), "monthly"),
         ("/voprosy", None, "monthly"),
         ("/klub", None, "monthly"),
-        ("/podbor", None, "weekly"),
+        ("/podbor", latest(last_places, last_trails), "weekly"),
     ]
-    for row in db.execute(select(Scenario.slug).where(Scenario.is_published == True)).scalars().all():
-        urls.append((f"/kuda/{row}", None, "weekly"))
-    for d in _districts(db):
-        if d["published"]:
-            urls.append((f"/okrugi/{d['slug']}", None, "monthly"))
-
-    for cp in db.execute(
-        select(Checkpoint.id, Checkpoint.created_at)
-        .where(Checkpoint.show_as_place == True, Checkpoint.is_published == True)
-    ).all():
-        urls.append((f"/mesta/{cp.id}", cp.created_at.date().isoformat() if cp.created_at else None, "monthly"))
-    for t in db.execute(select(Trail.id, Trail.created_at).where(Trail.is_published == True)).all():
-        urls.append((f"/marshruty/{t.id}", t.created_at.date().isoformat() if t.created_at else None, "monthly"))
-    for a in db.execute(
-        select(Article.slug, Article.created_at).where(Article.is_published == True)
-    ).all():
-        urls.append((f"/stati/{a.slug}", a.created_at.date().isoformat() if a.created_at else None, "monthly"))
+    urls += scenario_urls + district_urls + place_urls + trail_urls + article_urls
 
     body = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for path, lastmod, changefreq in urls:

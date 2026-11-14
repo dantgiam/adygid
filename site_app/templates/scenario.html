@@ -1,17 +1,28 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
 {% import "_doors.html" as doors_ui %}
+{% import "_faq.html" as faqui %}
 
-{% block title %}{{ scenario.title }} — АдыГид{% endblock %}
+{% block title %}{{ scenario.seo_title or (scenario.title ~ " — АдыГид") }}{% endblock %}
 {% block meta_description %}{{ scenario.seo_description }}{% endblock %}
 {% block og_image %}{% if scenario.cover_url %}<meta property="og:image" content="{{ scenario.cover_url|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 
 {% block extra_ld %}
-{% if scenario.faq_ld %}
-<script type="application/ld+json">
-{{ scenario.faq_ld | tojson }}
-</script>
-{% endif %}
+{{ faqui.ld({
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": scenario.title,
+  "description": scenario.seo_description,
+  "url": canonical_url,
+  "mainEntityOfPage": canonical_url,
+  "image": [scenario.cover_url|abs_url] if scenario.cover_url else [],
+  "dateModified": scenario.updated_iso,
+  "inLanguage": "ru-RU",
+  "author": {"@type": "Person", "name": "Данила"},
+  "publisher": {"@type": "Organization", "name": "АдыГид", "url": site_url}
+}) }}
+{{ faqui.ld(scenario.faq_ld) }}
+{{ faqui.ld(scenario.breadcrumbs_ld) }}
 {% endblock %}
 
 {% block content %}
@@ -26,6 +37,8 @@
         <div class="article-body">
           {{ scenario.lead | safe }}
         </div>
+
+        {{ faqui.faq_block(scenario.faq_items, scenario.faq.title) }}
 
         <div class="like-row">
           <button type="button" class="like-btn{{ ' liked' if like.liked else '' }}" data-type="scenario" data-id="{{ scenario.id }}">
@@ -48,7 +61,7 @@
 {% if scenario.places %}
 <section class="section">
   <div class="wrap">
-    <div class="section-head"><h2>Места:</h2></div>
+    <div class="section-head"><h2>Места:</h2>{% if scenario.curated %}<a class="see-all" href="/mesta">Весь каталог мест →</a>{% endif %}</div>
     <div class="grid">{% for p in scenario.places %}{{ cards.place_card(p) }}{% endfor %}</div>
   </div>
 </section>

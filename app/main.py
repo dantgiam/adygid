@@ -175,6 +175,12 @@ with engine.begin() as _conn:
         _conn.execute(text(f"UPDATE {_t} SET updated_at = created_at WHERE updated_at IS NULL"))
         _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS checked_at TIMESTAMP"))
         _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS is_published BOOLEAN NOT NULL DEFAULT true"))
+    # Дата правки статей и сценариев — для lastmod в sitemap. Колонка сначала
+    # без DEFAULT, чтобы старые строки получили дату создания, а не день миграции.
+    for _t in ("articles", "scenarios"):
+        _conn.execute(text(f"ALTER TABLE {_t} ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP"))
+        _conn.execute(text(f"UPDATE {_t} SET updated_at = created_at WHERE updated_at IS NULL"))
+        _conn.execute(text(f"ALTER TABLE {_t} ALTER COLUMN updated_at SET DEFAULT now()"))
     _conn.execute(text("ALTER TABLE photos ADD COLUMN IF NOT EXISTS caption VARCHAR(255)"))
     # Точка фокуса кадра — что именно оставить в кадре, когда обложка обрезается
     # под формат карточки. Хранится готовым значением object-position («50% 30%»),

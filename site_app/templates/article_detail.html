@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
+{% import "_faq.html" as faqui %}
 
-{% block title %}{{ article.title }} — АдыГид{% endblock %}
+{% block title %}{{ article.seo_title or (article.title ~ " — АдыГид") }}{% endblock %}
 {% block meta_description %}{{ article.excerpt or article.title }}{% endblock %}
 {% block og_type %}article{% endblock %}
 {% block og_image %}{% if article.cover_url %}<meta property="og:image" content="{{ article.cover_url|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
@@ -16,15 +17,15 @@
   "url": canonical_url,
   "image": [article.cover_url] if article.cover_url else [],
   "inLanguage": "ru-RU",
+  "datePublished": article.published_iso,
+  "dateModified": article.modified_iso,
+  "mainEntityOfPage": canonical_url,
   "author": {"@type": "Person", "name": "Данила"},
   "publisher": {"@type": "Organization", "name": "АдыГид", "url": site_url}
 } | tojson }}
 </script>
-{% if article.faq_ld %}
-<script type="application/ld+json">
-{{ article.faq_ld | tojson }}
-</script>
-{% endif %}
+{{ faqui.ld(article.faq_ld) }}
+{{ faqui.ld(article.breadcrumbs_ld) }}
 {% endblock %}
 
 {% block content %}
@@ -40,16 +41,14 @@
           {{ article.body_html | safe }}
         </div>
 
-        {% if article.faq %}
-        <div class="faq-block">
-          <h4>Частые вопросы</h4>
-          {% for item in article.faq %}
-          <details class="faq-item">
-            <summary>{{ item.question }}</summary>
-            <p>{{ item.answer }}</p>
-          </details>
-          {% endfor %}
-        </div>
+        {{ faqui.faq_block(article.faq_items, article.faq_title) }}
+
+        {% if article.next_hub %}
+        <nav class="next-steps" aria-label="Куда дальше">
+          <span class="next-steps-label">Куда дальше</span>
+          <a class="next-steps-link" href="{{ article.next_hub.url }}">{{ article.next_hub.title }} →</a>
+          <a class="next-steps-link next-steps-podbor" href="/podbor?src=article" data-podbor-cta>Подобрать маршрут под себя →</a>
+        </nav>
         {% endif %}
 
         {% if article.featured_places %}
