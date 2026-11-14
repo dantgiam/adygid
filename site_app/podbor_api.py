@@ -31,6 +31,8 @@ _EVENT_TYPES = {
     "plan_fix",
     "podbor_feedback_max",
     "alt_toggle",
+    "plan_save_max",
+    "plan_save_tg",
 }
 _QUESTIONS = {
     "season", "duration", "base", "party", "been", "pace", "interests",
@@ -59,11 +61,14 @@ class PodborBatchIn(BaseModel):
 
 def ensure_podbor_table() -> None:
     """Повторяемая миграция. Ошибка не должна ронять старт сайта."""
-    path = os.path.join(os.path.dirname(__file__), "..", "migrations", "20261113_podbor_answers.sql")
-    try:
-        raw = open(path, encoding="utf-8").read()
-    except OSError:
-        log.warning("podbor migration file missing: %s", path)
+    raw = ""
+    for name in ("20261113_podbor_answers.sql", "20261115_podbor_plans.sql"):
+        path = os.path.join(os.path.dirname(__file__), "..", "migrations", name)
+        try:
+            raw += open(path, encoding="utf-8").read() + ";\n"
+        except OSError:
+            log.warning("podbor migration file missing: %s", path)
+    if not raw:
         return
     statements = []
     for chunk in raw.split(";"):
