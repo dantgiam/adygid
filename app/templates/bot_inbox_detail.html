@@ -6,7 +6,7 @@
     <div>
       <a class="btn btn-ghost btn-sm" href="/admin/inbox{% if list_query %}?{{ list_query }}{% endif %}">← К списку</a>
       <h1 style="margin-top:12px">{% if item %}№ {{ item.short_id }}{% else %}Обращение не найдено{% endif %}</h1>
-      {% if item %}<div class="sub">{{ item.kind_title }} · {{ item.created_at }} МСК</div>{% endif %}
+      {% if item %}<div class="sub">{{ item.kind_title }} · {{ item.platform_title }} · {{ item.created_at }} МСК</div>{% endif %}
     </div>
   </div>
 
@@ -20,7 +20,7 @@
   {% if missing or not item %}
   <div class="empty">
     <b>Обращение не найдено</b>
-    Его нет среди последних 200. Если оно старше, откройте его из уведомления в MAX.
+    Его нет среди последних 200. Если оно старше, откройте его из уведомления в рабочем чате.
   </div>
   {% else %}
   <div class="editor-grid">
@@ -30,12 +30,13 @@
           <div class="row-title">
             <span class="badge">{{ item.kind_title }}</span>
             <span class="badge {{ item.status_badge }}">{{ item.status_title }}</span>
+            <span class="badge {{ item.platform_badge }}">{{ item.platform_title }}</span>
             {% if item.free_text %}<span class="badge badge-draft">написано без кнопки</span>{% endif %}
           </div>
         </div>
         <dl class="meta-list">
           <div><dt>От</dt><dd>{{ item.user_name }}</dd></div>
-          <div><dt>id в MAX</dt><dd>{{ item.user_id }}</dd></div>
+          <div><dt>id в {{ item.platform_title }}</dt><dd>{{ item.user_id }}</dd></div>
           <div><dt>Когда</dt><dd>{{ item.created_at }} МСК</dd></div>
           <div><dt>Обновлено</dt><dd>{{ item.updated_at }} МСК</dd></div>
           <div><dt>Уведомление</dt><dd>{% if item.notified %}ушло в рабочий чат{% else %}не ушло{% endif %}</dd></div>
@@ -66,7 +67,7 @@
             {% endif %}
           {% endfor %}
         </div>
-        <p class="hint">Ссылки на фото временные, их отдаёт MAX. Сайт их не скачивает и не хранит.</p>
+        <p class="hint">Ссылки на фото временные, их отдаёт мессенджер. Сайт их не скачивает и не хранит.</p>
         {% endif %}
       </section>
     </div>
@@ -85,7 +86,7 @@
         </div>
         <button class="btn btn-primary" type="submit">Сохранить статус</button>
       </form>
-      <p class="hint" style="margin-top:14px">Ответ человеку уходит из MAX, не из этой страницы.</p>
+      <p class="hint" style="margin-top:14px">Ответ человеку уходит из того же мессенджера, не из этой страницы.</p>
     </aside>
   </div>
   {% endif %}

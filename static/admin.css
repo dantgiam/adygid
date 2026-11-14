@@ -112,6 +112,8 @@ a { color: var(--accent); }
 .badge-gold { background: #FBF1D9; color: #8A6608; border-color: #EBD9A8; }
 .badge-muted { opacity: .75; }
 .badge-draft { background: #FFF4E5; color: #96591B; border-color: #F5DDBB; }
+.badge-max { background: var(--accent-soft); color: var(--accent-dark); border-color: #C6E4C8; }
+.badge-tg { background: #E7F0FF; color: #1A4F9C; border-color: #C5D7F5; }
 
 /* ── Пустое состояние ─────────────────────────────────────────── */
 .empty {

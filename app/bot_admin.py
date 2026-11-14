@@ -1,4 +1,4 @@
-"""Админка бота MAX: «Входящие» и «Шаблоны бота».
+"""Админка бота MAX и Telegram: «Входящие» и «Шаблоны бота».
 
 Сайт ходит в API бота (Yandex Cloud, РФ) только с сервера. Тексты обращений,
 имена, телефоны и id — персональные данные: их нельзя писать в базу, файлы,
@@ -43,6 +43,14 @@ STATUS_BADGES = {
     "in_progress": "badge-draft",
     "done": "badge-green",
     "spam": "badge-muted",
+}
+PLATFORM_LABELS = {
+    "max": "MAX",
+    "telegram": "Telegram",
+}
+PLATFORM_BADGES = {
+    "max": "badge-max",
+    "telegram": "badge-tg",
 }
 KINDS = ("question", "review", "service_request", "podbor_feedback", "consent_revoked")
 # Совпадают с сидом admin.kind_titles. Если API ответил, берём его подписи.
@@ -357,6 +365,20 @@ def _attachments(payload: dict) -> list[dict]:
     return found
 
 
+
+def _item_platform(raw: dict, payload: dict) -> str:
+    """max | telegram. Берём API-поле platform, иначе channel / payload, иначе max."""
+    value = None
+    if isinstance(raw, dict):
+        value = raw.get("platform") or raw.get("channel")
+    if value is None and isinstance(payload, dict):
+        value = payload.get("platform") or payload.get("channel")
+    raw_value = str(value or "max").strip().lower()
+    if raw_value in ("tg", "telegram"):
+        return "telegram"
+    return "max"
+
+
 def _inbox_view(raw: dict, titles: dict) -> dict | None:
     item_id = raw.get("id")
     if not isinstance(item_id, str) or not _valid_id(item_id):
@@ -365,6 +387,7 @@ def _inbox_view(raw: dict, titles: dict) -> dict | None:
     kind = raw.get("kind") if isinstance(raw.get("kind"), str) else ""
     status = raw.get("status") if isinstance(raw.get("status"), str) else ""
     text = raw.get("text") if isinstance(raw.get("text"), str) else None
+    platform = _item_platform(raw, payload)
     return {
         "id": item_id,
         "short_id": item_id[:8],
@@ -388,6 +411,9 @@ def _inbox_view(raw: dict, titles: dict) -> dict | None:
         "free_text": bool(payload.get("free_text")),
         "attachments": _attachments(payload),
         "preview": _preview_line(text, payload),
+        "platform": platform,
+        "platform_title": PLATFORM_LABELS.get(platform, "MAX"),
+        "platform_badge": PLATFORM_BADGES.get(platform, "badge-max"),
     }
 
 
