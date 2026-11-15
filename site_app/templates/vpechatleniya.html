@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Впечатления АдыГида</title>
+<meta name="description" content="Тестовая страница «Впечатления АдыГида»: вымышленные предложения, ориентировочные цены и иллюстративные фотографии. В меню сайта не входит, заявки не отправляются.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="canonical" href="{{ canonical_url }}">
+<link rel="icon" href="/assets/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/assets/vpechatleniya/v.css?v={{ rev }}">
+</head>
+<body>
+  <div class="demo-banner" id="demo-disclaimer">
+    <div class="wrap">
+      <span>Тестовая страница: предложения вымышлены, цены ориентировочные. Фотографии иллюстративные — не снимки партнёров Адыгеи и не подтверждение, что услуга доступна.</span>
+      <span>Адрес /v · в меню сайта нет · заявки не отправляются</span>
+    </div>
+  </div>
+  <div id="app"></div>
+  <noscript>Для просмотра тестового каталога включите JavaScript. Предложения вымышлены, заявки не отправляются.</noscript>
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>АдыГид · Впечатления · тестовая страница, в меню сайта не входит</span>
+      <span>Предложения вымышлены · заявки не отправляются · оплаты нет</span>
+    </div>
+    <div class="wrap" style="margin-top:8px"><a href="/">На главную АдыГида</a></div>
+    <details class="wrap photo-credits">
+      <summary>Источники и лицензии иллюстративных фотографий</summary>
+      <p>{{ notice }}</p>
+      <p>У части снимков в переданном списке не хватает строки: это отмечено у файла, пропуски не заполнялись догадкой. Ссылка на лицензию есть только там, где она была в списке.</p>
+      {% for gap in gaps %}
+      <p><strong>{{ gap.file }}.</strong> {{ gap.issue }} {{ gap.resolution }}</p>
+      {% endfor %}
+      {% for photo in credits %}
+      <article id="credit-{{ photo.key }}">
+        <h3>{{ photo.title }}</h3>
+        <p>{{ photo.commons_file }}</p>
+        <p>Автор: {{ photo.author }}{% if photo.author_note %} — {{ photo.author_note }}{% endif %}</p>
+        <p>Лицензия:
+          {% if photo.license_url %}<a href="{{ photo.license_url }}" rel="nofollow noopener">{{ photo.license }}</a>{% else %}{{ photo.license }}{% endif %}
+        </p>
+        {% if photo.source_in_supplied_doc %}
+        <p>Источник:
+          {% if photo.source.startswith('http') %}<a href="{{ photo.source }}" rel="nofollow noopener">{{ photo.source }}</a>{% else %}{{ photo.source }}{% endif %}
+        </p>
+        {% elif photo.source_note %}
+        <p>{{ photo.source_note }}</p>
+        {% endif %}
+        <p><a href="{{ photo.page }}" rel="nofollow noopener">Страница файла на Wikimedia Commons</a></p>
+      </article>
+      {% endfor %}
+    </details>
+  </footer>
+  <script>
+  window.ADYGID_V_PHOTO = "/assets/vpechatleniya/photos/";
+  window.ADYGID_V_REV = {{ rev|tojson }};
+  </script>
+  <script src="/assets/vpechatleniya/v.js?v={{ rev }}"></script>
+</body>
+</html>
