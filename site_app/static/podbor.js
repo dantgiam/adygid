@@ -8,7 +8,8 @@
   if (!root || !bootEl || typeof window.PodborCore !== "function" && !window.PodborCore) return;
   const C = window.PodborCore;
   let boot = {};
-  try { boot = JSON.parse(bootEl.textContent || "{}"); } catch (e) { boot = {}; }
+  let bootOk = true;
+  try { boot = JSON.parse(bootEl.textContent || "{}"); } catch (e) { boot = {}; bootOk = false; }
 
   const DATA = Array.isArray(boot.items) ? boot.items : [];
   DATA.forEach((x) => {
@@ -1114,13 +1115,16 @@
     if (btn) btn.insertAdjacentHTML("afterend", saveChooser());
     ensureSaved().catch(() => { /* покажем ошибку при клике по кнопке */ });
   }
+  let lastSaveFailed = false;
   function saveToBot(e, a) {
     const ch = a.dataset.ch === "tg" ? "tg" : "max";
     const goalName = ch === "tg" ? "plan_save_tg" : "plan_save_max";
     const ready = savedFor(lastPlanPayload);
     const params = { days: lastPlanPayload ? lastPlanPayload.days.length : 0 };
+    goal("podbor_save_attempt", { channel: ch, retry: lastSaveFailed ? 1 : 0 });
     if (ready && a.dataset.ready === "1") {
-      goal(goalName, Object.assign({ plan_id: ready.id }, params));
+      lastSaveFailed = false;
+      goal(goalName, params);
       logEvent(goalName, { plan_id: ready.id }, true);
       return; /* обычный переход по ссылке */
     }
@@ -1129,11 +1133,14 @@
     try { w = window.open("", "_blank"); } catch (err) { w = null; }
     ensureSaved().then((r) => {
       const url = ch === "tg" ? r.tg : r.max;
-      goal(goalName, Object.assign({ plan_id: r.id }, params));
+      lastSaveFailed = false;
+      goal(goalName, params);
       logEvent(goalName, { plan_id: r.id }, true);
       if (w && !w.closed) w.location.href = url;
       else window.location.href = url;
     }).catch(() => {
+      lastSaveFailed = true;
+      goal("podbor_save_error", { channel: ch });
       if (w && !w.closed) w.close();
       showToast("Не получилось сохранить план. Попробуйте ещё раз или скопируйте ссылку");
     });
@@ -1213,7 +1220,14 @@
     goal("podbor_shared_open", SRC === "bot_max" || SRC === "bot_tg" ? { src: SRC } : {});
   }
   function copyShareLink(url) {
-    const done = () => showToast("Ссылка скопирована");
+    const done = () => {
+      goal("podbor_share_result", { result: "copied" });
+      showToast("Ссылка скопирована");
+    };
+    const fail = () => {
+      goal("podbor_share_result", { result: "failed" });
+      showToast(url);
+    };
     const fallback = () => {
       const ta = document.createElement("textarea");
       ta.value = url;
@@ -1226,7 +1240,7 @@
       try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
       ta.remove();
       if (ok) done();
-      else showToast(url);
+      else fail();
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(done).catch(fallback);
@@ -1239,7 +1253,9 @@
     goal("podbor_share_click", {});
     const mobile = window.matchMedia("(max-width: 899px), (hover: none) and (pointer: coarse)").matches;
     if (mobile && typeof navigator.share === "function") {
-      navigator.share({ title: "План поездки по Адыгее", url: url }).catch((err) => {
+      navigator.share({ title: "План поездки по Адыгее", url: url }).then(() => {
+        goal("podbor_share_result", { result: "shared" });
+      }).catch((err) => {
         if (err && err.name === "AbortError") return;
         copyShareLink(url);
       });
@@ -1338,6 +1354,7 @@
     }
     markStart();
     if (Q_GOAL[key]) goal(Q_GOAL[key], { q: key, answer: value, skipped: skipped ? 1 : 0 });
+    else goal("podbor_answer", { q: key, answer: value, skipped: skipped ? 1 : 0 });
     logEvent("answer", { question_id: key, answer_code: value, skipped: !!skipped });
     updateAnswer(key, value, () => {
       state.answers[key] = value;
@@ -1368,6 +1385,7 @@
   }
   function back() {
     if (busy) return;
+    goal("podbor_nav", { action: "back" });
     if (state.final) { state.final = false; state.step = Math.min(state.step, QUESTIONS.length - 1); }
     else state.step = Math.max(0, state.step - 1);
     render();
@@ -1430,6 +1448,7 @@
   }
   function restart() {
     if (busy) return;
+    goal("podbor_nav", { action: "restart" });
     refining = false;
     QUESTIONS.splice(MAIN_N);
     closeReview();
@@ -1487,10 +1506,10 @@
         break;
       case "closereview": closeReview(); break;
       case "restart": restart(); break;
-      case "tab": state.tab = d.t; state.limit = 6; renderResults(); break;
-      case "more": state.limit += 6; renderResults(); break;
-      case "days": state.days = +d.n; renderResults(); persist(); break;
-      case "alt": state.showAlt = !state.showAlt; logEvent("alt_toggle", { answer_code: state.showAlt ? "on" : "off" }); renderResults(); break;
+      case "tab": state.tab = d.t; state.limit = 6; goal("podbor_nav", { action: "tab", tab: d.t }); renderResults(); break;
+      case "more": state.limit += 6; goal("podbor_nav", { action: "more" }); renderResults(); break;
+      case "days": state.days = +d.n; goal("podbor_plan_adjust", { action: "day", value: String(+d.n || "") }); renderResults(); persist(); break;
+      case "alt": state.showAlt = !state.showAlt; goal("podbor_nav", { action: "alt", state: state.showAlt ? "on" : "off" }); logEvent("alt_toggle", { answer_code: state.showAlt ? "on" : "off" }); renderResults(); break;
       case "vote": {
         const next = state.votes[d.k] === d.v ? null : d.v;
         state.votes[d.k] = next;
@@ -1507,7 +1526,10 @@
         logEvent("place_seen_before", { item_key: d.k });
         { const found = DATA.find((x) => keyOf(x) === d.k); showToast("Убрали «" + ((found && found.name) || "") + "» — на его место встало новое 🌿"); }
         break;
-      case "unseen": mutateAndRender(() => { state.seen = []; }); break;
+      case "unseen":
+        mutateAndRender(() => { state.seen = []; });
+        goal("podbor_nav", { action: "unseen" });
+        break;
       case "pv":
         if (state.planVote !== d.v) {
           state.planVote = d.v;
@@ -1521,6 +1543,7 @@
       case "reason": {
         const i = state.planReasons.indexOf(d.r);
         if (i < 0) state.planReasons.push(d.r); else state.planReasons.splice(i, 1);
+        goal("podbor_plan_adjust", { action: "reason", value: d.r });
         logEvent("plan_dislike_reason", { answer_code: d.r });
         renderResults();
         document.getElementById("feedback") && document.getElementById("feedback").scrollIntoView({ block: "nearest" });
@@ -1528,10 +1551,12 @@
       }
       case "density":
         state.planDensity = d.d;
+        goal("podbor_plan_adjust", { action: "density", value: d.d });
         logEvent("plan_density", { answer_code: d.d });
         renderResults();
         break;
       case "fix":
+        goal("podbor_plan_adjust", { action: "fix", value: d.f });
         logEvent("plan_fix", { answer_code: d.f });
         mutateAndRender(() => {
           if (d.f === "calm") state.answers.pace = "calm";
@@ -1544,7 +1569,7 @@
         showToast("Пересобрал план ✅");
         break;
       case "bot":
-        goal("podbor_feedback_max", { plan_id: planCode() });
+        goal("podbor_feedback_max", {});
         logEvent("podbor_feedback_max", { plan_id: planCode() }, true);
         break;
       case "open":
@@ -1562,11 +1587,15 @@
         break;
       case "toc": {
         const el = document.getElementById(d.target);
+        goal("podbor_nav", { action: "toc" });
         if (el) { e.preventDefault(); el.scrollIntoView({ behavior: reduced() ? "auto" : "smooth", block: "start" }); }
         break;
       }
       case "yamaps": goal("podbor_yamaps_click", { day: Number(d.day) || 0 }); break;
-      case "enough": showToast("Хорошо, план остаётся здесь. Можно вернуться к любому ответу 🌿"); break;
+      case "enough":
+        goal("podbor_nav", { action: "enough" });
+        showToast("Хорошо, план остаётся здесь. Можно вернуться к любому ответу 🌿");
+        break;
       default: break;
     }
   });
@@ -1588,6 +1617,8 @@
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flush(); });
 
   const sharedPlan = readSharedPlan();
+  if (!bootOk) goal("podbor_error", { code: "boot" });
+  else if (!DATA.length) goal("podbor_error", { code: "empty" });
   if (sharedPlan) applySharedPlan(sharedPlan);
   else {
     if (!boot.fresh) restore();

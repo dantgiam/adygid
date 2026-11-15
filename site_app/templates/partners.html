@@ -169,7 +169,7 @@
     <p class="section-note">Если вашей услуги нет в списке, выберите ближайшее направление и опишите её в анкете.</p>
     <div class="pt-cats">
       {% for c in categories %}
-      <details class="pt-cat">
+      <details class="pt-cat" data-cat="{{ c.code }}">
         <summary><span class="pt-cat-ico" aria-hidden="true">{{ c.icon }}</span><span class="pt-cat-t"><b>{{ c.short }}</b><small>{{ c.hint }}</small></span></summary>
         <ul>{% for code, title in c.subs %}<li>{{ title }}</li>{% endfor %}</ul>
       </details>

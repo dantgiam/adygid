@@ -68,7 +68,7 @@ def _asset_version() -> str:
     меняется, и браузер забирает новую версию сразу, а не через неделю."""
     stamp = 0
     names = [
-        "site.css", "site.js", "podbor.css", "podbor.js", "podbor-core.js",
+        "site.css", "site.js", "metrica-core.js", "podbor.css", "podbor.js", "podbor-core.js",
         "magnet-gift.png", "magnet-tg.png", "magnet-max.png",
     ]
     for name in names:
