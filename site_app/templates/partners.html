@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% from "_faq.html" import faq_block %}
+{% from "_partners_mock.html" import booking_mock %}
+
+{% block title %}Партнёрам АдыГида — клиенты без оплаты за рекламу{% endblock %}
+{% block meta_description %}Для гидов, баз, прокатов и активностей Адыгеи: ничего не платите за размещение и рекламу — туристы бронируют через АдыГид на конкретную дату и приходят с подтверждённой бронью.{% endblock %}
+{# Страница только по прямой ссылке: не в меню, не в подвале, не в sitemap.xml. #}
+{% block robots %}noindex, follow{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="/assets/partners.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block content %}
+{% set hero = photos.hero %}
+<section class="pt-hero">
+  <img class="pt-hero-img" src="{{ hero[0]|img_src(1280) }}"{% set ss = hero[0]|img_srcset %}{% if ss %} srcset="{{ ss }}" sizes="100vw"{% endif %} alt="{{ hero[1] }}" width="1280" height="720" fetchpriority="high" decoding="async">
+  <div class="pt-hero-veil"></div>
+  <div class="wrap pt-hero-inner">
+    <div class="pt-hero-text">
+      <p class="pt-kicker">Для гидов, баз, прокатов и активностей Адыгеи</p>
+      <h1>Клиенты из АдыГида — <span>без оплаты за рекламу</span></h1>
+      <p class="pt-lead">Туристы планируют поездку в Адыгею на АдыГиде, находят вашу услугу и бронируют её на конкретную дату. Вы не платите ни за размещение, ни за показы, ни за клиентов. Просто даёте клиенту АдыГида скидку около 5%.</p>
+      <div class="pt-hero-ctas">
+        <a class="btn btn-primary pt-btn-lg" href="#anketa" data-goal="partner_cta_click" data-place="hero">Стать партнёром — 5 минут</a>
+        <a class="btn pt-btn-ghost" href="#kak">Как это работает</a>
+      </div>
+      <ul class="pt-trust">
+        <li><b>0 ₽</b> за размещение</li>
+        <li><b>Без</b> абонплаты</li>
+        <li><b>С бронью</b> на дату</li>
+      </ul>
+    </div>
+    <div class="pt-hero-mock" aria-label="Пример заявки от АдыГида">
+      {{ booking_mock() }}
+      <p class="pt-mock-cap pt-mock-cap-light">Так выглядит заявка — пример</p>
+    </div>
+  </div>
+  <p class="pt-hero-cap wrap">На фото: {{ hero[1] }}</p>
+</section>
+
+<section class="pt-aud" aria-labelledby="pt-aud-title">
+  <div class="wrap">
+    <div class="pt-aud-card">
+      <div class="pt-aud-head">
+        <p class="pt-eyebrow">Аудитория АдыГида</p>
+        <h2 id="pt-aud-title">Люди уже ищут, куда поехать в Адыгее, — и находят АдыГид</h2>
+      </div>
+      <ul class="pt-aud-nums">
+        <li><b>{{ audience.users_total_label }}</b><span>человек открыли АдыГид с запуска{% if audience.since %} ({{ audience.since }}){% endif %}</span></li>
+        <li><b>{{ audience.users_30d_label }}</b><span>посетителей за последние 30 дней{% if audience.growth_pct %} · <em>+{{ audience.growth_pct }}% к прошлым 30 дням</em>{% endif %}</span></li>
+        {% if audience.search_share %}<li><b>{{ audience.search_share }}%</b><span>визитов — из поиска: человек сам искал, куда поехать</span></li>{% endif %}
+        <li><b>{{ facts.places }} · {{ facts.routes }}</b><span>мест и маршрутов с фото, временем и советами — плюс {{ facts.articles }} статей</span></li>
+      </ul>
+      <p class="pt-aud-note">По данным Яндекс Метрики за {{ audience.period }}.{% if audience.top_regions %} Больше всего гостей из: {{ audience.top_regions }}.{% endif %} АдыГид запущен летом 2026, и это только начало: каждую неделю появляются новые места и маршруты, а впереди зима на Лаго-Наки и новогодние поездки.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section pt-gets-section" id="chto-poluchaet">
+  <div class="wrap">
+    <div class="pt-sec-head"><p class="pt-eyebrow">Что вы получаете</p><h2>Что получает партнёр АдыГида</h2></div>
+    <p class="pt-gets-lead">Вы не платите ни за размещение, ни за заявки, ни за клиентов. Турист платит АдыГиду собственный сервисный сбор — около 5% — за подбор и бронь, а вы даёте ему скидку на ту же сумму. Вот что вы получаете взамен:</p>
+    <ul class="pt-gets">
+      <li class="pt-get pt-get-main"><span class="pt-get-ico" aria-hidden="true">0 ₽</span><div><h3>Бесплатное размещение на adygid.ru</h3><p>Карточка вашей услуги на сайте и упоминания в подходящих статьях и маршрутах — там, где туристы уже читают про это место. Ни абонплаты, ни оплаты за показы.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">🎯</span><div><h3>Бесплатный поток целевых туристов</h3><p>С сайта, из бота в MAX и Telegram и из подбора маршрута: человек уже выбрал даты и места рядом с вами — ему остаётся выбрать, чем заняться.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">📋</span><div><h3>Заявки приходят готовыми</h3><p>Дата, время, сколько человек, есть ли дети, пожелания — сразу в заявке. Не нужно десять раз переспрашивать в личке.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">🤝</span><div><h3>Без торга и «утечек»</h3><p>Цена «от» и ваша скидка видны туристу заранее. Контактами обмениваетесь только после вашего «Подтвердить» — заявку никто не сливает.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">%</span><div><h3>Цена клиента — ваша скидка</h3><p>Размер скидки решаете вы, обычно она равна сбору АдыГида. Это не предоплата и не комиссия: вы ничего не переводите, гость платит вам на месте.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">⭐</span><div><h3>Отзывы собираем за вас</h3><p>После поездки бот сам спросит туриста, как всё прошло. Отзывы — только от реальных клиентов, их видно в вашей карточке.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">🏅</span><div><h3>Статус раннего партнёра</h3><p>Отметка «Проверено АдыГидом» и приоритет в блоке «Рядом можно забронировать» среди похожих вариантов — для тех, кто подключился первым.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">📈</span><div><h3>Проект растёт — вы вместе с ним</h3><p>Уже сейчас {{ facts.places }} мест, {{ facts.routes }} авторских маршрутов, {{ facts.articles }} статей, подбор поездки и боты в MAX и Telegram. {{ audience.users_30d_label }} посетителей за 30 дней, {{ audience.users_total_label }} с запуска.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">💬</span><div><h3>Гость подготовлен и возвращается</h3><p>Бот отвечает на «как доехать» и «что взять», напоминает накануне, а в новом сезоне предложит «повторить» — снова у вас. Если вы не можете принять гостя, подберём ему замену.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">💸</span><div><h3>Без абонплаты и кабинетов</h3><p>Никаких ежемесячных платежей и личных кабинетов — заявки и подтверждения в привычном мессенджере.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">🚪</span><div><h3>Выйти можно в любой момент</h3><p>Не подошло — просто скажите, карточку снимем. Работать параллельно с другими площадками можно.</p></div></li>
+      <li class="pt-get"><span class="pt-get-ico" aria-hidden="true">📊</span><div><h3>Статистика спроса</h3><p>Сколько людей смотрели вашу услугу, сколько было заявок и на какие даты — чтобы планировать сезон.</p></div></li>
+    </ul>
+  </div>
+</section>
+
+<section class="section pt-how-section" id="kak">
+  <div class="wrap">
+    <div class="pt-sec-head"><p class="pt-eyebrow">Как работает бронь</p><h2>От даты в плане до гостя у вас на месте</h2></div>
+    <div class="pt-how">
+      <ol class="pt-steps">
+        <li><span class="pt-step-n">1</span><div><b>Турист выбирает дату</b>В подборе маршрута или на странице места он видит вашу услугу, цену и сезон.</div></li>
+        <li><span class="pt-step-n">2</span><div><b>Оставляет заявку в боте</b>В MAX или Telegram: дата, время, сколько человек, пожелания. АдыГиду он платит сервисный сбор за подбор и бронь.</div></li>
+        <li><span class="pt-step-n">3</span><div><b>Вы подтверждаете</b>Присылаем заявку туда, где вам удобно. Отвечаете «да» или предлагаете другое время.</div></li>
+        <li><span class="pt-step-n">4</span><div><b>Бот напоминает туристу</b>Накануне — время, точку встречи на карте и что взять с собой.</div></li>
+        <li><span class="pt-step-n">5</span><div><b>Гость приходит и платит вам</b>На месте, любым удобным вам способом: ваша цена минус скидка клиенту АдыГида.</div></li>
+      </ol>
+      <div class="pt-how-side">
+        {{ booking_mock() }}
+        <p class="pt-mock-cap">Так выглядит заявка — пример</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap pt-money">
+    <div class="pt-money-text">
+      <p class="pt-eyebrow">Деньги на цифрах</p>
+      <h2>Вы платите АдыГиду 0 ₽. Совсем.</h2>
+      <p>Турист платит АдыГиду собственный сервисный сбор — около 5% — за подбор, бронь и поддержку в поездке. Вы даёте ему скидку на ту же сумму. Скидку назначаете вы сами: это не предоплата, не зачёт и не комиссия с вашей выручки.</p>
+      <ul class="pt-checks">
+        <li>Никаких платежей и счетов от АдыГида</li>
+        <li>Услугу клиент оплачивает вам на месте</li>
+        <li>Свою цену, сезон и условия отмены вы задаёте сами</li>
+      </ul>
+    </div>
+    <div class="pt-example">
+      <div class="pt-example-head">Пример: услуга за 5 000 ₽</div>
+      <div class="pt-example-row"><span>Ваша цена</span><b>5 000 ₽</b></div>
+      <div class="pt-example-row"><span>Скидка клиенту АдыГида (≈ 5%)</span><b class="pt-minus">−250 ₽</b></div>
+      <div class="pt-example-row pt-example-total"><span>Клиент платит вам на месте</span><b>4 750 ₽</b></div>
+      <div class="pt-example-row pt-example-zero"><span>Вы платите АдыГиду</span><b>0 ₽</b></div>
+      <div class="pt-example-row pt-example-muted"><span>Сервисный сбор: турист платит его АдыГиду за подбор и бронь</span><b>250 ₽</b></div>
+      <p class="pt-example-note">Для туриста итог тот же — 5 000 ₽, а для вас это клиент без вложений в рекламу.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="pt-sec-head"><p class="pt-eyebrow">Без рекламы и с АдыГидом</p><h2>Чем это лучше обычной рекламы</h2></div>
+    <div class="pt-vs">
+      <div class="pt-vs-col pt-vs-old">
+        <h3>Обычная реклама</h3>
+        <ul>
+          <li>Платите заранее — за показы и клики</li>
+          <li>Клиент не пришёл — деньги всё равно потрачены</li>
+          <li>Дату и состав группы выясняете в переписке</li>
+          <li>Вопросы «как доехать» и «что взять» — на вас</li>
+        </ul>
+      </div>
+      <div class="pt-vs-col pt-vs-new">
+        <h3>АдыГид</h3>
+        <ul>
+          <li>Не платите ничего — ни заранее, ни потом</li>
+          <li>Скидку даёте, только когда гость пришёл</li>
+          <li>Дата, время и число людей — сразу в заявке</li>
+          <li>Подготовку и напоминания берёт на себя бот</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="pt-sec-head"><p class="pt-eyebrow">Где вас увидят</p><h2>Рядом с местами, куда туристы и так едут</h2></div>
+    <p class="section-note">Карточка партнёра стоит на страницах подходящих мест и маршрутов и попадает в план из подбора. Вот несколько настоящих страниц АдыГида:</p>
+    <div class="pt-show">
+      {% for src, title, url, hint in showcase %}
+      <a class="pt-show-item" href="{{ url }}">
+        <span class="pt-show-img"><img src="{{ src|img_src(480) }}" alt="{{ title }}" loading="lazy" decoding="async" width="480" height="320"><span class="pt-show-slot">+ ваша услуга</span></span>
+        <span class="pt-show-t">{{ title }}</span>
+        <span class="pt-show-h">Подойдут: {{ hint }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section pt-cats-section">
+  <div class="wrap">
+    <div class="pt-sec-head"><p class="pt-eyebrow">Кого мы ищем</p><h2>{{ categories|length }} направлений — от рафтинга до трансфера</h2></div>
+    <p class="section-note">Если вашей услуги нет в списке, выберите ближайшее направление и опишите её в анкете.</p>
+    <div class="pt-cats">
+      {% for c in categories %}
+      <details class="pt-cat">
+        <summary><span class="pt-cat-ico" aria-hidden="true">{{ c.icon }}</span><span class="pt-cat-t"><b>{{ c.short }}</b><small>{{ c.hint }}</small></span></summary>
+        <ul>{% for code, title in c.subs %}<li>{{ title }}</li>{% endfor %}</ul>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="pt-soon">
+      <div class="pt-soon-text">
+        <p class="pt-eyebrow">Скоро · по желанию</p>
+        <h2>Размещение «Рекомендуем»</h2>
+        <p>Позже можно будет дополнительно выделить свою карточку: поднять её выше и отметить «Рекомендуем». Это будет отдельная опция с честной маркировкой «Реклама», как требует закон. Базовое участие было и останется бесплатным.</p>
+      </div>
+      <div class="pt-soon-card" aria-hidden="true">
+        <span class="pt-ad-label">Реклама</span>
+        <span class="pt-reco">★ Рекомендуем</span>
+        <div class="pt-soon-ph"></div>
+        <b>Ваша карточка</b>
+        <small>Проверено АдыГидом · скидка 5%</small>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section pt-form-section" id="anketa">
+  <div class="wrap pt-form-wrap">
+    <div class="pt-form-intro">
+      <p class="pt-eyebrow">Анкета партнёра · бесплатно</p>
+      <h2>Расскажите о своей услуге</h2>
+      <p>Это ни к чему не обязывает. Анкета займёт около 5 минут, контакт вы оставите на следующем шаге в боте.</p>
+      <ol class="pt-next">
+        <li><b>Читаем анкету</b>Автор АдыГида смотрит услугу, фото и отзывы.</li>
+        <li><b>Созваниваемся</b>Обсуждаем скидку, даты, условия брони и отмены.</li>
+        <li><b>Собираем карточку</b>Ставим её рядом с подходящими местами и маршрутами. Ваше участие — 0 ₽.</li>
+      </ol>
+      <img src="{{ photos.plateau[0]|img_src(800) }}" alt="{{ photos.plateau[1] }}" loading="lazy" decoding="async" width="800" height="500">
+    </div>
+    <form class="pt-form" id="partner-form" novalidate data-taxonomy='{{ taxonomy_json|tojson }}'>
+      <div class="pt-f"><label for="pf-company">Название или имя *</label><input id="pf-company" name="company" required maxlength="200" placeholder="Рафтинг-клуб «Белая вода» или Иван, гид"></div>
+      <div class="pt-f2">
+        <div class="pt-f"><label for="pf-cat">Направление *</label>
+          <select id="pf-cat" name="category" required><option value="">Выберите</option>{% for c in categories %}<option value="{{ c.code }}">{{ c.icon }} {{ c.title }}</option>{% endfor %}</select></div>
+        <div class="pt-f"><label for="pf-sub">Что именно</label><select id="pf-sub" name="subcategory" disabled><option value="">Сначала направление</option></select></div>
+      </div>
+      <div class="pt-f"><label for="pf-loc">Где вы работаете *</label><input id="pf-loc" name="location" required maxlength="200" placeholder="Даховская, Хаджох, Лаго-Наки, Майкоп…"></div>
+      <div class="pt-f"><label for="pf-services">Услуги *</label><textarea id="pf-services" name="services" required rows="3" maxlength="3000" placeholder="Сплав 8 и 14 км, для детей с 7 лет, инструктор и снаряжение включены"></textarea></div>
+      <div class="pt-f"><label for="pf-prices">Цены</label><textarea id="pf-prices" name="prices" rows="2" maxlength="2000" placeholder="от 2 500 ₽ с человека, дети — 2 000 ₽"></textarea></div>
+      <fieldset class="pt-f"><legend>Сезон</legend><div class="pt-chips">{% for code, title in seasons %}<label class="pt-chip"><input type="checkbox" name="seasons" value="{{ code }}"><span>{{ title }}</span></label>{% endfor %}</div></fieldset>
+      <div class="pt-f"><label for="pf-discount">Скидка клиентам АдыГида *</label><input id="pf-discount" name="discount" required maxlength="500" value="5% — в размере сервисного сбора АдыГида"><div class="pt-hint">Это ваша цена за приведённого клиента. Обычно она равна нашему сбору, около 5%. Можно указать сумму или процент.</div></div>
+      <div class="pt-f"><label for="pf-terms">Как бронировать и условия отмены</label><textarea id="pf-terms" name="booking_terms" rows="2" maxlength="2000" placeholder="Бронь за сутки; отмена без штрафа до 12:00 накануне; в непогоду переносим"></textarea></div>
+      <div class="pt-f2">
+        <div class="pt-f"><label for="pf-site">Сайт</label><input id="pf-site" name="website" maxlength="500" placeholder="https://…"></div>
+        <div class="pt-f"><label for="pf-soc">Соцсети или канал</label><input id="pf-soc" name="socials" maxlength="500" placeholder="vk.com/…, t.me/…, max.ru/…"></div>
+      </div>
+      <fieldset class="pt-f"><legend>Как вам удобнее получать клиентов</legend><div class="pt-chips">{% for code, title in lead_channels %}<label class="pt-chip"><input type="checkbox" name="lead_channels" value="{{ code }}"><span>{{ title }}</span></label>{% endfor %}</div></fieldset>
+      {% if pd_in_site_db %}
+      <div class="pt-f2">
+        <div class="pt-f"><label for="pf-name">Как к вам обращаться</label><input id="pf-name" name="contact_name" maxlength="120"></div>
+        <div class="pt-f"><label for="pf-phone">Телефон *</label><input id="pf-phone" name="contact_phone" type="tel" maxlength="40" placeholder="+7 …"></div>
+      </div>
+      <div class="pt-f"><label for="pf-msg">Мессенджер</label><input id="pf-msg" name="contact_messenger" maxlength="120" placeholder="MAX, Telegram или WhatsApp: ник или номер"></div>
+      {% else %}
+      <div class="pt-contact-note"><b>Телефон и имя — на следующем шаге, в боте.</b> После отправки откроется кнопка нашего бота в MAX или Telegram. Там вы оставите контакт, и он сохранится на серверах в России, как требует закон.</div>
+      {% endif %}
+      <div class="pt-f"><label for="pf-comment">Что ещё важно знать</label><textarea id="pf-comment" name="comment" rows="2" maxlength="2000"></textarea></div>
+      <input class="pt-hp" type="text" name="website_hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="pt-consent"><input type="checkbox" name="consent" value="1" required> <span>Даю <a href="/soglasie" target="_blank" rel="noopener">согласие на обработку персональных данных</a> для рассмотрения анкеты и сотрудничества и знакомлюсь с <a href="/privacy" target="_blank" rel="noopener">политикой</a>.</span></label>
+      <p class="pt-error" id="pf-error" role="alert" hidden></p>
+      <button class="btn btn-primary pt-btn-lg pt-btn-block" type="submit" id="pf-submit">Отправить анкету</button>
+      <p class="pt-form-safe">🔒 Анкету видим только мы, публичную карточку собираем вместе с вами. Телефон на сайте не хранится: его вы отправите боту, данные лежат на серверах в России.</p>
+    </form>
+    <div class="pt-done" id="partner-done" hidden>
+      <div class="pt-done-ico">✓</div>
+      <h2>Анкета № <span id="pd-code"></span> принята</h2>
+      <p id="pd-text">Остался один шаг: откройте бота, нажмите «Согласен» и одним сообщением напишите имя и телефон. По коду из ссылки мы поймём, что это вы.</p>
+      <div class="pt-done-btns">
+        <a class="btn btn-messenger btn-max" id="pd-max" href="{{ bot_max }}" target="_blank" rel="noopener"><img src="/assets/magnet-max.png?v={{ asset_version }}" alt="" width="26" height="26">Открыть бота в MAX</a>
+        <a class="btn btn-messenger btn-tg" id="pd-tg" href="{{ bot_tg }}" target="_blank" rel="noopener"><img src="/assets/magnet-tg.png?v={{ asset_version }}" alt="" width="26" height="26">Открыть в Telegram</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% set faq = [
+  {"question": "Сколько стоит участие?", "answer_html": "Нисколько. За размещение, рекламу, показы и клиентов вы ничего не платите. Единственное условие: клиентам АдыГида вы даёте скидку в размере нашего сервисного сбора, около 5%. Это и есть ваша цена за приведённого клиента."},
+  {"question": "Что такое сервисный сбор?", "answer_html": "Это оплата собственной услуги АдыГида: подбор, бронирование и поддержка туриста. Его платит турист нам. Это не предоплата за вашу услугу и не часть вашей цены: услугу турист оплачивает вам на месте полностью, за вычетом вашей скидки."},
+  {"question": "Сколько клиентов я получу?", "answer_html": "Обещать точное число не будем — это честнее. Сейчас АдыГид открывают " ~ audience.users_30d_label ~ " человек в месяц, и аудитория растёт вместе с контентом. Мы только собираем первых партнёров, поэтому карточек мало, и каждая на виду."},
+  {"question": "Как я буду получать заявки?", "answer_html": "Тем способом, который вы отметите в анкете: сообщение в MAX или Telegram, звонок, WhatsApp. В заявке будут дата, время, число людей и услуга."},
+  {"question": "А если клиент не пришёл или отменил?", "answer_html": "Условия отмены вы указываете сами, и турист видит их до брони. Вы ничего не теряете: за рекламу вы не платили. Если вы не можете принять клиента, скажите нам — мы подберём туристу замену."},
+  {"question": "Почему мы не публикуем ваши контакты?", "answer_html": "Брони идут через АдыГид: так мы отвечаем за бронь, подтверждаем её с вами и ведём туриста до конца поездки. Если планы поменялись, предупреждаем вас заранее. Сайт и соцсети в карточке оставить можно."},
+  {"question": "Кто проверяет партнёров?", "answer_html": "Автор АдыГида лично: смотрит услугу, фото и отзывы, по возможности приезжает сам. Карточка выходит на сайт только после разговора с вами и получает отметку «Проверено АдыГидом»."},
+] %}
+<div class="wrap">{{ faq_block(faq, title="Частые вопросы партнёров", id="faq-partners") }}</div>
+
+<section class="section pt-final-section">
+  <div class="wrap">
+    <div class="pt-final">
+      <h2>Гости из АдыГида — без вложений в рекламу</h2>
+      <p>Анкета займёт около 5 минут. Дальше созвонимся и вместе соберём вашу карточку.</p>
+      <a class="btn pt-btn-white pt-btn-lg" href="#anketa" data-goal="partner_cta_click" data-place="final">Заполнить анкету</a>
+    </div>
+  </div>
+</section>
+
+<div class="pt-sticky" id="pt-sticky" hidden>
+  <div class="pt-sticky-t"><b>0 ₽ за рекламу</b><small>Клиенты с бронью на дату</small></div>
+  <a class="btn btn-primary" href="#anketa" data-goal="partner_cta_click" data-place="sticky">Стать партнёром</a>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/assets/partners.js?v={{ asset_version }}" defer></script>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends "bot_base.html" %}
+{% block title %}Партнёры{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Партнёры</h1>
+      <div class="sub">Анкеты с <a href="/partners" target="_blank" rel="noopener">/partners</a>, карточки партнёров и брони. Партнёр ничего не платит: турист платит сервисный сбор АдыГиду, а партнёр даёт ему скидку на ту же сумму.</div>
+    </div>
+    <a class="btn btn-primary" href="/admin/partners/new">+ Партнёр вручную</a>
+  </div>
+  <nav class="ptabs">
+    <a class="{% if tab == 'applications' %}on{% endif %}" href="/admin/partners?tab=applications">Анкеты{% if counts.get('new') %} <span class="badge badge-gold">{{ counts.get('new') }} новых</span>{% endif %}</a>
+    <a class="{% if tab == 'partners' %}on{% endif %}" href="/admin/partners?tab=partners">Карточки партнёров</a>
+    <a class="{% if tab == 'leads' %}on{% endif %}" href="/admin/partners?tab=leads">Брони и сборы</a>
+    <a class="{% if tab == 'audience' %}on{% endif %}" href="/admin/partners?tab=audience">Цифры для /partners</a>
+  </nav>
+
+  {% if tab == 'audience' %}
+  {% if saved %}<div class="psaved">Сохранено. Страница /partners уже показывает новые цифры.</div>{% endif %}
+  <form class="pbox" method="post" action="/admin/partners/audience">
+    <p class="muted">Только настоящие цифры из Яндекс Метрики (счётчик 111028002, «Посетители» и «Визиты»). На странице они округляются вниз: 303 → «300+», 1 027 → «1 000+». Рост показывается, только если посетителей за 30 дней больше, чем за предыдущие 30. Быстрее всего обновить командой <code>python scripts/partners_audience_metrika.py</code> и переписать сюда.</p>
+    <div class="field-row">
+      <div class="field"><label>Период: с</label><input type="date" name="period_from" value="{{ audience_raw.get('period_from', '') }}"></div>
+      <div class="field"><label>по</label><input type="date" name="period_to" value="{{ audience_raw.get('period_to', '') }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Посетители за 30 дней</label><input type="number" min="0" name="users_30d" value="{{ audience_raw.get('users_30d', '') }}"></div>
+      <div class="field"><label>Визиты за 30 дней</label><input type="number" min="0" name="visits_30d" value="{{ audience_raw.get('visits_30d', '') }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Просмотры за 30 дней</label><input type="number" min="0" name="pageviews_30d" value="{{ audience_raw.get('pageviews_30d', '') }}"></div>
+    </div>
+      <div class="field"><label>Посетители за предыдущие 30 дней</label><input type="number" min="0" name="users_prev_30d" value="{{ audience_raw.get('users_prev_30d', '') }}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Посетители с запуска</label><input type="number" min="0" name="users_total" value="{{ audience_raw.get('users_total', '') }}"></div>
+      <div class="field"><label>Запуск (ГГГГ-ММ)</label><input type="text" name="total_since" value="{{ audience_raw.get('total_since', '') }}" placeholder="2026-07"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>% визитов из поиска</label><input type="number" min="0" max="100" name="search_share_visits" value="{{ audience_raw.get('search_share_visits', '') }}"></div>
+      <div class="field"><label>Откуда больше всего (через запятую)</label><input type="text" name="top_regions" value="{{ audience_raw.get('top_regions', '') }}"></div>
+    </div>
+    <p class="hint">Сейчас на странице: {{ audience.users_30d_label }} посетителей за {{ audience.period }}, {{ audience.users_total_label }} с запуска{% if audience.growth_pct %}, рост +{{ audience.growth_pct }}%{% endif %}.</p>
+    <button class="btn btn-primary" type="submit">Сохранить</button>
+  </form>
+  {% endif %}
+
+  {% if tab == 'applications' %}
+  <form class="filters" method="get" action="/admin/partners">
+    <input type="hidden" name="tab" value="applications">
+    <label>Статус
+      <select name="status">
+        <option value="">Все ({{ counts.values()|sum }})</option>
+        {% for code, label, _b in app_statuses %}<option value="{{ code }}"{% if status == code %} selected{% endif %}>{{ label }} ({{ counts.get(code, 0) }})</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn btn-primary" type="submit">Показать</button>
+  </form>
+  {% if applications %}
+  <div class="list">
+    {% for a in applications %}
+    <a class="row inbox-row" href="/admin/partners/applications/{{ a.id }}">
+      <div class="row-main">
+        <div class="row-title">
+          <span class="badge {{ app_map[a.status][1] }}">{{ app_map[a.status][0] }}</span>
+          <span class="badge">{{ tx.CATEGORY_BY_CODE[a.category].icon }} {{ tx.CATEGORY_BY_CODE[a.category].short }}</span>
+          <b>{{ a.company }}</b>
+          <span class="muted">№ {{ a.code }}</span>
+        </div>
+        <div class="inbox-preview">{{ tx.sub_title(a.category, a.subcategory) }}{% if a.location %} · {{ a.location }}{% endif %}{% if a.services %} — {{ a.services[:140] }}{% endif %}</div>
+        <div class="row-meta">
+          <span>{{ a.created_at.strftime('%d.%m.%Y %H:%M') if a.created_at else '—' }}</span>
+          {% if a.discount %}<span>скидка клиентам: {{ a.discount[:40] }}</span>{% endif %}
+          {% if a.partner_id %}<span>есть карточка</span>{% endif %}
+          {% if a.notes %}<span>есть заметки</span>{% endif %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty"><b>Анкет пока нет</b>Когда партнёр заполнит форму на /partners, она появится здесь.</div>
+  {% endif %}
+
+  {% elif tab == 'partners' %}
+  {% if partners %}
+  <div class="pgrid">
+    {% for p in partners %}
+    <a class="pcard" href="/admin/partners/{{ p.id }}">
+      {% if p.photos %}<img src="{{ p.photos[0] }}" alt="">{% else %}<div class="pcard-nophoto">{{ tx.CATEGORY_BY_CODE[p.category].icon }}</div>{% endif %}
+      <div class="pcard-body">
+        <div class="row-title">
+          {% if p.is_active %}<span class="badge badge-green">Активен</span>{% else %}<span class="badge badge-muted">Скрыт</span>{% endif %}
+          <span class="badge">{{ tx.CATEGORY_BY_CODE[p.category].short }}</span>
+        </div>
+        <b>{{ p.name }}</b>
+        <div class="muted">{{ tx.sub_title(p.category, p.subcategory) }}{% if p.location %} · {{ p.location }}{% endif %}</div>
+        <div class="row-meta"><span>сбор {{ '%g'|format(p.service_fee_pct|float) }}%</span><span>скидка: {{ (p.discount or '—')[:30] }}</span><span>броней: {{ lead_counts.get(p.id, 0) }}</span></div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty"><b>Партнёров пока нет</b>Откройте анкету и нажмите «Сделать карточкой партнёра» или добавьте вручную.</div>
+  {% endif %}
+
+  {% elif tab == 'leads' %}
+  <div class="kpis">
+    <div><b>{{ totals.count }}</b>броней всего</div>
+    <div><b>{{ totals.completed }}</b>услуг оказано</div>
+    <div><b>{{ rub(totals.fee_paid) }}</b>сборов получено</div>
+    <div><b>{{ rub(totals.fee_pending) }}</b>сборов ждём</div>
+    <div><b>{{ rub(totals.gmv) }}</b>оборот партнёров</div>
+    <div><b>{{ totals.repeat }}</b>повторных броней</div>
+  </div>
+  {% if leads %}
+  <div class="tablewrap"><table class="ptable">
+    <thead><tr><th>Дата</th><th>Партнёр</th><th>Клиент (№ в боте)</th><th>Услуга</th><th>Статус</th><th>Цена партнёра</th><th>Скидка</th><th>На месте партнёру</th><th>Сбор АдыГида</th><th>Сбор</th></tr></thead>
+    <tbody>
+    {% for l in leads %}
+      <tr>
+        <td>{{ l.service_date.strftime('%d.%m.%Y') if l.service_date else '—' }}</td>
+        <td><a href="/admin/partners/{{ l.partner_id }}#leads">{{ names.get(l.partner_id, '—') }}</a></td>
+        <td>{{ l.inbox_ref or '—' }}{% if l.is_repeat %} <span class="badge badge-green">повтор</span>{% endif %}</td>
+        <td>{{ l.service or '—' }}</td>
+        <td><span class="badge {{ lead_map[l.status][1] }}">{{ lead_map[l.status][0] }}</span></td>
+        <td>{{ rub(l.provider_price) }}</td>
+        <td>{{ rub(l.discount_amount) }}</td>
+        <td>{{ rub(l.provider_price - (l.discount_amount or 0)) if l.provider_price is not none else '—' }}</td>
+        <td>{{ rub(l.service_fee_amount) }}{% if l.service_fee_pct is not none %} <span class="muted">({{ '%g'|format(l.service_fee_pct|float) }}%)</span>{% endif %}</td>
+        <td><span class="badge {{ fee_map[l.fee_status][1] }}">{{ fee_map[l.fee_status][0] }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty"><b>Броней пока нет</b>Бронь добавляется в карточке партнёра, блок «Брони».</div>
+  {% endif %}
+  {% endif %}
+</div>
+{% include "_partners_admin_css.html" %}
+{% endblock %}
