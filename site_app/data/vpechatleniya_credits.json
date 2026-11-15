@@ -310,7 +310,8 @@
       "author_incomplete": false,
       "source_note": "",
       "source_checked": "supplied-doc",
-      "author_note": ""
+      "author_note": "",
+      "used_as_hero": true
     },
     {
       "file": "husky.webp",

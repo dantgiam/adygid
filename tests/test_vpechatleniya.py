@@ -61,6 +61,32 @@ def test_credits_match_decoded_photos():
     assert "не восстанавливалось" in snow["author_note"]
 
 
+def test_hero_is_a_credited_altay_crop_not_adygea():
+    hero = ROOT / "site_app" / "static" / "vpechatleniya" / "hero"
+    webp = hero / "panorama-1344.webp"
+    avif = hero / "panorama-1344.avif"
+    assert webp.stat().st_size < 80_000
+    assert avif.stat().st_size < 40_000
+    with Image.open(webp) as im:
+        im.load()
+        assert im.format == "WEBP"
+        assert im.size == (1344, 340)
+    for name in ("panorama-960.webp", "panorama-640.webp", "panorama-1344.avif", "panorama-960.avif", "panorama-640.avif"):
+        assert (hero / name).stat().st_size > 500
+    client = _client()
+    page = client.get("/v")
+    assert "Horse_riding_in_the_Altay_Mountains.jpg" in page.text
+    assert "не снимок Адыгеи" in (ROOT / "site_app" / "static" / "vpechatleniya" / "v.js").read_text(encoding="utf-8")
+    assert "Снято на Алтае, это не Адыгея" in page.text
+    image = client.get("/assets/vpechatleniya/hero/panorama-1344.webp")
+    assert image.status_code == 200
+    assert image.headers["content-type"].startswith("image/webp")
+    assert image.content[:4] == b"RIFF"
+    avif_res = client.get("/assets/vpechatleniya/hero/panorama-1344.avif")
+    assert avif_res.status_code == 200
+    assert len(avif_res.content) > 500
+
+
 def test_page_is_noindex_demo_and_serves_distinct_photos():
     client = _client()
     page = client.get("/v")

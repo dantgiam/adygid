@@ -145,13 +145,18 @@ async function openPage(page, url) {
       const cards = document.querySelectorAll(".catalog-grid .card").length;
       const thumbs = [...document.querySelectorAll(".category-sidebar img")];
       const covers = [...document.querySelectorAll(".catalog-grid .cover-img")].slice(0, 4);
+      const hero = document.querySelector(".panorama img");
       const ready = cards === 12 && document.querySelector("h1") && thumbs.length === 8
         && thumbs.every((img) => img.complete && img.naturalWidth > 0)
-        && covers.every((img) => img.complete && img.naturalWidth > 0);
+        && covers.every((img) => img.complete && img.naturalWidth > 0)
+        && hero && hero.complete && hero.naturalWidth > 0;
       if (ready) return true;
       await new Promise((r) => setTimeout(r, 80));
     }
-    throw new Error("catalog not ready: " + (document.body ? document.body.innerText.slice(0, 240) : "no body"));
+    const heroNow = document.querySelector(".panorama img");
+    throw new Error("catalog not ready cards=" + document.querySelectorAll(".catalog-grid .card").length
+      + " thumbs=" + document.querySelectorAll(".category-sidebar img").length
+      + " hero=" + (heroNow ? (heroNow.complete + ":" + heroNow.naturalWidth + ":" + heroNow.currentSrc) : "missing"));
   })()`);
 }
 
@@ -189,7 +194,15 @@ async function run() {
           if (photoKeys[i] === photoKeys[i - cols]) throw new Error("column duplicate " + cols + " " + photoKeys.join(","));
         }
       }
-      if (!document.querySelector("h1").textContent.includes("Чем заняться")) throw new Error("h1");
+      const headings = [...document.querySelectorAll("h1")];
+      if (headings.length !== 1 || !headings[0].textContent.includes("За впечатлениями")) throw new Error("h1 " + headings.map((h) => h.textContent).join("|"));
+      const catalogTitle = document.querySelector("#catalog h2.page-title");
+      if (!catalogTitle || !catalogTitle.textContent.includes("Чем заняться")) throw new Error("catalog title");
+      const frame = document.querySelector(".panorama-frame").getBoundingClientRect();
+      if (frame.height < 230 || frame.height > 310) throw new Error("desktop hero height " + frame.height);
+      const shown = document.querySelector(".panorama img").getBoundingClientRect().width;
+      if (shown < document.documentElement.clientWidth - 2) throw new Error("hero not full width " + shown);
+      if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 2) throw new Error("overflow");
       if (!document.querySelector(".eyebrow").textContent.includes("Впечатления АдыГида")) throw new Error("eyebrow");
       if (document.querySelector("form")) throw new Error("form");
       if (thumbs.length !== 8) throw new Error("thumbs " + thumbs.length);
@@ -202,6 +215,23 @@ async function run() {
       return { banner: true, cards: 12, thumbWidth: width };
     })()`);
     shots.push(await shot(page, "v_desktop_catalog"));
+    await evaluate(page, `(async () => {
+      const button = [...document.querySelectorAll("button")].find((el) => el.textContent.includes("Выбрать приключение"));
+      if (!button) throw new Error("no scroll button");
+      button.focus();
+      if (document.activeElement !== button) throw new Error("button not focused");
+      button.click();
+      const start = Date.now();
+      let top = 999;
+      while (Date.now() - start < 2500) {
+        top = document.getElementById("catalog").getBoundingClientRect().top;
+        if (top < 120) break;
+        await new Promise((r) => setTimeout(r, 40));
+      }
+      if (top > 140) throw new Error("catalog not scrolled into view " + top);
+      if (document.activeElement !== document.getElementById("catalog")) throw new Error("focus did not move to catalog");
+      window.scrollTo(0, 0);
+    })()`);
 
     await evaluate(page, `(() => {
       const expected = ${JSON.stringify(EXPECTED)};
@@ -433,6 +463,11 @@ async function run() {
     await openPage(page, server.origin + "/v");
     shots.push(await shot(page, "v_mobile_catalog"));
     await evaluate(page, `(() => {
+      const frame = document.querySelector(".panorama-frame").getBoundingClientRect();
+      if (frame.height < 150 || frame.height > 220) throw new Error("mobile hero height " + frame.height);
+      const shown = document.querySelector(".panorama img").getBoundingClientRect().width;
+      if (shown < document.documentElement.clientWidth - 2) throw new Error("mobile hero width " + shown);
+      if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 2) throw new Error("mobile overflow");
       const button = document.querySelector(".mobile-categories-button");
       if (getComputedStyle(button).display !== "flex") throw new Error("mobile button " + getComputedStyle(button).display);
       if (getComputedStyle(document.querySelector(".category-sidebar")).display !== "none") throw new Error("sidebar visible on mobile");
