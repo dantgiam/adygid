@@ -29,6 +29,13 @@
   if (window.matchMedia && window.matchMedia("(min-width: 1000px)").matches) {
     document.querySelectorAll("details.pt-cat").forEach(function (d) { d.open = true; });
   }
+  document.querySelectorAll("details.pt-cat").forEach(function (d) {
+    d.addEventListener("toggle", function () {
+      if (!d.open) return;
+      var id = d.getAttribute("data-cat") || "";
+      if (id) goal("accordion_open", { kind: "partners", id: id });
+    });
+  });
 
   // Липкая кнопка на телефоне: появляется после первого экрана и прячется,
   // когда анкета на экране (на десктопе скрыта в CSS).
@@ -48,6 +55,10 @@
   }
   function fail(msg, field) {
     err.textContent = msg; err.hidden = false;
+    if (field) {
+      var code = field === "contact_phone" || field === "contact_messenger" ? "contact" : field;
+      goal("partner_form_invalid", { field: code });
+    }
     if (field && form.elements[field]) form.elements[field].focus();
   }
 
@@ -70,10 +81,13 @@
     };
     ["contact_name", "contact_phone", "contact_messenger"].forEach(function (k) { if (form.elements[k]) body[k] = val(k) || null; });
     btn.disabled = true; btn.textContent = "Отправляем…";
+    var reported = false;
     fetch("/api/partners/apply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
         if (!res.ok) {
+          reported = true;
+          goal("partner_form_error", { code: "http" });
           var d = res.d && res.d.detail;
           throw new Error(typeof d === "string" ? d : "Проверьте поля анкеты.");
         }
@@ -89,7 +103,10 @@
         done.hidden = false;
         done.scrollIntoView({ behavior: "smooth", block: "center" });
       })
-      .catch(function (e) { fail(e.message || "Не получилось отправить. Попробуйте ещё раз."); })
+      .catch(function (e) {
+        if (!reported) goal("partner_form_error", { code: "network" });
+        fail(e.message || "Не получилось отправить. Попробуйте ещё раз.");
+      })
       .then(function () { btn.disabled = false; btn.textContent = "Отправить анкету"; });
   });
 })();

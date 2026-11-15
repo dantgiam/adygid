@@ -1,0 +1,1749 @@
+{
+  "counter_id": "111028002",
+  "goal_limit": 200,
+  "account_goals_before": 82,
+  "slots_remaining_before": 118,
+  "new_goals_to_create": 37,
+  "emitted_total": 81,
+  "sync": "create_only_account_status_new",
+  "privacy": "Параметры — только коды, шаблоны путей и числовые id карточек. Нет полей форм, комментариев, телефона, email, имени, поискового запроса, сырого URL, query, токена и hash сохранённого плана.",
+  "exclusions": [
+    "Страницы /admin, /api, /login, /auth, /bot и localhost не шлют цели",
+    "Без YANDEX_METRIKA_ID и без согласия «Принять» reachGoal не вызывается",
+    "«Только необходимые» гасит очередь и не шлёт cookie_choice"
+  ],
+  "preserved_not_emitted": [
+    {
+      "id": "bot_max_click",
+      "account_status": "existing",
+      "emitted": false,
+      "note_ru": "Историческая цель. Код шлёт bot_click_max и не отправляет bot_max_click повторно, чтобы не удвоить переход."
+    }
+  ],
+  "builtin_goals_not_js": [
+    {
+      "js_action": "phone_click",
+      "note_ru": "Автоцель Метрики по клику на телефон не равна JS-цели phone_click. JS-цель создаётся отдельно и не подменяет автоцель."
+    },
+    {
+      "js_action": "email_click",
+      "note_ru": "Автоцель Метрики по email не равна JS-цели email_click. Адрес в параметрах не передаётся."
+    }
+  ],
+  "absent_on_site": [
+    "Отдельного поиска по сайту нет — цель поиска не заводится",
+    "Сортировки каталога нет",
+    "Постраничной пагинации нет: каталог целиком, в подборе «ещё» — это podbor_nav action=more"
+  ],
+  "events": [
+    {
+      "id": "random_place_refresh",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Нажата «Ещё» у случайной карточки, и новая карточка успешно подставлена",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        }
+      ],
+      "triggers": [
+        "Главная, кнопка «Ещё» после ответа /api/site/random"
+      ]
+    },
+    {
+      "id": "filter_apply",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Изменён фильтр каталога",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "field",
+          "type": "code",
+          "description_ru": "type, district, paid, kid или difficulty"
+        },
+        {
+          "name": "value",
+          "type": "code",
+          "description_ru": "id категории, slug района, 0/1, easy/medium/hard или any"
+        }
+      ],
+      "triggers": [
+        "Списки /mesta и /marshruty, change у select или checkbox"
+      ]
+    },
+    {
+      "id": "favorite_toggle",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Место или маршрут добавлены или убраны из избранного в браузере",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        },
+        {
+          "name": "state",
+          "type": "on|off",
+          "description_ru": "on — теперь в избранном"
+        }
+      ],
+      "triggers": [
+        "Кнопка «В избранное» на карточке и на странице"
+      ]
+    },
+    {
+      "id": "like_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Лайк «Понравилось» успешно записан на сервере",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        },
+        {
+          "name": "state",
+          "type": "on|off",
+          "description_ru": "on — голос учтён"
+        }
+      ],
+      "triggers": [
+        "Кнопка лайка после успешного POST /api/likes"
+      ]
+    },
+    {
+      "id": "read_25",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Доскролл до 25% длинной страницы, один раз за просмотр",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        }
+      ],
+      "triggers": [
+        "Любая публичная страница, порог 25, без события на каждый пиксель"
+      ]
+    },
+    {
+      "id": "read_50",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Доскролл до 50%",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        }
+      ],
+      "triggers": [
+        "Порог 50, один раз"
+      ]
+    },
+    {
+      "id": "read_75",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Доскролл до 75%",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        }
+      ],
+      "triggers": [
+        "Порог 75, один раз"
+      ]
+    },
+    {
+      "id": "read_100",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Доскролл до конца страницы",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        }
+      ],
+      "triggers": [
+        "Порог 100, один раз"
+      ]
+    },
+    {
+      "id": "scroll_75",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Статья, маршрут или место дочитаны до 75%",
+      "parameters": [
+        {
+          "name": "page_type",
+          "type": "code",
+          "description_ru": "article, route или place"
+        }
+      ],
+      "triggers": [
+        "Дополнительно к read_75 для этих трёх типов"
+      ]
+    },
+    {
+      "id": "magnet_view",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Лид-магнит заметно попал в экран",
+      "parameters": [
+        {
+          "name": "magnet_id",
+          "type": "id",
+          "description_ru": "Числовой id магнита"
+        },
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        }
+      ],
+      "triggers": [
+        "IntersectionObserver, доля ≥ 40%, один раз на блок"
+      ]
+    },
+    {
+      "id": "magnet_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Клик по кнопке лид-магнита",
+      "parameters": [
+        {
+          "name": "magnet_id",
+          "type": "id",
+          "description_ru": "Числовой id"
+        },
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "messenger",
+          "type": "code",
+          "description_ru": "max или telegram"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        },
+        {
+          "name": "depth",
+          "type": "int",
+          "description_ru": "Максимальная глубина прокрутки, 0–100"
+        },
+        {
+          "name": "section",
+          "type": "slug",
+          "description_ru": "Якорь раздела, если он латинский"
+        }
+      ],
+      "triggers": [
+        "Кнопка .magnet-pill"
+      ]
+    },
+    {
+      "id": "magnet_click_max",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Тот же клик магнита, мессенджер MAX",
+      "parameters": [
+        {
+          "name": "magnet_id",
+          "type": "id",
+          "description_ru": "Числовой id"
+        },
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "messenger",
+          "type": "code",
+          "description_ru": "max"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        },
+        {
+          "name": "depth",
+          "type": "int",
+          "description_ru": "Максимальная глубина прокрутки, 0–100"
+        },
+        {
+          "name": "section",
+          "type": "slug",
+          "description_ru": "Якорь"
+        }
+      ],
+      "triggers": [
+        "Кнопка MAX внутри магнита"
+      ]
+    },
+    {
+      "id": "magnet_click_tg",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Тот же клик магнита, мессенджер Telegram",
+      "parameters": [
+        {
+          "name": "magnet_id",
+          "type": "id",
+          "description_ru": "Числовой id"
+        },
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "messenger",
+          "type": "code",
+          "description_ru": "telegram"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        },
+        {
+          "name": "depth",
+          "type": "int",
+          "description_ru": "Максимальная глубина прокрутки, 0–100"
+        },
+        {
+          "name": "section",
+          "type": "slug",
+          "description_ru": "Якорь"
+        }
+      ],
+      "triggers": [
+        "Кнопка Telegram внутри магнита"
+      ]
+    },
+    {
+      "id": "podbor_cta_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Переход в подбор с главной или из статьи",
+      "parameters": [
+        {
+          "name": "src",
+          "type": "code",
+          "description_ru": "home_widget или article"
+        },
+        {
+          "name": "season_chip",
+          "type": "code",
+          "description_ru": "winter, summer или any, если чип был"
+        }
+      ],
+      "triggers": [
+        "Ссылка [data-podbor-cta]"
+      ]
+    },
+    {
+      "id": "weather_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Открыта Яндекс Погода со страницы места или маршрута",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        }
+      ],
+      "triggers": [
+        "Ссылка на yandex.ru/pogoda"
+      ]
+    },
+    {
+      "id": "external_map_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Открыты Яндекс Карты или Навигатор со страницы места или маршрута",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        }
+      ],
+      "triggers": [
+        "Ссылка на yandex.ru/maps или /navi"
+      ]
+    },
+    {
+      "id": "club_page_messenger_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "На странице клуба выбрали мессенджер",
+      "parameters": [
+        {
+          "name": "messenger",
+          "type": "code",
+          "description_ru": "max или tg"
+        }
+      ],
+      "triggers": [
+        "/klub, кнопка .btn-messenger"
+      ]
+    },
+    {
+      "id": "place_card_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Открыта карточка места",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        },
+        {
+          "name": "list",
+          "type": "path_template",
+          "description_ru": "Страница списка, с которой кликнули"
+        }
+      ],
+      "triggers": [
+        "Ссылка a.card или «Смотреть» на /mesta/{id}"
+      ]
+    },
+    {
+      "id": "route_card_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Открыта карточка маршрута",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        },
+        {
+          "name": "list",
+          "type": "path_template",
+          "description_ru": "Страница списка"
+        }
+      ],
+      "triggers": [
+        "Ссылка карточки на /marshruty/{id}"
+      ]
+    },
+    {
+      "id": "club_cta_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Нажат нижний блок «Открыть клуб»",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        },
+        {
+          "name": "depth",
+          "type": "int",
+          "description_ru": "Максимальная глубина прокрутки, 0–100"
+        }
+      ],
+      "triggers": [
+        ".club-cta .btn"
+      ]
+    },
+    {
+      "id": "club_nav_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Переход в клуб из шапки или подвала",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        }
+      ],
+      "triggers": [
+        "Ссылка на /klub вне нижнего блока"
+      ]
+    },
+    {
+      "id": "faq_open",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Раскрыт вопрос в блоке FAQ",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "index",
+          "type": "int",
+          "description_ru": "Порядковый номер вопроса на странице, 1–40, без текста вопроса"
+        }
+      ],
+      "triggers": [
+        "summary внутри .faq-item, только при раскрытии"
+      ]
+    },
+    {
+      "id": "toc_click",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Переход по пункту оглавления статьи",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        }
+      ],
+      "triggers": [
+        "Ссылка в .article-toc nav"
+      ]
+    },
+    {
+      "id": "page_read",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Итог чтения при уходе со вкладки, один раз",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "seconds",
+          "type": "int",
+          "description_ru": "Секунды активного чтения вкладки, 0–86400"
+        },
+        {
+          "name": "depth",
+          "type": "int",
+          "description_ru": "Максимальная глубина прокрутки, 0–100"
+        },
+        {
+          "name": "section",
+          "type": "slug",
+          "description_ru": "Якорь раздела, где провели больше всего времени"
+        }
+      ],
+      "triggers": [
+        "visibility hidden и pagehide, повтор не шлётся"
+      ]
+    },
+    {
+      "id": "podbor_start",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Первое действие в подборе за сессию экрана",
+      "parameters": [
+        {
+          "name": "src",
+          "type": "code",
+          "description_ru": "Источник входа: direct, home_widget, article, bot_max, bot_tg"
+        }
+      ],
+      "triggers": [
+        "Первый ответ или предзаданный сезон"
+      ]
+    },
+    {
+      "id": "podbor_result_few",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "По интересам нашлось мало или ноль карточек",
+      "parameters": [
+        {
+          "name": "mode",
+          "type": "code",
+          "description_ru": "few или none"
+        },
+        {
+          "name": "interests",
+          "type": "codes",
+          "description_ru": "Коды тем через запятую"
+        }
+      ],
+      "triggers": [
+        "Показ честного сообщения о нехватке совпадений"
+      ]
+    },
+    {
+      "id": "podbor_q1_done",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Ответ на вопрос сезона",
+      "parameters": [
+        {
+          "name": "q",
+          "type": "code",
+          "description_ru": "Код вопроса подбора"
+        },
+        {
+          "name": "answer",
+          "type": "code",
+          "description_ru": "Код варианта ответа, не текст"
+        },
+        {
+          "name": "skipped",
+          "type": "0|1",
+          "description_ru": "1, если шаг пропущен"
+        }
+      ],
+      "triggers": [
+        "Шаг season"
+      ]
+    },
+    {
+      "id": "podbor_q2_done",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Ответ на вопрос длительности",
+      "parameters": [
+        {
+          "name": "q",
+          "type": "code",
+          "description_ru": "Код вопроса подбора"
+        },
+        {
+          "name": "answer",
+          "type": "code",
+          "description_ru": "Код варианта ответа, не текст"
+        },
+        {
+          "name": "skipped",
+          "type": "0|1",
+          "description_ru": "1, если шаг пропущен"
+        }
+      ],
+      "triggers": [
+        "Шаг duration"
+      ]
+    },
+    {
+      "id": "podbor_q3_done",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Ответ на вопрос базы",
+      "parameters": [
+        {
+          "name": "q",
+          "type": "code",
+          "description_ru": "Код вопроса подбора"
+        },
+        {
+          "name": "answer",
+          "type": "code",
+          "description_ru": "Код варианта ответа, не текст"
+        },
+        {
+          "name": "skipped",
+          "type": "0|1",
+          "description_ru": "1, если шаг пропущен"
+        }
+      ],
+      "triggers": [
+        "Шаг base"
+      ]
+    },
+    {
+      "id": "podbor_q4_done",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Ответ на вопрос компании",
+      "parameters": [
+        {
+          "name": "q",
+          "type": "code",
+          "description_ru": "Код вопроса подбора"
+        },
+        {
+          "name": "answer",
+          "type": "code",
+          "description_ru": "Код варианта ответа, не текст"
+        },
+        {
+          "name": "skipped",
+          "type": "0|1",
+          "description_ru": "1, если шаг пропущен"
+        }
+      ],
+      "triggers": [
+        "Шаг party"
+      ]
+    },
+    {
+      "id": "podbor_q5_done",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Ответ, бывал ли человек в Адыгее",
+      "parameters": [
+        {
+          "name": "q",
+          "type": "code",
+          "description_ru": "Код вопроса подбора"
+        },
+        {
+          "name": "answer",
+          "type": "code",
+          "description_ru": "Код варианта ответа, не текст"
+        },
+        {
+          "name": "skipped",
+          "type": "0|1",
+          "description_ru": "1, если шаг пропущен"
+        }
+      ],
+      "triggers": [
+        "Шаг been"
+      ]
+    },
+    {
+      "id": "podbor_q6_done",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Ответ на вопрос темпа",
+      "parameters": [
+        {
+          "name": "q",
+          "type": "code",
+          "description_ru": "Код вопроса подбора"
+        },
+        {
+          "name": "answer",
+          "type": "code",
+          "description_ru": "Код варианта ответа, не текст"
+        },
+        {
+          "name": "skipped",
+          "type": "0|1",
+          "description_ru": "1, если шаг пропущен"
+        }
+      ],
+      "triggers": [
+        "Шаг pace"
+      ]
+    },
+    {
+      "id": "podbor_q7_done",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Завершены интересы и шаг вопросов",
+      "parameters": [
+        {
+          "name": "q",
+          "type": "code",
+          "description_ru": "Код вопроса подбора"
+        },
+        {
+          "name": "interests",
+          "type": "codes",
+          "description_ru": "Коды тем или пусто, если пропуск"
+        },
+        {
+          "name": "skipped",
+          "type": "0|1",
+          "description_ru": "1, если шаг пропущен"
+        }
+      ],
+      "triggers": [
+        "«Готово», «Удивите меня» или «Пропустить» на интересах. Пропуск этого шага — skipped=1, отдельной цели skip нет"
+      ]
+    },
+    {
+      "id": "podbor_edit",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Возврат к конкретному вопросу из сводки",
+      "parameters": [
+        {
+          "name": "q",
+          "type": "code",
+          "description_ru": "Код вопроса подбора"
+        }
+      ],
+      "triggers": [
+        "Кнопка правки ответа"
+      ]
+    },
+    {
+      "id": "podbor_summary",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Показана сводка ответов перед планом",
+      "parameters": [],
+      "triggers": [
+        "Экран «всё готово» после вопросов"
+      ]
+    },
+    {
+      "id": "podbor_plan_build",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "План по дням успешно собран",
+      "parameters": [
+        {
+          "name": "days",
+          "type": "int",
+          "description_ru": "Число дней 1–7"
+        },
+        {
+          "name": "points",
+          "type": "int",
+          "description_ru": "Число точек"
+        },
+        {
+          "name": "mode",
+          "type": "code",
+          "description_ru": "all, ok, few или none"
+        },
+        {
+          "name": "algo",
+          "type": "version",
+          "description_ru": "Версия движка без URL"
+        }
+      ],
+      "triggers": [
+        "Кнопка «Сформировать план»"
+      ]
+    },
+    {
+      "id": "podbor_refine_start",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Начаты уточняющие вопросы",
+      "parameters": [],
+      "triggers": [
+        "«Сделать точнее»"
+      ]
+    },
+    {
+      "id": "podbor_like",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Лайк карточки внутри подбора",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        }
+      ],
+      "triggers": [
+        "Плюс на карточке результата или плана"
+      ]
+    },
+    {
+      "id": "podbor_dislike",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Дизлайк карточки внутри подбора",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        }
+      ],
+      "triggers": [
+        "Минус на карточке"
+      ]
+    },
+    {
+      "id": "place_seen_before",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Место скрыто как «уже был»",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        }
+      ],
+      "triggers": [
+        "«Уже был тут»"
+      ]
+    },
+    {
+      "id": "podbor_plan_like",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "План в целом отмечен как подходящий",
+      "parameters": [],
+      "triggers": [
+        "«Подошёл маршрут? — Да»"
+      ]
+    },
+    {
+      "id": "podbor_plan_dislike",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "План в целом отмечен как неподходящий",
+      "parameters": [
+        {
+          "name": "reasons",
+          "type": "codes",
+          "description_ru": "Коды причин на момент клика"
+        }
+      ],
+      "triggers": [
+        "«Не совсем». Выбор причины — отдельное событие podbor_plan_adjust"
+      ]
+    },
+    {
+      "id": "podbor_feedback_max",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Переход дать обратную связь в бот MAX",
+      "parameters": [],
+      "triggers": [
+        "Ссылка «Дать обратную связь». Id плана не передаётся"
+      ]
+    },
+    {
+      "id": "podbor_card_open",
+      "account_status": "existing",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Открыта карточка из подбора",
+      "parameters": [
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        },
+        {
+          "name": "position",
+          "type": "int",
+          "description_ru": "Позиция в блоке"
+        },
+        {
+          "name": "block",
+          "type": "code",
+          "description_ru": "main, preview, plan, also или alt"
+        }
+      ],
+      "triggers": [
+        "Ссылка карточки с data-act=open"
+      ]
+    },
+    {
+      "id": "podbor_edit_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Раскрыты ответы на экране сводки",
+      "parameters": [],
+      "triggers": [
+        "Кнопка подробностей, только при открытии"
+      ]
+    },
+    {
+      "id": "podbor_save_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Открыт выбор, куда сохранить план",
+      "parameters": [],
+      "triggers": [
+        "Кнопка «Сохранить план». Это клик, не факт сохранения"
+      ]
+    },
+    {
+      "id": "club_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Любой переход в клуб, с разрезом по месту",
+      "parameters": [
+        {
+          "name": "placement",
+          "type": "code",
+          "description_ru": "club_cta, nav или podbor"
+        },
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        }
+      ],
+      "triggers": [
+        "Вместе с club_cta_click или club_nav_click, и из подбора. Это сводная цель, не второй переход"
+      ]
+    },
+    {
+      "id": "phone_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Клик по телефонной ссылке на сайте",
+      "parameters": [
+        {
+          "name": "placement",
+          "type": "code",
+          "description_ru": "Откуда ссылка: page, article, nav и т.п."
+        }
+      ],
+      "triggers": [
+        "Ссылка tel:. Это не автоцель Метрики «клик по телефону»"
+      ]
+    },
+    {
+      "id": "email_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Клик по ссылке mailto",
+      "parameters": [
+        {
+          "name": "placement",
+          "type": "code",
+          "description_ru": "Откуда ссылка"
+        }
+      ],
+      "triggers": [
+        "Ссылка mailto:. Это не автоцель Метрики по email. Адрес не передаётся"
+      ]
+    },
+    {
+      "id": "bot_click_max",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Переход в бот или клуб MAX",
+      "parameters": [
+        {
+          "name": "placement",
+          "type": "code",
+          "description_ru": "magnet, review, podbor, club_page, club_cta, nav, article, page, partners_done"
+        },
+        {
+          "name": "host",
+          "type": "host",
+          "description_ru": "Домен без пути, обычно max.ru"
+        }
+      ],
+      "triggers": [
+        "Ссылка на max.ru. Историческая цель bot_max_click не шлётся повторно"
+      ]
+    },
+    {
+      "id": "bot_click_tg",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Переход в бот или канал Telegram",
+      "parameters": [
+        {
+          "name": "placement",
+          "type": "code",
+          "description_ru": "То же размещение, включая partners_done"
+        },
+        {
+          "name": "host",
+          "type": "host",
+          "description_ru": "t.me или telegram.*"
+        }
+      ],
+      "triggers": [
+        "Ссылка на t.me / telegram.me"
+      ]
+    },
+    {
+      "id": "article_internal_link",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Внутренняя ссылка из текста статьи",
+      "parameters": [
+        {
+          "name": "href",
+          "type": "path_template",
+          "description_ru": "Куда ведёт, шаблоном"
+        },
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        },
+        {
+          "name": "item",
+          "type": "item_key",
+          "description_ru": "Стабильный ключ place:{id} или route:{id}"
+        },
+        {
+          "name": "slug",
+          "type": "slug",
+          "description_ru": "Slug статьи, сценария или района, если он в ссылке"
+        }
+      ],
+      "triggers": [
+        "Ссылка в .article-body на каталог, не оглавление и не магнит"
+      ]
+    },
+    {
+      "id": "outbound_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Уход на внешний сайт, кроме карт, погоды и мессенджеров",
+      "parameters": [
+        {
+          "name": "host",
+          "type": "host",
+          "description_ru": "Домен без пути и query"
+        },
+        {
+          "name": "placement",
+          "type": "code",
+          "description_ru": "Откуда ссылка"
+        }
+      ],
+      "triggers": [
+        "Внешняя ссылка. Полный URL не передаётся"
+      ]
+    },
+    {
+      "id": "review_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Клик «Оставить отзыв» в MAX или Telegram",
+      "parameters": [
+        {
+          "name": "page_type",
+          "type": "code",
+          "description_ru": "place или route"
+        },
+        {
+          "name": "page_id",
+          "type": "id",
+          "description_ru": "Числовой id страницы"
+        },
+        {
+          "name": "messenger",
+          "type": "code",
+          "description_ru": "max или tg"
+        }
+      ],
+      "triggers": [
+        "Кнопка отзыва. Заголовок страницы не передаётся"
+      ]
+    },
+    {
+      "id": "podbor_share_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Нажато «скопировать ссылку на план»",
+      "parameters": [],
+      "triggers": [
+        "Клик. Успех копирования или шаринга — podbor_share_result"
+      ]
+    },
+    {
+      "id": "podbor_shared_open",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Открыт подбор по ссылке-плану в hash",
+      "parameters": [
+        {
+          "name": "src",
+          "type": "code",
+          "description_ru": "bot_max или bot_tg, если вход из бота"
+        }
+      ],
+      "triggers": [
+        "Hash #plan= с разбором кодов. Сам hash и id плана не передаются"
+      ]
+    },
+    {
+      "id": "podbor_yamaps_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "День плана открыт в Яндекс Картах",
+      "parameters": [
+        {
+          "name": "day",
+          "type": "int",
+          "description_ru": "Номер дня 1–7"
+        }
+      ],
+      "triggers": [
+        "Ссылка «Открыть день в Яндекс Картах»"
+      ]
+    },
+    {
+      "id": "podbor_club_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Из плана нажали «Спросить в клубе»",
+      "parameters": [],
+      "triggers": [
+        "Кнопка клуба между днями. Вместе с club_click placement=podbor"
+      ]
+    },
+    {
+      "id": "seasonal_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Клик по сезонной подборке на главной",
+      "parameters": [
+        {
+          "name": "target",
+          "type": "path_template",
+          "description_ru": "Куда ведёт карточка"
+        }
+      ],
+      "triggers": [
+        "[data-seasonal-click]. Название места не передаётся"
+      ]
+    },
+    {
+      "id": "plan_save_max",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "План успешно сохранён и открывается бот MAX",
+      "parameters": [
+        {
+          "name": "days",
+          "type": "int",
+          "description_ru": "Число дней плана"
+        }
+      ],
+      "triggers": [
+        "Успех после /api/podbor/plans. Id плана не передаётся. Клик без успеха сюда не попадает"
+      ]
+    },
+    {
+      "id": "plan_save_tg",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "План успешно сохранён и открывается бот Telegram",
+      "parameters": [
+        {
+          "name": "days",
+          "type": "int",
+          "description_ru": "Число дней плана"
+        }
+      ],
+      "triggers": [
+        "Успех сохранения в Telegram. Id плана не передаётся"
+      ]
+    },
+    {
+      "id": "partner_form_submit",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Анкета партнёра принята сервером",
+      "parameters": [
+        {
+          "name": "category",
+          "type": "code",
+          "description_ru": "Код направления"
+        },
+        {
+          "name": "subcategory",
+          "type": "code",
+          "description_ru": "Код подкатегории, если выбран"
+        }
+      ],
+      "triggers": [
+        "Только ответ ok от /api/partners/apply. Поля анкеты не передаются"
+      ]
+    },
+    {
+      "id": "partner_cta_click",
+      "account_status": "new",
+      "in_code_before": true,
+      "emitted": true,
+      "description_ru": "Клик по призыву стать партнёром",
+      "parameters": [
+        {
+          "name": "place",
+          "type": "code",
+          "description_ru": "hero, final или sticky"
+        }
+      ],
+      "triggers": [
+        "Ссылки data-goal=partner_cta_click на /partners"
+      ]
+    },
+    {
+      "id": "menu_toggle",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Открыто или закрыто мобильное меню",
+      "parameters": [
+        {
+          "name": "state",
+          "type": "open|close",
+          "description_ru": "open или close"
+        }
+      ],
+      "triggers": [
+        "Кнопка меню, Escape, клик вне меню и переход по пункту. Повторное закрытие уже закрытого меню не шлётся"
+      ]
+    },
+    {
+      "id": "nav_click",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Переход по меню, шапке, герою, «все», подвалу или точке маршрута",
+      "parameters": [
+        {
+          "name": "area",
+          "type": "code",
+          "description_ru": "menu, header, hero, see_all, footer, route_stop, district"
+        },
+        {
+          "name": "target",
+          "type": "path_template",
+          "description_ru": "Куда ведёт ссылка"
+        }
+      ],
+      "triggers": [
+        "Ссылки этих зон. Не шлётся вместе с карточкой, клубом, магнитом, телефоном, внешней ссылкой и подбором"
+      ]
+    },
+    {
+      "id": "filter_reset",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Сброс фильтров каталога",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        }
+      ],
+      "triggers": [
+        "Ссылка «Сбросить» в форме фильтров"
+      ]
+    },
+    {
+      "id": "content_card_click",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Открыта карточка, которая не место и не маршрут",
+      "parameters": [
+        {
+          "name": "kind",
+          "type": "code",
+          "description_ru": "article, district, more, door, mentioned или showcase"
+        },
+        {
+          "name": "target",
+          "type": "path_template",
+          "description_ru": "Куда ведёт"
+        }
+      ],
+      "triggers": [
+        "Статья, район, плитка «ещё», дверь сценария, «где ещё» и витрина на /partners"
+      ]
+    },
+    {
+      "id": "accordion_open",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Раскрыт не-FAQ аккордеон",
+      "parameters": [
+        {
+          "name": "kind",
+          "type": "code",
+          "description_ru": "toc или partners"
+        },
+        {
+          "name": "id",
+          "type": "code",
+          "description_ru": "article для оглавления или код направления партнёра"
+        }
+      ],
+      "triggers": [
+        "Оглавление статьи и направления на /partners. FAQ остаётся faq_open. Программное раскрытие на десктопе не считается"
+      ]
+    },
+    {
+      "id": "gallery_nav",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Листание фото кнопкой, точкой или стрелкой клавиатуры",
+      "parameters": [
+        {
+          "name": "kind",
+          "type": "code",
+          "description_ru": "carousel или article"
+        },
+        {
+          "name": "dir",
+          "type": "code",
+          "description_ru": "prev, next или dot"
+        },
+        {
+          "name": "index",
+          "type": "int",
+          "description_ru": "Номер кадра с 1"
+        }
+      ],
+      "triggers": [
+        "Карусель места/маршрута и стрелки коллажа статьи. Событие скролла ленты не шлётся"
+      ]
+    },
+    {
+      "id": "difficulty_open",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Открыта расшифровка уровня сложности",
+      "parameters": [
+        {
+          "name": "page",
+          "type": "path_template",
+          "description_ru": "Шаблон пути публичной страницы, без query и фрагмента"
+        }
+      ],
+      "triggers": [
+        "Кнопка «?» у бейджа сложности, только при открытии"
+      ]
+    },
+    {
+      "id": "podbor_nav",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Служебный шаг подбора без отдельной старой цели",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "code",
+          "description_ru": "back, restart, more, tab, alt, unseen, toc, enough"
+        },
+        {
+          "name": "tab",
+          "type": "code",
+          "description_ru": "all, route или place — для вкладки"
+        },
+        {
+          "name": "state",
+          "type": "on|off",
+          "description_ru": "Для показа похожих идей"
+        }
+      ],
+      "triggers": [
+        "Назад, заново, ещё, вкладка, похожие, вернуть скрытые, оглавление дня, «достаточно». Пропуск вопроса остаётся в podbor_q*_done"
+      ]
+    },
+    {
+      "id": "podbor_plan_adjust",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Правка уже собранного плана",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "code",
+          "description_ru": "reason, density, fix или day"
+        },
+        {
+          "name": "value",
+          "type": "code",
+          "description_ru": "Код причины, плотности, пересборки или номер дня 1–7"
+        }
+      ],
+      "triggers": [
+        "Причина дизлайка, насыщенность, «пересобрать», переключатель числа дней"
+      ]
+    },
+    {
+      "id": "podbor_share_result",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Итог «поделиться планом» отдельно от клика",
+      "parameters": [
+        {
+          "name": "result",
+          "type": "code",
+          "description_ru": "copied, shared или failed"
+        }
+      ],
+      "triggers": [
+        "Успех Web Share, успешное копирование или отказ обоих способов. Отмена системного листа не шлётся"
+      ]
+    },
+    {
+      "id": "podbor_save_attempt",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Нажата отправка плана в MAX или Telegram",
+      "parameters": [
+        {
+          "name": "channel",
+          "type": "code",
+          "description_ru": "max или tg"
+        },
+        {
+          "name": "retry",
+          "type": "0|1",
+          "description_ru": "1, если предыдущая попытка этого экрана завершилась ошибкой"
+        }
+      ],
+      "triggers": [
+        "Клик по кнопке мессенджера в «Куда прислать план». Успех — plan_save_max или plan_save_tg"
+      ]
+    },
+    {
+      "id": "podbor_save_error",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Сохранить план не удалось",
+      "parameters": [
+        {
+          "name": "channel",
+          "type": "code",
+          "description_ru": "max или tg"
+        }
+      ],
+      "triggers": [
+        "Ошибка /api/podbor/plans или пустой ответ. Тело ошибки не передаётся"
+      ]
+    },
+    {
+      "id": "podbor_error",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Подбор не смог стартовать с данными",
+      "parameters": [
+        {
+          "name": "code",
+          "type": "code",
+          "description_ru": "boot — битый JSON, empty — пустой каталог"
+        }
+      ],
+      "triggers": [
+        "Один раз при разборе boot. Повторные клики сюда не пишутся"
+      ]
+    },
+    {
+      "id": "podbor_answer",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Ответ на уточняющий вопрос, у которого нет цели q1–q7",
+      "parameters": [
+        {
+          "name": "q",
+          "type": "code",
+          "description_ru": "Код вопроса подбора"
+        },
+        {
+          "name": "answer",
+          "type": "code",
+          "description_ru": "Код варианта ответа, не текст"
+        },
+        {
+          "name": "skipped",
+          "type": "0|1",
+          "description_ru": "1, если шаг пропущен"
+        }
+      ],
+      "triggers": [
+        "childage, walking, distance, rain, exclude. Основные семь вопросов сюда не дублируются"
+      ]
+    },
+    {
+      "id": "partner_form_invalid",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Анкета не ушла: не прошло локальную проверку",
+      "parameters": [
+        {
+          "name": "field",
+          "type": "code",
+          "description_ru": "company, category, location, services, discount, contact или consent"
+        }
+      ],
+      "triggers": [
+        "submit до fetch. Значение поля не передаётся"
+      ]
+    },
+    {
+      "id": "partner_form_error",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Анкета ушла на сервер и не была принята",
+      "parameters": [
+        {
+          "name": "code",
+          "type": "code",
+          "description_ru": "http или network"
+        }
+      ],
+      "triggers": [
+        "Ответ не ok или сеть. Текст ошибки и тело анкеты не передаются. Успех остаётся partner_form_submit"
+      ]
+    },
+    {
+      "id": "cookie_choice",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Выбрано «Принять» для cookie и Метрики",
+      "parameters": [
+        {
+          "name": "choice",
+          "type": "code",
+          "description_ru": "Только accepted"
+        }
+      ],
+      "triggers": [
+        "Кнопка «Принять». «Только необходимые» не шлётся: счётчик в этом режиме не работает"
+      ]
+    },
+    {
+      "id": "cookie_settings",
+      "account_status": "new",
+      "in_code_before": false,
+      "emitted": true,
+      "description_ru": "Снова открыты настройки cookie при уже данном согласии",
+      "parameters": [
+        {
+          "name": "action",
+          "type": "code",
+          "description_ru": "open"
+        }
+      ],
+      "triggers": [
+        "Ссылка «Настройки cookie», только если согласие уже accepted"
+      ]
+    }
+  ]
+}

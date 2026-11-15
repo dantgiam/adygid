@@ -73,6 +73,7 @@ window.adygidApplyImg = function (img, url, sizes, srcWidth) {
   function loadMetrika() {
     const id = window.ADYGID_METRIKA_ID;
     if (!id || metrikaStarted || consent !== "accepted") return;
+    if (window.AdygidMetrica && window.AdygidMetrica.blocked(location)) return;
     metrikaStarted = true;
     const src = "https://mc.yandex.ru/metrika/tag.js?id=" + id;
     try {
@@ -134,14 +135,20 @@ window.adygidApplyImg = function (img, url, sizes, srcWidth) {
 
   window.adygidGoal = function (name, params) {
     if (!window.ADYGID_METRIKA_ID) return;
+    if (window.AdygidMetrica && window.AdygidMetrica.blocked(location)) return;
+    // Без санитайзера параметры не отправляем: там могут быть свободный текст и контакты.
+    const clean = window.AdygidMetrica && typeof window.AdygidMetrica.sanitize === "function"
+      ? window.AdygidMetrica.sanitize(name, params)
+      : null;
+    if (!clean) return;
     if (consent === "necessary") return;
-    if (isDuplicate(name, params)) return;
+    if (isDuplicate(clean.name, clean.params)) return;
     if (consent !== "accepted") {
-      queue.push({ name: name, params: params });
+      queue.push({ name: clean.name, params: clean.params });
       return;
     }
     if (!metrikaStarted) loadMetrika();
-    send(name, params);
+    send(clean.name, clean.params);
   };
   // Короткий алиас: один и тот же помощник, те же правила согласия и дедупа.
   window.adyGoal = window.adygidGoal;
@@ -167,6 +174,7 @@ window.adygidApplyImg = function (img, url, sizes, srcWidth) {
       remember("accepted");
       hideBanner();
       flush();
+      window.adygidGoal("cookie_choice", { choice: "accepted" });
     });
   }
   if (necessaryBtn) {
@@ -179,22 +187,21 @@ window.adygidApplyImg = function (img, url, sizes, srcWidth) {
   if (settingsLink) {
     settingsLink.addEventListener("click", (e) => {
       e.preventDefault();
+      if (consent === "accepted") window.adygidGoal("cookie_settings", { action: "open" });
       showBanner();
     });
   }
 })();
 
-// Клик «Оставить отзыв в MAX» или «… в Telegram». Название берём из h1 в момент клика —
-// тот же текст читает бот. До согласия цель остаётся в очереди adygidGoal.
+// Клик «Оставить отзыв». В Метрику уходят тип страницы, id и мессенджер.
+// Текст заголовка не передаём. До согласия цель остаётся в очереди adygidGoal.
 document.addEventListener("click", (e) => {
   const link = e.target.closest("[data-review-click]");
   if (!link || typeof window.adygidGoal !== "function") return;
-  const heading = document.querySelector("h1");
   window.adygidGoal("review_click", {
     page_type: link.getAttribute("data-page-type") || "",
     page_id: link.getAttribute("data-page-id") || "",
     messenger: link.getAttribute("data-review-messenger") || "max",
-    page_title: heading ? heading.textContent.trim() : "",
   });
 });
 
@@ -402,9 +409,11 @@ document.addEventListener("click", (e) => {
 document.querySelectorAll("form.filters").forEach((form) => {
   form.querySelectorAll("select, input[type=checkbox]").forEach((el) => {
     el.addEventListener("change", () => {
+      const value = el.type === "checkbox" ? (el.checked ? "1" : "0") : (el.value || "");
       window.adygidGoal("filter_apply", {
         page: location.pathname,
         field: el.name || el.id || "",
+        value: value,
       });
       form.submit();
     });
@@ -564,6 +573,12 @@ document.querySelectorAll(".like-btn").forEach((btn) => {
   const narrow = window.matchMedia("(max-width: 900px)");
   if (narrow.matches) toc.open = false;
 
+  toc.addEventListener("toggle", () => {
+    if (toc.open && typeof window.adygidGoal === "function") {
+      window.adygidGoal("accordion_open", { kind: "toc", id: "article" });
+    }
+  });
+
   toc.addEventListener("click", (e) => {
     if (narrow.matches && e.target.closest("nav a")) toc.open = false;
   });
@@ -604,7 +619,12 @@ document.addEventListener("click", (e) => {
   });
   if (infoBtn) {
     e.preventDefault();
-    infoBtn.nextElementSibling.classList.toggle("open");
+    const pop = infoBtn.nextElementSibling;
+    if (!pop) return;
+    pop.classList.toggle("open");
+    if (pop.classList.contains("open") && typeof window.adygidGoal === "function") {
+      window.adygidGoal("difficulty_open", { page: location.pathname });
+    }
   }
 });
 
@@ -658,13 +678,38 @@ document.addEventListener("click", (e) => {
       requestAnimationFrame(syncFromScroll);
     }, { passive: true });
 
-    if (prevBtn) prevBtn.addEventListener("click", () => goTo(active - 1));
-    if (nextBtn) nextBtn.addEventListener("click", () => goTo(active + 1));
-    dots.forEach((d, i) => d.addEventListener("click", () => goTo(i)));
+    if (prevBtn) prevBtn.addEventListener("click", () => {
+      const i = Math.max(0, active - 1);
+      if (i === active) return;
+      goTo(i);
+      window.adygidGoal("gallery_nav", { kind: "carousel", dir: "prev", index: i + 1 });
+    });
+    if (nextBtn) nextBtn.addEventListener("click", () => {
+      const i = Math.min(slides.length - 1, active + 1);
+      if (i === active) return;
+      goTo(i);
+      window.adygidGoal("gallery_nav", { kind: "carousel", dir: "next", index: i + 1 });
+    });
+    dots.forEach((d, i) => d.addEventListener("click", () => {
+      if (i === active) return;
+      goTo(i);
+      window.adygidGoal("gallery_nav", { kind: "carousel", dir: "dot", index: i + 1 });
+    }));
 
     root.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowLeft") { e.preventDefault(); goTo(active - 1); }
-      else if (e.key === "ArrowRight") { e.preventDefault(); goTo(active + 1); }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const i = Math.max(0, active - 1);
+        if (i === active) return;
+        goTo(i);
+        window.adygidGoal("gallery_nav", { kind: "carousel", dir: "prev", index: i + 1 });
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const i = Math.min(slides.length - 1, active + 1);
+        if (i === active) return;
+        goTo(i);
+        window.adygidGoal("gallery_nav", { kind: "carousel", dir: "next", index: i + 1 });
+      }
     });
 
     paint(0);
@@ -725,7 +770,7 @@ document.addEventListener("click", (e) => {
   // Заголовки статьи уже размечены якорями (_add_toc_anchors в router.py),
   // поэтому в отчёт уходит человекочитаемое название раздела, а не section-3.
   const sections = Array.from(document.querySelectorAll(".article-body h2[id]"))
-    .map((el) => ({ id: el.id, title: (el.textContent || "").trim().slice(0, 80), el }));
+    .map((el) => ({ id: el.id, el }));
   const timeInSection = Object.create(null);
   let currentSection = null;
   let sectionSince = 0;
@@ -740,8 +785,8 @@ document.addEventListener("click", (e) => {
   }
   function switchSection(next) {
     const now = Date.now();
-    if (currentSection && sectionSince) {
-      const key = currentSection.title || currentSection.id;
+    if (currentSection && sectionSince && /^[a-z0-9-]{1,80}$/.test(currentSection.id || "")) {
+      const key = currentSection.id;
       timeInSection[key] = (timeInSection[key] || 0) + (now - sectionSince);
     }
     currentSection = next;
@@ -766,7 +811,7 @@ document.addEventListener("click", (e) => {
         firedDepth.add(step);
         goal("read_" + step, { page: path, seconds: seconds() });
         if (step === 75) {
-          const pageType = /^\/stati\/.+/.test(path) ? "article" : /^\/marshruty\/\d+/.test(path) ? "route" : "";
+          const pageType = /^\/stati\/.+/.test(path) ? "article" : /^\/marshruty\/\d+/.test(path) ? "route" : /^\/mesta\/\d+/.test(path) ? "place" : "";
           if (pageType) goal("scroll_75", { page_type: pageType });
         }
       }
@@ -830,6 +875,7 @@ document.addEventListener("click", (e) => {
   }
   function linkPlacement(el) {
     if (el.closest(".magnet, .magnet-pill")) return "magnet";
+    if (el.closest("#partner-done, .pt-done")) return "partners_done";
     if (el.closest("[data-review-click]")) return "review";
     if (el.closest(".a3-club, .podbor-max, #podbor, .podbor-app, .podbor-root, [data-podbor]")) return "podbor";
     if (path === "/klub" && el.closest(".btn-messenger")) return "club_page";
@@ -891,7 +937,7 @@ document.addEventListener("click", (e) => {
       info.messenger = pill.classList.contains("magnet-pill-max") ? "max" : "telegram";
       info.seconds = seconds();
       info.depth = maxDepth;
-      info.section = currentSection ? (currentSection.title || currentSection.id) : "";
+      info.section = currentSection && /^[a-z0-9-]{1,80}$/.test(currentSection.id || "") ? currentSection.id : "";
       goal("magnet_click", info);
       // В счётчике отдельная цель для Telegram — magnet_click_tg.
       goal(info.messenger === "max" ? "magnet_click_max" : "magnet_click_tg", info);
@@ -964,11 +1010,16 @@ document.addEventListener("click", (e) => {
       return;
     }
 
-    // Раскрытый вопрос — самый честный источник тем для новых статей:
-    // видно, что людей волнует, их же словами
+    // Номер вопроса, не его текст: в Метрику не кладём свободную формулировку.
     const summary = e.target.closest(".faq-item summary");
     if (summary && !summary.closest(".faq-item").open) {
-      goal("faq_open", { page: path, question: (summary.textContent || "").trim().slice(0, 100) });
+      const item = summary.closest(".faq-item");
+      const items = item.parentElement
+        ? Array.from(item.parentElement.children).filter((el) => el.classList.contains("faq-item"))
+        : [];
+      let index = 1;
+      for (let i = 0; i < items.length; i++) if (items[i] === item) index = i + 1;
+      goal("faq_open", { page: path, index: index });
       return;
     }
 
@@ -976,7 +1027,54 @@ document.addEventListener("click", (e) => {
     if (e.target.closest(".article-toc nav a")) {
       goal("toc_click", { page: path });
     }
+    trackSurface(e.target);
   });
+
+  function contentKind(a) {
+    if (a.classList.contains("article-card")) return "article";
+    if (a.classList.contains("district-card")) return "district";
+    if (a.classList.contains("more-tile")) return "more";
+    if (a.classList.contains("door")) return "door";
+    if (a.classList.contains("mentioned-item")) return "mentioned";
+    if (a.classList.contains("pt-show-item")) return "showcase";
+    return "";
+  }
+  function navArea(a) {
+    if (a.closest("#mobile-menu")) return "menu";
+    if (a.closest(".main-nav") || a.classList.contains("brand") || a.closest("a.brand")) return "header";
+    if (a.closest(".hero-ctas")) return "hero";
+    if (a.classList.contains("see-all")) return "see_all";
+    if (a.closest(".site-footer")) return "footer";
+    if (a.closest(".checkpoint-row")) return "route_stop";
+    if (a.closest(".district-start")) return "district";
+    return "";
+  }
+  function sameSite(href) {
+    try { return new URL(href, location.origin).origin === location.origin; } catch (err) { return false; }
+  }
+  // Общая навигация только там, где нет более узкой цели: карточка места,
+  // клуб, магнит, телефон и внешний уход уже отправлены выше и не дублируются.
+  function trackSurface(el) {
+    const reset = el.closest("form.filters a.reset");
+    if (reset) {
+      goal("filter_reset", { page: path });
+      return;
+    }
+    const a = el.closest("a[href]");
+    if (!a) return;
+    const href = a.getAttribute("href") || "";
+    if (!href || href.charAt(0) === "#" || href.indexOf("tel:") === 0 || href.indexOf("mailto:") === 0) return;
+    if (!sameSite(href)) return;
+    if (a.closest("[data-goal], [data-podbor-cta], [data-seasonal-click], [data-review-click], .magnet, .fav-btn, .club-cta, .footer-club, .btn-messenger, .article-body, .article-toc")) return;
+    if (a.matches("a.card, a.random-open") && /^\/(mesta|marshruty)\/\d+/.test(href.split("?")[0].split("#")[0])) return;
+    const kind = contentKind(a);
+    if (kind) {
+      goal("content_card_click", { kind: kind, target: href });
+      return;
+    }
+    const area = navArea(a);
+    if (area) goal("nav_click", { area: area, target: href });
+  }
 
   // ── Итог по странице ──
   // Шлём один раз, когда человек уходит: и по visibilitychange (надёжно на
@@ -1014,14 +1112,17 @@ document.addEventListener("click", (e) => {
   if (!btn || !panel) return;
 
   function close() {
+    const wasOpen = !panel.hidden;
     panel.hidden = true;
     btn.setAttribute("aria-expanded", "false");
     btn.classList.remove("open");
+    if (wasOpen && typeof window.adygidGoal === "function") window.adygidGoal("menu_toggle", { state: "close" });
   }
   function open() {
     panel.hidden = false;
     btn.setAttribute("aria-expanded", "true");
     btn.classList.add("open");
+    if (typeof window.adygidGoal === "function") window.adygidGoal("menu_toggle", { state: "open" });
   }
 
   btn.addEventListener("click", () => (panel.hidden ? open() : close()));
@@ -1055,8 +1156,13 @@ document.querySelectorAll("[data-gallery]").forEach((root) => {
       const d = Math.abs(el.offsetLeft - track.scrollLeft);
       if (d < best) { best = d; idx = i; }
     });
-    const target = list[Math.max(0, Math.min(list.length - 1, idx + dir))];
+    const nextIdx = Math.max(0, Math.min(list.length - 1, idx + dir));
+    if (nextIdx === idx) return;
+    const target = list[nextIdx];
     if (target) track.scrollTo({ left: Math.max(0, target.offsetLeft), behavior: "smooth" });
+    if (typeof window.adygidGoal === "function") {
+      window.adygidGoal("gallery_nav", { kind: "article", dir: dir < 0 ? "prev" : "next", index: nextIdx + 1 });
+    }
   }
 
   function paint() {
