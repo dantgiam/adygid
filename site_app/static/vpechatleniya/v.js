@@ -328,14 +328,37 @@
 
   function catalogView() {
     var list = filteredOffers(), shown = list.slice(0, state.shown);
-    var html = crumbs() + '<div class="catalog-heading"><div><span class="eyebrow">Впечатления АдыГида</span><h1 class="page-title">Чем заняться в Адыгее?</h1><p class="lead">Найдите свой день: горы, вода, новые вкусы или спокойный отдых.</p></div><span class="catalog-total">92 демо-примера<br><small>8 активных разделов</small></span></div>';
+    var html = '<div id="catalog" tabindex="-1">' + crumbs() + '<div class="catalog-heading"><div><span class="eyebrow">Впечатления АдыГида</span><h2 class="page-title">Чем заняться в Адыгее?</h2><p class="lead">Найдите свой день: горы, вода, новые вкусы или спокойный отдых.</p></div><span class="catalog-total">92 демо-примера<br><small>8 активных разделов</small></span></div>';
     html += '<div class="catalog-shell">' + menuView() + '<div class="catalog-results"><div class="filters"><label class="search-label"><span class="sr-only">Поиск по каталогу</span><input id="search-q" type="search" placeholder="Например, джиппинг или сыр" value="' + escapeHtml(state.query) + '" autocomplete="off"></label><label class="check"><input id="family-toggle" type="checkbox"' + (state.family ? ' checked' : '') + '> С детьми — уточнить</label><button type="button" class="reset" data-action="reset">Сбросить</button></div>';
     html += '<div class="results-heading"><p class="result-count" aria-live="polite">Показаны ' + shown.length + ' из ' + list.length + ' примеров.</p><span class="availability-note">Доступность уточняется</span></div>';
     html += shown.length ? '<div class="grid catalog-grid">' + shown.map(function (o) { return cardHtml(o); }).join('') + '</div>' : '<div class="empty-state"><h2>Ничего не нашлось</h2><p>Попробуйте другой запрос или сбросьте фильтры.</p><button type="button" class="btn btn-primary" data-action="reset">Сбросить фильтры</button></div>';
     if (list.length > shown.length) html += '<div class="more-row"><button type="button" class="btn btn-primary" data-action="more">Показать ещё ' + Math.min(PAGE, list.length - shown.length) + '</button><p class="note">Ваши фильтры сохранятся при просмотре карточек</p></div>';
     html += '</div></div><section class="section"><h2>От идеи до поездки — без спешки</h2><div class="how">';
     [["01 · Заявка", "Выбираете впечатление, желаемую дату и состав."], ["02 · Ручная проверка", "Уточняем возможность и условия у организатора."], ["03 · Согласование", "Сначала предложение с разбивкой, потом сервисный сбор."], ["04 · Детали поездки", "После согласования и оплаты сбора. Остаток — на месте."]].forEach(function (step) {html += '<article><h3>' + step[0] + '</h3><p class="muted">' + step[1] + '</p></article>';});
-    return html + '</div></section>';
+    return html + '</div></section></div>';
+  }
+  function heroFile(width, ext) {
+    var rev = window.ADYGID_V_REV || "";
+    return "/assets/vpechatleniya/hero/panorama-" + width + "." + ext + (rev ? ("?v=" + encodeURIComponent(rev)) : "");
+  }
+  function panorama() {
+    if (state.view !== "catalog") return "";
+    var widths = [1344, 960, 640];
+    function set(ext) {
+      return widths.map(function (w) { return heroFile(w, ext) + " " + w + "w"; }).join(", ");
+    }
+    return '<figure class="panorama"><div class="panorama-frame"><picture>' +
+      '<source type="image/avif" srcset="' + set("avif") + '" sizes="100vw">' +
+      '<source type="image/webp" srcset="' + set("webp") + '" sizes="100vw">' +
+      '<img src="' + heroFile(1344, "webp") + '" width="1344" height="340" alt="Горные хребты слоями. Иллюстрация с Алтая, не снимок Адыгеи." decoding="async">' +
+      '</picture><div class="panorama-scrim" aria-hidden="true"></div><div class="panorama-copy wrap">' +
+      '<span class="panorama-mark" aria-hidden="true"></span>' +
+      '<h1>За впечатлениями — в Адыгею</h1>' +
+      '<p>Сплавиться по реке, увидеть горы или открыть новый вкус. Найдите своё впечатление.</p>' +
+      '<button type="button" class="btn btn-primary" data-action="scroll-catalog">Выбрать приключение</button>' +
+      '</div></div><figcaption class="panorama-credit wrap">Иллюстрация горных хребтов, не снимок Адыгеи. ' +
+      '<a href="https://commons.wikimedia.org/wiki/File:Horse_riding_in_the_Altay_Mountains.jpg" rel="nofollow noopener">Obakeneko, CC BY 3.0</a>' +
+      ' · фрагмент того же кадра, что у конной прогулки.</figcaption></figure>';
   }
   function relatedOffers(o) {
     return OFFERS.filter(function (x) {return x.id !== o.id && (x.cat === o.cat || x.area === o.area);}).map(function (x, index) {
@@ -495,7 +518,7 @@
     var oldExplain = document.querySelector(".menu-explain");
     var explainOpen = oldExplain && oldExplain.open;
     var body = state.view === "detail" ? detailView() : state.view === "request" ? requestView() : catalogView();
-    root.innerHTML = header() + menuSwitcher() + '<main class="wrap">' + body + "</main>" + structureOverlay() + categoryMenuOverlay();
+    root.innerHTML = header() + panorama() + menuSwitcher() + '<main class="wrap">' + body + "</main>" + structureOverlay() + categoryMenuOverlay();
     var explain = document.querySelector(".menu-explain");
     if (explain) explain.open = !!explainOpen;
     if (activeId) {
@@ -543,6 +566,15 @@
     }
     if (t.getAttribute("data-go")) { go(t.getAttribute("data-go")); return; }
     var action = t.getAttribute("data-action");
+    if (action === "scroll-catalog") {
+      var target = document.getElementById("catalog");
+      if (target) {
+        var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+        target.focus({ preventScroll: true });
+      }
+      return;
+    }
     if (action === "open-category-menu") {
       state.menuOpen = true;state.menuStep = "sections";
       state.menuExpanded = state.cat !== "all" ? state.cat : "adventure";render();

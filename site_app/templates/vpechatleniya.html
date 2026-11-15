@@ -47,6 +47,9 @@
         {% elif photo.source_note %}
         <p>{{ photo.source_note }}</p>
         {% endif %}
+        {% if photo.used_as_hero %}
+        <p>Широкая полоса вверху страницы — фрагмент этого же снимка: горные хребты. Снято на Алтае, это не Адыгея и не карточка предложения.</p>
+        {% endif %}
         <p><a href="{{ photo.page }}" rel="nofollow noopener">Страница файла на Wikimedia Commons</a></p>
       </article>
       {% endfor %}
