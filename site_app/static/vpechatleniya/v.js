@@ -173,9 +173,41 @@
     if (startOfDay(d) < startOfDay(new Date())) return { kind: "past", date: d };
     return { kind: "ok", date: d };
   }
+  function spreadCatalog(list) {
+    var order = [], buckets = {};
+    for (var i = 0; i < list.length; i++) {
+      var item = list[i];
+      if (!buckets[item.cat]) { buckets[item.cat] = []; order.push(item.cat); }
+      buckets[item.cat].push(item);
+    }
+    var out = [], seen = {}, active = order.slice();
+    while (active.length) {
+      var next = [];
+      for (var c = 0; c < active.length; c++) {
+        var bucket = buckets[active[c]];
+        if (!bucket.length) continue;
+        var pick = -1;
+        for (var j = 0; j < bucket.length; j++) {
+          if (!seen[bucket[j].photo]) { pick = j; break; }
+        }
+        if (pick === -1) {
+          for (var k = 0; k < bucket.length; k++) {
+            if (!out.length || bucket[k].photo !== out[out.length - 1].photo) { pick = k; break; }
+          }
+        }
+        if (pick === -1) pick = 0;
+        var offer = bucket.splice(pick, 1)[0];
+        seen[offer.photo] = true;
+        out.push(offer);
+        if (bucket.length) next.push(active[c]);
+      }
+      active = next;
+    }
+    return out;
+  }
   function filteredOffers() {
     var q = state.query.trim().toLowerCase();
-    return OFFERS.filter(function (o) {
+    var list = OFFERS.filter(function (o) {
       if (state.cat !== "all" && o.cat !== state.cat) return false;
       if (state.sub && o.sub !== state.sub) return false;
       if (state.family && !o.familyAsk) return false;
@@ -186,6 +218,8 @@
       }
       return true;
     });
+    if (state.cat === "all" && !state.sub && !q) return spreadCatalog(list);
+    return list;
   }
   function moneyBox(offer, party, nights) {
     var b = breakdown(offer, party, nights);
@@ -234,7 +268,7 @@
     return label + (sub ? ' / ' + sub.label : '');
   }
   function menuSwitcher() {
-    return '<section class="menu-preview wrap" aria-label="Предпросмотр меню"><div class="menu-preview-row"><span><strong>V7 · категории с фото</strong><small>Точечное обновление V6</small></span><div class="menu-mode-switch" role="group" aria-label="Вид меню"><button type="button" data-menu-mode="sidebar" aria-pressed="' + (state.menuMode === 'sidebar') + '">Боковая панель</button><button type="button" data-menu-mode="panel" aria-pressed="' + (state.menuMode === 'panel') + '">Кнопка каталога</button></div></div><details class="menu-explain"><summary>Что изменено и какое меню я рекомендую</summary><p>Карточки — середина между информативным первым вариантом V5 и крупными фото второго: две просторные колонки рядом с боковой панелью, фото 16:11, вся информация остаётся под снимком. Показываем по 12 примеров: ровные ряды при двух и трёх колонках.</p><p><strong>Рекомендую боковую панель:</strong> разделы с тематическими фотоминиатюрами, счётчиками и последовательным раскрытием; подкатегории — нормальными строками без мелкого дерева. <strong>Кнопка каталога</strong> освобождает ширину сетки: разделы и виды отдыха выбираются в отдельной двухпанельной форме. На телефоне оба варианта открываются кнопкой «Категории».</p><p>Переключается только меню — не карточки, данные или фильтры. Это тестовая страница по прямой ссылке: в меню сайта её нет, заявки не отправляются и оплата не подключается.</p></details></section>';
+    return '<section class="menu-preview wrap" aria-label="Вид меню"><div class="menu-preview-row"><div class="menu-mode-switch" role="group" aria-label="Вид меню"><button type="button" data-menu-mode="sidebar" aria-pressed="' + (state.menuMode === 'sidebar') + '">Боковая панель</button><button type="button" data-menu-mode="panel" aria-pressed="' + (state.menuMode === 'panel') + '">Кнопка каталога</button></div></div></section>';
   }
   var CATEGORY_PHOTOS = {
     adventure: {key: "raft", alt: "Приключения: сплав на рафте — иллюстрация категории"},
@@ -370,7 +404,7 @@
     var html = '<div class="btn-row" style="margin-bottom:16px">' +
       '<button type="button" class="btn btn-ghost" data-action="back-detail">К карточке</button>' +
       '<button type="button" class="btn btn-ghost" data-go="catalog">К каталогу</button></div>';
-    html += '<p class="muted">Демо-заявка · Демо V7</p>';
+    html += '<p class="muted">Демо-заявка</p>';
     html += '<h1 class="page-title">' + escapeHtml(o.title) + "</h1>";
     html += '<p class="lead">Укажите пожелания. Наличие мест неизвестно. Кнопка ниже ничего не отправляет — ни в базу, ни на почту, ни партнёру. Цена ориентировочная и вымышлена.</p>';
     html += '<div class="stage-bar"><p class="muted">Переключатель стадий только для просмотра демо. Основной путь идёт только вперёд.</p><div class="chips">';

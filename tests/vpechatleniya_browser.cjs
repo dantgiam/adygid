@@ -175,6 +175,20 @@ async function run() {
       if (document.querySelectorAll(".catalog-grid .card").length !== 12) throw new Error("cards");
       if (!document.querySelector(".result-count").textContent.includes("12 из 92")) throw new Error(document.querySelector(".result-count").textContent);
       if (document.body.getAttribute("data-menu-mode") !== "sidebar") throw new Error("menu mode");
+      if (document.querySelector(".menu-explain")) throw new Error("changelog still shown");
+      if (/Точечное обновление|Что изменено|\\bV7\\b|\\bV6\\b/.test(document.body.innerText)) throw new Error("internal note: " + document.body.innerText.slice(0, 180));
+      if (!document.querySelector('[data-menu-mode="sidebar"]') || !document.querySelector('[data-menu-mode="panel"]')) throw new Error("menu switch missing");
+      const photoKeys = [...document.querySelectorAll(".catalog-grid .cover-img")].map((img) => (img.src.match(/\\/photos\\/([a-z0-9]+)\\.webp/) || [])[1]);
+      if (photoKeys.length !== 12 || photoKeys.some((key) => !key)) throw new Error("initial photos " + photoKeys.join(","));
+      if (new Set(photoKeys).size !== 12) throw new Error("photo diversity " + photoKeys.join(","));
+      for (let i = 1; i < photoKeys.length; i++) {
+        if (photoKeys[i] === photoKeys[i - 1]) throw new Error("adjacent duplicate " + photoKeys.join(","));
+      }
+      for (const cols of [2, 3]) {
+        for (let i = cols; i < photoKeys.length; i++) {
+          if (photoKeys[i] === photoKeys[i - cols]) throw new Error("column duplicate " + cols + " " + photoKeys.join(","));
+        }
+      }
       if (!document.querySelector("h1").textContent.includes("Чем заняться")) throw new Error("h1");
       if (!document.querySelector(".eyebrow").textContent.includes("Впечатления АдыГида")) throw new Error("eyebrow");
       if (document.querySelector("form")) throw new Error("form");
@@ -191,6 +205,9 @@ async function run() {
 
     await evaluate(page, `(() => {
       const expected = ${JSON.stringify(EXPECTED)};
+      document.querySelector('[data-menu-cat="adventure"]').click();
+      const adventureIds = [...document.querySelectorAll(".catalog-grid .card")].slice(0, 3).map((card) => card.getAttribute("data-open"));
+      if (adventureIds.join(",") !== "rafting-1,rafting-2,rafting-3") throw new Error("adventure order " + adventureIds.join(","));
       document.querySelector("#side-cat-food img").click();
       if (!document.querySelector(".result-count").textContent.includes("из 10")) throw new Error("food click " + document.querySelector(".result-count").textContent);
       for (const code of Object.keys(expected)) {

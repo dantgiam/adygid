@@ -91,7 +91,9 @@ def test_page_is_noindex_demo_and_serves_distinct_photos():
     assert "var OFFERS" not in js
     assert "fetch(" not in js and "XMLHttpRequest" not in js and "sendBeacon" not in js
     assert "data:image" not in js
-    assert "Это тестовая страница по прямой ссылке" in js
+    assert "Точечное обновление" not in js
+    assert "Что изменено" not in js
+    assert "V7" not in js and "V6" not in js
 
 
 def test_hidden_from_navigation_sitemap_and_robots_disallow():
