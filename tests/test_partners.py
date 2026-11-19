@@ -55,7 +55,7 @@ def test_page_is_public_noindex_and_sells(client):
     assert '<meta name="robots" content="noindex, follow">' in r.text
     assert 'id="partner-form"' in r.text and "/soglasie" in r.text and "/privacy" in r.text
     assert 'name="contact_phone"' not in r.text  # по умолчанию телефон — через бота
-    assert "5 000 ₽" in r.text and "4 750 ₽" in r.text and "−250 ₽" in r.text
+    assert "5 000 ₽" in r.text and "4 850 ₽" in r.text and "−150 ₽" in r.text
     assert "Реклама" in r.text and "Рекомендуем" in r.text  # тизер с маркировкой
     assert 'id="pt-sticky"' in r.text
     assert "partners.css" in r.text and "partners.js" in r.text
@@ -157,10 +157,10 @@ def test_convert_and_leads(client):
     with engine.begin() as conn:
         lead = conn.execute(text("SELECT service_fee_pct, service_fee_amount, discount_amount FROM partner_leads WHERE partner_id=:p"), {"p": pid}).one()
         contacts = conn.execute(text("SELECT contacts FROM partners WHERE id=:p"), {"p": pid}).scalar()
-    assert float(lead[0]) == 5 and float(lead[1]) == 250 and float(lead[2]) == 250
+    assert float(lead[0]) == 3 and float(lead[1]) == 150 and float(lead[2]) == 150
     assert "phone" not in contacts and contacts["bot_ref"].startswith("partner_")
     page = client.get("/admin/partners?tab=leads", auth=AUTH).text
-    assert "250 ₽" in page and "4 750 ₽" in page
+    assert "150 ₽" in page and "4 850 ₽" in page
 
 
 def test_partner_benefits_block_and_no_gold(client):
