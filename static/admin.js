@@ -1958,6 +1958,14 @@ let placeMarker = null;
 // мест, и с карты маршрута — возвращать надо туда, откуда пришли.
 let placeReturnView = 'places';
 
+// Кнопка «Коротко для поездки и поиск» ведёт в раздел «Тексты сайта» этой карточки.
+function syncTripLink() {
+  const a = document.getElementById('pl-trip-link');
+  if (!a) return;
+  a.hidden = !editingPlaceId;
+  a.href = editingPlaceId ? `/admin/texts/places/${editingPlaceId}` : '/admin/texts/places';
+}
+
 function openPointForm(id, creating) {
   releaseSlots(DESC_EDITOR_SLOTS, 'pl-desc-slot');
   releaseSlots(CRITERIA_SLOTS, 'pl-criteria-slot');
@@ -1965,6 +1973,7 @@ function openPointForm(id, creating) {
   const v = c || {};
 
   editingPlaceId = c ? c.id : null;
+  syncTripLink();
   placeCreating = c ? null : (creating || {});
   placeDraftScope = 'place:' + (c ? c.id : 'new');
   placeReturnView = document.getElementById('view-route-map').classList.contains('active')
@@ -2162,6 +2171,7 @@ async function savePlace() {
   syncCheckpointGlobals(saved);
   const wasNew = !editingPlaceId;
   editingPlaceId = saved.id;
+  syncTripLink();
   placeCreating = null;
   placeDraftScope = 'place:' + saved.id;
   toast('Сохранено');

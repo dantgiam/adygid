@@ -1,0 +1,21 @@
+{% extends "bot_base.html" %}
+{% block title %}Тексты сайта · история{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head"><div><h1>Тексты сайта</h1><div class="sub">Последние 200 правок: кто, когда и что. Любую версию можно вернуть со страницы этого текста.</div></div></div>
+  {% include "_texts_nav.html" %}
+  <div class="tablewrap"><table class="ptable tx-hist">
+    <thead><tr><th>Когда</th><th>Кто</th><th>Что</th><th></th></tr></thead>
+    <tbody>
+    {% for h in rows %}
+    <tr><td>{{ msk(h.created_at) }}</td><td>{{ h.author or '—' }}</td>
+      <td>{% if h.entity == 'place' %}Карточка: <a href="/admin/texts/places/{{ h.entity_key }}">{{ names.get(h.entity_key|int, '№' ~ h.entity_key) }}</a>
+        {% elif h.entity == 'text' %}Текст: <a href="/admin/texts/pages/edit?key={{ h.entity_key|urlencode }}">{{ registry.get(h.entity_key, {}).get('page_label', '') }} · {{ h.entity_key }}</a>
+          <div class="tx-diff">{{ (h.new_value or {}).get('value') or '(вернули исходный)' }}</div>
+        {% elif h.entity == 'notice' %}Плашка: <a href="/admin/texts/notices/{{ h.entity_key }}">{{ notices.get(h.entity_key|int) or (h.new_value or h.old_value or {}).get('name', '№' ~ h.entity_key) }}</a>{% if not h.new_value %} — удалена{% endif %}{% endif %}</td>
+      <td>{% if h.new_value %}<form method="post" action="/admin/texts/history/{{ h.id }}/restore" onsubmit="return confirm('Вернуть эту версию?')"><button class="btn btn-ghost btn-sm">Вернуть</button></form>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="4" class="muted">Правок ещё не было.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

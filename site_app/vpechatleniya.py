@@ -18,6 +18,8 @@ router = APIRouter()
 
 _DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(_DIR / "templates"))
+from site_app import site_texts  # noqa: E402
+site_texts.install(templates.env)
 _CREDITS = json.loads((_DIR / "data" / "vpechatleniya_credits.json").read_text(encoding="utf-8"))
 SITE_URL = os.getenv("SITE_URL", "http://localhost:8000").rstrip("/")
 

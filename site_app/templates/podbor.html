@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}Подбор маршрута по Адыгее — бесплатно на сайте{% endblock %}
-{% block meta_description %}Подберём места и маршруты Адыгеи под сезон, число дней, компанию и интересы. Бесплатно, без регистрации. Время в пути — оценка.{% endblock %}
+{% block title %}{{ tp('podbor.meta.title', 'Подбор маршрута по Адыгее — бесплатно на сайте') }}{% endblock %}
+{% block meta_description %}{{ tp('podbor.meta.desc', 'Подберём места и маршруты Адыгеи под сезон, число дней, компанию и интересы. Бесплатно, без регистрации. Время в пути — оценка.') }}{% endblock %}
 
 {% block extra_head %}
 <link rel="stylesheet" href="/assets/podbor.css?v={{ asset_version }}">
@@ -16,10 +16,10 @@
   <div class="wrap">
     <div class="podbor-hero">
       <div>
-        <p class="podbor-kicker">Бесплатный подбор · без регистрации</p>
-        <h1>Адыгея — в вашем темпе</h1>
-        <p class="podbor-lead">Несколько простых ответов — и места с маршрутами подстраиваются под вашу поездку. План дня считаем по времени: сколько длится место и сколько ехать.</p>
-        <p class="podbor-count">Идеи из {{ n_places }} мест и {{ n_routes }} маршрутов. Время в пути — оценка по координатам.</p>
+        <p class="podbor-kicker">{{ t('podbor.hero.kicker', 'Бесплатный подбор · без регистрации') }}</p>
+        <h1>{{ t('podbor.hero.title', 'Адыгея — в вашем темпе') }}</h1>
+        <p class="podbor-lead">{{ t('podbor.hero.lead', 'Несколько простых ответов — и места с маршрутами подстраиваются под вашу поездку. План дня считаем по времени: сколько длится место и сколько ехать.') }}</p>
+        <p class="podbor-count">Идеи из {{ n_places }} мест и {{ n_routes }} маршрутов. {{ t('podbor.hero.count_note', 'Время в пути — оценка по координатам.') }}</p>
       </div>
       <svg class="podbor-mark" viewBox="0 0 160 120" aria-hidden="true">
         <circle cx="113" cy="31" r="17" fill="#e7b467"/>
@@ -67,7 +67,7 @@
         <figcaption id="podbor-flash-cap"></figcaption>
       </div>
       <div class="podbor-loader" id="podbor-loader" aria-hidden="true"></div>
-      <p class="podbor-count">Смотрим, что подходит именно вам</p>
+      <p class="podbor-count">{{ t('podbor.loading', 'Смотрим, что подходит именно вам') }}</p>
     </div>
   </div>
 

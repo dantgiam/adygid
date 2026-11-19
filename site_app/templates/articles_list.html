@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
 
-{% block title %}Статьи о поездке в Адыгею — АдыГид{% endblock %}
-{% block meta_description %}Что взять с собой, куда поехать в первую очередь и планы поездки в Адыгею на 2-3, 4-5 дней или неделю.{% endblock %}
+{% block title %}{{ tp('articles.meta.title', 'Статьи о поездке в Адыгею — АдыГид') }}{% endblock %}
+{% block meta_description %}{{ tp('articles.meta.desc', 'Что взять с собой, куда поехать в первую очередь и планы поездки в Адыгею на 2-3, 4-5 дней или неделю.') }}{% endblock %}
 
 {% block content %}
 <section class="section" style="padding-top:40px">
   <div class="wrap">
     <p class="eyebrow">Статьи</p>
-    <h1 class="page-title">С чего начать поездку в Адыгею</h1>
+    <h1 class="page-title">{{ t('articles.title', 'С чего начать поездку в Адыгею') }}</h1>
     {% if articles %}
     <div class="grid">
       {% for a in articles %}{{ cards.article_card(a) }}{% endfor %}

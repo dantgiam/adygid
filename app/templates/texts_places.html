@@ -1,0 +1,37 @@
+{% extends "bot_base.html" %}
+{% block title %}Тексты сайта · карточки мест{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head"><div>
+    <h1>Тексты сайта</h1>
+    <div class="sub">Блок «Коротко для поездки», title и description для Яндекса и Google на каждой карточке места. Правка видна на сайте сразу после сохранения.</div>
+  </div></div>
+  {% include "_texts_nav.html" %}
+  <form class="tx-search" method="get">
+    <input type="text" name="q" value="{{ q }}" placeholder="Название места или номер">
+    <select name="flt">
+      <option value="">Все карточки</option>
+      <option value="verified"{% if flt == 'verified' %} selected{% endif %}>С проверенными фактами</option>
+      <option value="unverified"{% if flt == 'unverified' %} selected{% endif %}>Блок без проверенных фактов</option>
+      <option value="noblock"{% if flt == 'noblock' %} selected{% endif %}>Без блока</option>
+    </select>
+    <button class="btn btn-primary btn-sm">Найти</button>
+    <span class="muted" style="align-self:center">Карточек: {{ items|length }} из {{ totals.all }} · с блоком: {{ totals.with_block }}</span>
+  </form>
+  <div class="tablewrap"><table class="ptable">
+    <thead><tr><th>Место</th><th>Блок</th><th>Проверено</th><th>Title в поиске</th><th>Последняя правка</th><th></th></tr></thead>
+    <tbody>
+    {% for i in items %}
+    <tr>
+      <td><a href="/admin/texts/places/{{ i.id }}"><b>{{ i.name }}</b></a><div class="muted">№ {{ i.id }}{% if not i.published %} · не опубликовано{% endif %}</div></td>
+      <td>{% if i.has_block %}<span class="tx-badge">{{ i.rows }} строк</span>{% else %}<span class="tx-badge off">нет</span>{% endif %}</td>
+      <td>{% if i.verified %}<span class="tx-badge ok">{{ i.verified }} пров. · {{ i.checked }}</span>{% elif i.has_block %}<span class="tx-badge warn">нет фактов</span>{% else %}—{% endif %}</td>
+      <td style="max-width:380px">{{ i.title }}<div class="tx-count{% if i.title_len > 60 %} over{% endif %}">{{ i.title_len }} зн.{% if i.manual_title %} · вручную{% endif %}</div></td>
+      <td class="muted">{{ msk(i.updated_at) }}{% if i.updated_by %}<br>{{ i.updated_by }}{% endif %}</td>
+      <td style="white-space:nowrap"><a class="btn btn-ghost btn-sm" href="/admin/texts/places/{{ i.id }}">Править</a> <a class="btn btn-ghost btn-sm" href="/mesta/{{ i.id }}#kratko" target="_blank" rel="noopener">На сайте ↗</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

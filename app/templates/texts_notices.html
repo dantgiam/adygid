@@ -1,0 +1,34 @@
+{% extends "bot_base.html" %}
+{% block title %}Тексты сайта · плашки{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head"><div>
+    <h1>Тексты сайта</h1>
+    <div class="sub">Плашка над подбором поездки (/podbor). Если по датам подходят несколько — показывается одна, с большим приоритетом.</div>
+  </div><div><a class="btn btn-primary" href="/admin/texts/notices/new">+ Новая плашка</a></div></div>
+  {% include "_texts_nav.html" %}
+  <div class="pbox">
+    <h2>Сегодня ({{ today.strftime('%d.%m.%Y') }}, по Москве) в подборе</h2>
+    {% if current %}
+    <div class="tx-notice-prev"><p class="k">{{ current.kicker }}</p><p class="t">{{ current.title }}</p>
+      {% if current.tips %}<ol>{% for tip in current.tips %}<li><b>{{ tip.head }}</b> {{ tip.html }}</li>{% endfor %}</ol>{% else %}<p style="margin:0">{{ current.text }}</p>{% endif %}</div>
+    <p class="muted">{% if current.winter_only %}Видна только тем, кто выбрал в подборе «зиму».{% else %}Видна всем.{% endif %} <a href="/podbor" target="_blank" rel="noopener">Открыть подбор ↗</a></p>
+    {% else %}<p class="muted">Сейчас плашки нет.</p>{% endif %}
+  </div>
+  <div class="tablewrap"><table class="ptable">
+    <thead><tr><th>Плашка</th><th>Состояние сегодня</th><th>Даты</th><th>Текст</th><th>Правка</th><th></th></tr></thead>
+    <tbody>
+    {% for n in items %}
+    <tr>
+      <td><a href="/admin/texts/notices/{{ n.id }}"><b>{{ n.name }}</b></a><div class="muted">приоритет {{ n.priority }}</div></td>
+      <td>{% if not n.is_enabled %}<span class="tx-badge off">{{ n.state }}</span>{% elif n.state.startswith('видна') %}<span class="tx-badge ok">{{ n.state }}</span>{% else %}<span class="tx-badge warn">{{ n.state }}</span>{% endif %}</td>
+      <td class="muted">{% if n.winter_from %}зима с {{ n.winter_from.strftime('%d.%m') }}<br>{% endif %}{% if n.show_from %}всем {{ n.show_from.strftime('%d.%m') }}–{{ n.show_to.strftime('%d.%m') }}{% else %}всегда{% endif %}{% if n.repeat_yearly %}<br>каждый год{% endif %}</td>
+      <td>{{ modes[n.mode] }}</td>
+      <td class="muted">{{ msk(n.updated_at) }}{% if n.updated_by %}<br>{{ n.updated_by }}{% endif %}</td>
+      <td><a class="btn btn-ghost btn-sm" href="/admin/texts/notices/{{ n.id }}">Править</a></td>
+    </tr>
+    {% else %}<tr><td colspan="6" class="muted">Плашек нет.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endblock %}

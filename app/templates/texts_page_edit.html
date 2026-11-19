@@ -1,0 +1,46 @@
+{% extends "bot_base.html" %}
+{% block title %}Текст {{ info.key }}{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head"><div>
+    <a class="muted" href="/admin/texts/pages?page={{ info.page }}">← {{ info.page_label }}</a>
+    <h1>{{ info.page_label }}: текст</h1>
+    <div class="sub"><span class="tx-key">{{ info.key }}</span> · шаблон {{ info.template }}, строка {{ info.line }} · <a href="{{ info.url }}" target="_blank" rel="noopener">открыть на сайте ↗</a></div>
+  </div></div>
+  {% include "_texts_nav.html" %}
+  {% if saved == '1' %}<div class="psaved">Сохранено — на сайте уже новый текст.</div>{% elif saved == 'reset' %}<div class="psaved">Вернул исходный текст.</div>{% elif saved == 'restored' %}<div class="psaved">Вернул выбранную версию.</div>{% endif %}
+  <div class="pcols">
+    <div>
+      <form class="pbox" method="post" action="/admin/texts/pages/edit">
+        <input type="hidden" name="key" value="{{ info.key }}">
+        <div class="field"><label>Текст <span class="tx-count" id="cnt"></span></label>
+          <textarea name="value" id="val" rows="{{ 3 if info.plain else 5 }}" maxlength="4000">{{ value }}</textarea>
+          <div class="tx-hint">{% if info.plain %}Здесь только простой текст — это заголовок вкладки или описание для поисковиков.{% else %}Можно: **жирный**, *курсив*, [текст ссылки](/mesta/55) или [сайт](https://…), перенос строки — Enter. HTML не сработает.{% endif %}</div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-primary" name="action" value="save">Сохранить</button>
+          {% if cur %}<button class="btn btn-ghost" name="action" value="reset" onclick="return confirm('Вернуть исходный текст из шаблона?')">Вернуть исходный</button>{% endif %}
+        </div>
+      </form>
+      <div class="pbox">
+        <h2>Исходный текст (из шаблона)</h2>
+        <div class="tx-value">{{ info.default }}</div>
+      </div>
+    </div>
+    <div>
+      <div class="pbox"><h2>Как сейчас на сайте</h2><div class="tx-preview">{{ preview }}</div>
+        <p class="muted" style="margin:8px 0 0">{% if cur %}Изменено {{ msk(cur.updated_at) }}{% if cur.updated_by %}, {{ cur.updated_by }}{% endif %}{% else %}Исходный текст, не менялся.{% endif %}</p></div>
+      <div class="pbox"><h2>История</h2>
+        {% if history %}<table class="ptable tx-hist"><tbody>
+        {% for h in history %}<tr><td>{{ msk(h.created_at) }}<br><span class="muted">{{ h.author or '—' }}</span></td>
+          <td class="tx-diff">{{ (h.new_value or {}).get('value') or '(исходный текст)' }}</td>
+          <td><form method="post" action="/admin/texts/history/{{ h.id }}/restore"><button class="btn btn-ghost btn-sm">Вернуть</button></form></td></tr>{% endfor %}
+        </tbody></table>{% else %}<p class="muted">Правок ещё не было.</p>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){const v=document.getElementById('val'),c=document.getElementById('cnt');function u(){c.textContent='· '+v.value.length+' зн.';}v.addEventListener('input',u);u();})();
+</script>
+{% endblock %}

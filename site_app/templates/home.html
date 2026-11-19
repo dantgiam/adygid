@@ -2,8 +2,8 @@
 {% import "_cards.html" as cards %}
 {% import "_doors.html" as doors_ui %}
 
-{% block title %}АдыГид — личный гид по Адыгее: места, маршруты, планы поездки{% endblock %}
-{% block meta_description %}Места и маршруты Адыгеи, пройденные лично: Хаджохская теснина, водопады Руфабго, плато Лаго-Наки. Честные расстояния, актуальные цены и готовые планы поездки на 2-3 дня, 4-5 дней и неделю.{% endblock %}
+{% block title %}{{ tp('home.meta.title', 'АдыГид — личный гид по Адыгее: места, маршруты, планы поездки') }}{% endblock %}
+{% block meta_description %}{{ tp('home.meta.desc', 'Места и маршруты Адыгеи, пройденные лично: Хаджохская теснина, водопады Руфабго, плато Лаго-Наки. Честные расстояния, актуальные цены и готовые планы поездки на 2-3 дня, 4-5 дней и неделю.') }}{% endblock %}
 
 {% block content %}
 {# Первым экраном — автор, а не жеребьёвка. Случайная карточка стояла здесь
@@ -37,12 +37,12 @@
       <p class="hero-stats">
         <span><b>{{ footer_stats.places }}</b> {{ places_word(footer_stats.places) }}</span>
         <span><b>{{ footer_stats.trails }}</b> {{ routes_word(footer_stats.trails) }}</span>
-        <span class="hero-stats-note">пройдены лично</span>
+        <span class="hero-stats-note">{{ t('home.hero.stats_note', 'пройдены лично') }}</span>
       </p>
 
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="#kuda">Куда вы едете?</a>
-        <a class="btn btn-ghost" href="/mesta">Все места</a>
+        <a class="btn btn-primary" href="#kuda">{{ t('home.hero.cta_main', 'Куда вы едете?') }}</a>
+        <a class="btn btn-ghost" href="/mesta">{{ t('home.hero.cta_places', 'Все места') }}</a>
       </div>
     </div>
   </div>
@@ -55,10 +55,10 @@
         {# «абсолютно бесплатно» — маркер-заливка, как выделение от руки: заметно,
            но тем же шрифтом и цветом, что и весь заголовок. Чипы сезонов убраны:
            сезон человек выбирает в самом подборе. #}
-        <p class="podbor-widget-title">Хотите, подберём для вас маршрут поездки <mark class="podbor-free">абсолютно бесплатно,</mark> прямо на&nbsp;сайте?</p>
-        <p class="podbor-widget-sub">под ваши интересы, с учётом времени пребывания</p>
+        <p class="podbor-widget-title">{{ t('home.widget.title_start', 'Хотите, подберём для вас маршрут поездки ') }}<mark class="podbor-free">{{ t('home.widget.title_mark', 'абсолютно бесплатно,') }}</mark>{{ t('home.widget.title_end', ' прямо на&nbsp;сайте?') }}</p>
+        <p class="podbor-widget-sub">{{ t('home.widget.sub', 'под ваши интересы, с учётом времени пребывания') }}</p>
       </div>
-      <a class="podbor-widget-go" href="/podbor?src=home_widget" data-podbor-cta>Подобрать маршрут →</a>
+      <a class="podbor-widget-go" href="/podbor?src=home_widget" data-podbor-cta>{{ t('home.widget.button', 'Подобрать маршрут →') }}</a>
     </div>
   </div>
 </section>
@@ -91,12 +91,12 @@
 </section>
 {% endif %}
 
-{{ doors_ui.doors_grid(doors, 'Подборки маршрутов', 'на любой случай и ситуацию', anchor='kuda') }}
+{{ doors_ui.doors_grid(doors, t('home.doors.title', 'Подборки маршрутов'), t('home.doors.note', 'на любой случай и ситуацию'), anchor='kuda') }}
 
 <section class="section" id="favorites-section" style="display:none">
   <div class="wrap">
     <div class="section-head">
-      <h2>Избранное</h2>
+      <h2>{{ t('home.favorites.title', 'Избранное') }}</h2>
     </div>
     <div class="grid" id="favorites-grid"></div>
   </div>
@@ -112,10 +112,10 @@
     {# Заголовок в две строки, как у подборок выше: сам вопрос и уточнение
        под ним — «Все статьи →» осталось справа от первой строки. #}
     <div class="section-head">
-      <h2>С чего начать?</h2>
-      <a class="see-all" href="/stati">Все статьи →</a>
+      <h2>{{ t('home.articles.title', 'С чего начать?') }}</h2>
+      <a class="see-all" href="/stati">{{ t('home.articles.all', 'Все статьи →') }}</a>
     </div>
-    <p class="section-note">Статьи для знакомства с Адыгеей</p>
+    <p class="section-note">{{ t('home.articles.note', 'Статьи для знакомства с Адыгеей') }}</p>
     <div class="grid">
       {% for a in articles %}{{ cards.article_card(a) }}{% endfor %}
       {% if articles_remaining %}{{ cards.more_tile(articles_remaining, articles_remaining_word, '/stati') }}{% endif %}
@@ -128,8 +128,8 @@
 <section class="section">
   <div class="wrap">
     <div class="section-head">
-      <h2>Подборка мест</h2>
-      <a class="see-all" href="/mesta">Все места →</a>
+      <h2>{{ t('home.places.title', 'Подборка мест') }}</h2>
+      <a class="see-all" href="/mesta">{{ t('home.places.all', 'Все места →') }}</a>
     </div>
     {# Четыре места, пятой клеткой случайное, шестой — «ещё N мест»: сетка по
        три в ряд закрывается ровно двумя рядами. #}
@@ -146,8 +146,8 @@
 <section class="section">
   <div class="wrap">
     <div class="section-head">
-      <h2>Подборка маршрутов</h2>
-      <a class="see-all" href="/marshruty">Все маршруты →</a>
+      <h2>{{ t('home.routes.title', 'Подборка маршрутов') }}</h2>
+      <a class="see-all" href="/marshruty">{{ t('home.routes.all', 'Все маршруты →') }}</a>
     </div>
     <div class="grid">
       {% for r in routes %}{{ cards.route_card(r) }}{% endfor %}

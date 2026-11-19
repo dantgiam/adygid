@@ -1,0 +1,35 @@
+{% extends "bot_base.html" %}
+{% block title %}Тексты сайта · страницы{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head"><div>
+    <h1>Тексты сайта</h1>
+    <div class="sub">Заголовки, подписи и короткие тексты страниц. Пока текст не правили — на сайте исходный из шаблона. Можно **жирный**, *курсив* и [ссылку](/mesta); HTML не работает — это защита от поломки вёрстки.</div>
+  </div></div>
+  {% include "_texts_nav.html" %}
+  <form class="tx-search" method="get">
+    <input type="text" name="q" value="{{ q }}" placeholder="Слово из текста или ключ">
+    <select name="page"><option value="">Все страницы</option>{% for code, label in pages %}<option value="{{ code }}"{% if code == page %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+    <label style="align-self:center;font-size:13px"><input type="checkbox" name="edited" value="1"{% if edited %} checked{% endif %}> только изменённые</label>
+    <button class="btn btn-primary btn-sm">Найти</button>
+    <span class="muted" style="align-self:center">Текстов: {{ total }} · изменено: {{ n_edited }}</span>
+  </form>
+  {% for code, g in groups.items() %}
+  <div class="pbox">
+    <h2>{{ g.label }} <a class="muted" style="font-weight:400" href="{{ g.url }}" target="_blank" rel="noopener">открыть на сайте ↗</a></h2>
+    {% for it in g["items"] %}
+    <div class="tx-list-item">
+      <div>
+        <div class="tx-key">{{ it.key }}{% if it.plain %} · только текст (заголовок вкладки / мета){% endif %}</div>
+        <div class="tx-value">{{ it.value|replace('&nbsp;', ' ') }}</div>
+        {% if it.edited %}<span class="tx-badge ok">изменено {{ msk(it.edited.updated_at) }}{% if it.edited.updated_by %} · {{ it.edited.updated_by }}{% endif %}</span>{% endif %}
+      </div>
+      <div><a class="btn btn-ghost btn-sm" href="/admin/texts/pages/edit?key={{ it.key|urlencode }}">Править</a></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="muted">Ничего не нашлось.</p>
+  {% endfor %}
+</div>
+{% endblock %}

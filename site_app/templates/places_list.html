@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
 
-{% block title %}Места Адыгеи — АдыГид{% endblock %}
-{% block meta_description %}Водопады, пещеры, каньоны и другие места Адыгеи с фильтром по району и типу.{% endblock %}
+{% block title %}{{ tp('places.meta.title', 'Места Адыгеи — АдыГид') }}{% endblock %}
+{% block meta_description %}{{ tp('places.meta.desc', 'Водопады, пещеры, каньоны и другие места Адыгеи с фильтром по району и типу.') }}{% endblock %}
 
 {% block content %}
 <section class="section" style="padding-top:40px">
   <div class="wrap">
     <p class="eyebrow">Каталог</p>
-    <h1 class="page-title">Места</h1>
+    <h1 class="page-title">{{ t('places.title', 'Места') }}</h1>
 
     <form class="filters" method="get" action="/mesta">
       <select name="type">

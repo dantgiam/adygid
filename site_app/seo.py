@@ -197,9 +197,7 @@ def place_title(name: str, district: Optional[str], place_id: Optional[int] = No
         return by_facts
     if place_id in PLACE_TITLES:
         return PLACE_TITLES[place_id]
-    area = PLACE_AREA.get(district or "")
-    where = f"{area}, Адыгея" if area and area not in name else "Адыгея"
-    return f"{name} ({where}) — как добраться и что посмотреть"
+    return generic_place_title(name, district)
 
 
 # ───────────────── «Коротко для поездки» на карточке места ─────────────────
@@ -970,38 +968,46 @@ PLACE_PRACTICAL = {
 
 }
 
+# Маркер «взять из кода (PLACE_PRACTICAL)», в отличие от явного None.
+_FROM_CODE = object()
+
 _WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 _MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа",
            "сентября", "октября", "ноября", "декабря"]
 
 
 def place_facts(place_id: Optional[int]) -> Optional[dict]:
-    """Проверенные факты карточки (только из официального источника) или None."""
+    """Проверенные факты карточки (только из официального источника) или None.
+    Это значения из кода (начальный сид); на сайте факты берутся из базы —
+    см. site_app/trip_facts.py, правятся в админке «Тексты сайта»."""
     cfg = PLACE_PRACTICAL.get(place_id or -1) or {}
     return cfg.get("facts")
 
 
-def practical_checked(place_id: Optional[int]) -> Optional[dict]:
-    """Строка «Проверено … · источники» под таблицей: одна на карточку."""
-    cfg = PLACE_PRACTICAL.get(place_id or -1) or {}
-    iso = cfg.get("checked")
+def checked_info(iso: Optional[str], sources: list) -> Optional[dict]:
+    """Строка «Проверено … · источники» под таблицей: одна на карточку.
+    sources — ключи FACT_SOURCES или готовые {"title", "url"}."""
     if not iso:
         return None
     d = date.fromisoformat(iso)
-    seen, sources = set(), []
-    for key in cfg.get("sources", []):
-        src = FACT_SOURCES[key]
-        if src["url"] in seen:
+    seen, out = set(), []
+    for item in sources or []:
+        src = FACT_SOURCES[item] if isinstance(item, str) else item
+        if not src.get("url") or src["url"] in seen:
             continue
         seen.add(src["url"])
-        sources.append(src)
+        out.append({"title": src.get("title") or src["url"], "url": src["url"]})
     return {"iso": iso, "label": f"{d.day} {_MONTHS[d.month - 1]} {d.year}",
-            "short": d.strftime("%d.%m.%Y"), "sources": sources}
+            "short": d.strftime("%d.%m.%Y"), "sources": out}
 
 
-def practical_heading(place_id: Optional[int], name: str) -> str:
+def practical_checked(place_id: Optional[int]) -> Optional[dict]:
+    cfg = PLACE_PRACTICAL.get(place_id or -1) or {}
+    return checked_info(cfg.get("checked"), cfg.get("sources", []))
+
+
+def heading_from_facts(f: Optional[dict], name: str) -> str:
     """Заголовок блока — естественной фразой запроса, если есть факты."""
-    f = place_facts(place_id)
     if not f:
         return "Коротко для поездки"
     n = f.get("name") or name
@@ -1010,11 +1016,14 @@ def practical_heading(place_id: Optional[int], name: str) -> str:
     return f"{n}: время работы и как добраться"
 
 
-def fact_title(place_id: Optional[int], name: str) -> Optional[str]:
+def practical_heading(place_id: Optional[int], name: str) -> str:
+    return heading_from_facts(place_facts(place_id), name)
+
+
+def title_from_facts(f: Optional[dict], name: str) -> Optional[str]:
     """SEO-title для карточек с проверенными фактами: под запросы
     «… время работы», «… цена входа 2026». Цифр в title нет: они живут в
     description и в самом блоке, где у них есть дата проверки."""
-    f = place_facts(place_id)
     if not f or not f.get("hours"):
         return None
     if f.get("seo_title"):
@@ -1027,10 +1036,18 @@ def fact_title(place_id: Optional[int], name: str) -> Optional[str]:
     return f"{n}: время работы 2026 и как добраться"
 
 
-def fact_description(place_id: Optional[int], name: str) -> Optional[str]:
+def fact_title(place_id: Optional[int], name: str) -> Optional[str]:
+    return title_from_facts(place_facts(place_id), name)
+
+
+def generic_place_title(name: str, district: Optional[str]) -> str:
+    area = PLACE_AREA.get(district or "")
+    where = f"{area}, Адыгея" if area and area not in name else "Адыгея"
+    return f"{name} ({where}) — как добраться и что посмотреть"
+
+
+def description_from_facts(f: Optional[dict], chk: Optional[dict], name: str) -> Optional[str]:
     """Meta description из реальных полей: часы, вход, оплата, дата проверки."""
-    f = place_facts(place_id)
-    chk = practical_checked(place_id)
     if not f or not chk:
         return None
     n = f.get("name") or name
@@ -1052,6 +1069,10 @@ def fact_description(place_id: Optional[int], name: str) -> Optional[str]:
     return " ".join(parts)
 
 
+def fact_description(place_id: Optional[int], name: str) -> Optional[str]:
+    return description_from_facts(place_facts(place_id), practical_checked(place_id), name)
+
+
 def _hours_spec(f: dict) -> list:
     rows = f.get("hours_spec")
     if not rows and f.get("opens") and f.get("closes"):
@@ -1071,13 +1092,16 @@ def _hours_spec(f: dict) -> list:
 
 def place_ld(place_id: int, *, name: str, url: str, description: str, images: list,
              lat: Optional[float], lon: Optional[float],
-             is_paid: Optional[bool] = None) -> list:
+             is_paid: Optional[bool] = None,
+             facts=_FROM_CODE, checked=_FROM_CODE) -> list:
     """JSON-LD карточки места: TouristAttraction и, если цена проверена,
     отдельный Offer (у Place/TouristAttraction в schema.org нет offers и
     petsAllowed, поэтому цена — Offer с availableAtOrFrom, а наличные и
     животные — amenityFeature). Без проверенных фактов — прежняя разметка."""
-    f = place_facts(place_id) or {}
-    chk = practical_checked(place_id) if f else None
+    f = (place_facts(place_id) if facts is _FROM_CODE else facts) or {}
+    if checked is _FROM_CODE:
+        checked = practical_checked(place_id)
+    chk = checked if f else None
     place_ref = url + "#place"
     address = {"@type": "PostalAddress", "addressRegion": "Республика Адыгея", "addressCountry": "RU"}
     if f.get("locality"):

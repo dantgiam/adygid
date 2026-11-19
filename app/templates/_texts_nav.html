@@ -1,0 +1,52 @@
+{% include "_partners_admin_css.html" %}
+<style>
+.tx-row input[type=text],.tx-row input[type=url],.tx-row input[type=date],.tx-row select,.tx-row textarea,.tx-search input,.tx-search select{border:1px solid var(--border);border-radius:8px;padding:7px 9px;font:inherit;font-size:13.5px;background:#fff;box-sizing:border-box}
+.tx-row textarea{resize:vertical}
+.field input[type=date]{border:1px solid var(--border);border-radius:8px;padding:7px 9px;font:inherit}
+.tx-row-meta label{display:inline-flex;gap:6px;align-items:center}
+.tx-hint{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+.tx-row{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.tx-row.is-verified{border-color:#9fd0a6;background:#f6fbf6}
+.tx-row-head{display:grid;grid-template-columns:170px 1fr auto;gap:10px;align-items:start}
+.tx-row-head select,.tx-row-head input[type=text]{width:100%}
+.tx-row textarea{width:100%;min-height:54px}
+.tx-row-meta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin-top:8px;font-size:13px}
+.tx-row-meta input[type=url]{min-width:320px}
+.tx-row-tools{display:flex;gap:4px}
+.tx-row-tools button{border:1px solid var(--border);background:#fff;border-radius:6px;padding:4px 8px;cursor:pointer}
+.tx-ld{margin-top:10px;border-top:1px dashed var(--border);padding-top:8px}
+.tx-ld summary{cursor:pointer;font-size:13px;color:var(--accent-dark);font-weight:600}
+.tx-ld-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px 12px;margin-top:8px}
+.tx-ld-grid label{font-size:12px;color:var(--muted);display:block}
+.tx-ld-grid input,.tx-ld-grid textarea,.tx-ld-grid select{width:100%}
+.tx-badge{display:inline-block;font-size:11.5px;border-radius:20px;padding:2px 8px;background:#eef2ec;color:#46604b;white-space:nowrap}
+.tx-badge.ok{background:#dff1e1;color:#1f6b31}.tx-badge.warn{background:#fbf1d9;color:#8a6412}.tx-badge.off{background:#f1f1f1;color:#888}
+.tx-snippet{border:1px solid var(--border);border-radius:12px;padding:14px 16px;background:#fff;max-width:620px;font-family:Arial,sans-serif}
+.tx-snippet .sn-url{font-size:13px;color:#2c7a3a;margin-bottom:3px}
+.tx-snippet .sn-title{font-size:19px;color:#1a0dab;line-height:1.3;margin-bottom:4px}
+.tx-snippet .sn-desc{font-size:14px;color:#4d5156;line-height:1.45}
+.tx-count{font-size:12px;color:var(--muted)}.tx-count.over{color:#b4541a;font-weight:600}
+.tx-search{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.tx-search input[type=text]{min-width:260px}
+.tx-list-item{display:grid;grid-template-columns:1fr auto;gap:10px;border-bottom:1px solid var(--border);padding:10px 4px}
+.tx-list-item:last-child{border-bottom:0}
+.tx-key{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--muted)}
+.tx-value{font-size:14px;margin:3px 0;white-space:pre-wrap}
+.tx-preview{border:1px dashed var(--border);border-radius:10px;padding:10px 12px;background:#fbfcfa}
+.tx-hist{font-size:13px}.tx-hist td{vertical-align:top}
+.tx-diff{max-width:520px;white-space:pre-wrap;font-size:12px;color:#555}
+.tx-notice-prev{border-radius:14px;background:#fff7e3;border:1px solid #edd9a3;padding:12px 16px;max-width:640px}
+.tx-notice-prev .k{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#8a6412;margin:0}
+.tx-notice-prev .t{font-weight:700;margin:2px 0 6px}
+.tx-preview-block{border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:#fff}
+.tx-preview-block table{border-collapse:collapse;width:100%;font-size:13.5px}
+.tx-preview-block th{text-align:left;color:var(--muted);font-weight:600;width:150px;padding:5px 8px 5px 0;vertical-align:top}
+.tx-preview-block td{padding:5px 0}
+.tx-stick{position:sticky;top:12px}
+</style>
+<div class="ptabs">
+  <a href="/admin/texts/places" class="{{ 'on' if tab == 'places' }}">Карточки мест</a>
+  <a href="/admin/texts/pages" class="{{ 'on' if tab == 'pages' }}">Тексты страниц</a>
+  <a href="/admin/texts/notices" class="{{ 'on' if tab == 'notices' }}">Плашки</a>
+  <a href="/admin/texts/history" class="{{ 'on' if tab == 'history' }}">История правок</a>
+</div>

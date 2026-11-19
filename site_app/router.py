@@ -30,7 +30,9 @@ from site_app.icons import category_svg
 from site_app.podbor_catalog import catalog_items, invalidate_podbor_cache, load_copy, script_json
 from site_app import images as site_images
 from site_app import seo
-from site_app.travel_notices import holiday_notice
+from site_app import trip_facts
+from site_app import site_texts
+from site_app import travel_notices
 from site_app.autolink import autolink
 
 router = APIRouter()
@@ -103,6 +105,8 @@ def _abs_url(url: Optional[str]) -> str:
 
 
 templates.env.filters["abs_url"] = _abs_url
+# t('ключ', 'текст') / tp(...) — тексты, которые правятся в админке «Тексты сайта».
+site_texts.install(templates.env)
 templates.env.filters["img_src"] = site_images.default_src
 templates.env.filters["img_srcset"] = site_images.srcset
 templates.env.globals["img_sizes"] = {
@@ -575,37 +579,25 @@ def _place_links(db: Session, ids: list) -> list:
     return [{"name": rows[i].name, "url": f"/mesta/{i}"} for i in ids if i in rows]
 
 
-def _place_practical(db: Session, cp: Checkpoint) -> list:
+def _place_practical(db: Session, cp: Checkpoint, block: Optional[dict] = None) -> list:
     """«Коротко для поездки»: [{label, text, source?, links?}] только по
-    заполненным полям (site_app/seo.py, PLACE_PRACTICAL). Время посещения
-    без ручного текста — из duration_minutes карточки."""
-    cfg = seo.PLACE_PRACTICAL.get(cp.id)
-    if not cfg:
+    заполненным строкам блока (база place_trip_blocks, правится в админке;
+    без записи в базе — seo.PLACE_PRACTICAL). Время посещения без ручного
+    текста — из duration_minutes карточки."""
+    block = block if block is not None else trip_facts.block_for(cp.id)
+    if not block or not block.get("enabled"):
         return []
-    rows = []
-    for key, label in seo.PRACTICAL_LABELS:
-        if key == "combine":
-            links = _place_links(db, [i for i in cfg.get("combine", []) if i != cp.id])
-            if cfg.get("route"):
-                t = db.execute(
-                    select(Trail).where(Trail.id == cfg["route"], Trail.is_published == True)
-                ).scalars().first()
-                if t:
-                    links.append({"name": f"маршрут «{t.name}»", "url": f"/marshruty/{t.id}"})
-            if links:
-                rows.append({"key": key, "label": label, "links": links})
-            continue
-        value = cfg.get(key)
-        if key == "visit" and not value:
-            dur = _duration_label(cp.duration_minutes)
-            value = f"Ориентир — {dur} без спешки." if dur else None
-        if not value:
-            continue
-        if isinstance(value, dict):
-            rows.append({"key": key, "label": label, "text": value["text"], "source": value.get("source")})
-        else:
-            rows.append({"key": key, "label": label, "text": value})
-    return rows
+    links = _place_links(db, [i for i in block.get("combine_ids") or [] if i != cp.id])
+    if block.get("route_id"):
+        t = db.execute(
+            select(Trail).where(Trail.id == block["route_id"], Trail.is_published == True)
+        ).scalars().first()
+        if t:
+            links.append({"name": f"маршрут «{t.name}»", "url": f"/marshruty/{t.id}"})
+    dur = _duration_label(cp.duration_minutes)
+    return trip_facts.table_rows(
+        block, visit_auto=f"Ориентир — {dur} без спешки." if dur else None, combine_links=links,
+    )
 
 
 def _render_embeds(db: Session, html: str) -> tuple[str, list]:
@@ -1040,12 +1032,8 @@ def _related_articles(db: Session, current: Article, limit: int = 3) -> list:
     return [_article_card_dict(a) for a in ranked[:limit]]
 
 
-def _fact_price_label(place_id: int) -> Optional[str]:
-    f = seo.place_facts(place_id) or {}
-    label = f.get("price_label")
-    if f.get("price") is None or not label:
-        return None
-    return label[:1].upper() + label[1:]
+def _fact_price_label(place_id: int, name: str = "") -> Optional[str]:
+    return trip_facts.price_label(trip_facts.block_for(place_id), name)
 
 
 def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
@@ -1075,7 +1063,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "is_paid": cp.is_paid,
         # Если цена проверена в «Коротко для поездки», в спецификации та же
         # цифра — иначе справа «уточняем», а слева «500 ₽».
-        "price_label": _fact_price_label(cp.id) or _price_label(cp.is_paid, cp.price_note),
+        "price_label": _fact_price_label(cp.id, cp.name) or _price_label(cp.is_paid, cp.price_note),
         "kid_friendly": cp.kid_friendly,
         "equipment_tags": cp.equipment_tags or [],
         "yandex_url": _yandex_point_url(cp),
@@ -1083,10 +1071,11 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "trail": {"name": cp.trail.name, "url": f"/marshruty/{cp.trail.id}"} if cp.trail else None,
         "district_url": f"/okrugi/{cp.district}" if cp.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(cp.checked_at),
-        "seo_title": seo.place_title(cp.name, cp.district, cp.id),
-        # Для карточек с проверенными часами/ценой description собирается
-        # из этих фактов (seo.fact_description), иначе — начало описания.
-        "seo_description": seo.fact_description(cp.id, cp.name) or _excerpt(cp.description, 200) or cp.name,
+        # Title и description: ручная правка из админки, иначе из проверенных
+        # фактов «Коротко для поездки» (site_app/trip_facts.py), иначе —
+        # общее правило и начало описания.
+        "seo_title": trip_facts.title(trip_facts.block_for(cp.id), cp.name, cp.district),
+        "seo_description": trip_facts.description(trip_facts.block_for(cp.id), cp.name) or _excerpt(cp.description, 200) or cp.name,
         "lat": to_shape(cp.geom).y,
         "lon": to_shape(cp.geom).x,
     }
@@ -1373,6 +1362,10 @@ def invalidate_home_cache() -> None:
     _CLUB_URL_CACHE["value"] = None
     _MENTIONS_CACHE["value"] = None
     invalidate_podbor_cache()
+    # Тексты из админки «Тексты сайта»: правка видна со следующего запроса.
+    trip_facts.invalidate()
+    site_texts.invalidate()
+    travel_notices.invalidate()
 
 
 def _seasonal_block(db: Session) -> Optional[dict]:
@@ -1499,7 +1492,7 @@ def podbor_page(request: Request, db: Session = Depends(get_db), src: str = "", 
         _ctx(
             request, db, active_nav="podbor",
             boot_json=script_json(boot),
-            holiday=holiday_notice(),
+            holiday=travel_notices.current_notice("podbor"),
             n_places=sum(1 for item in items if item["type"] == "place"),
             n_routes=sum(1 for item in items if item["type"] == "route"),
         ),
@@ -1577,6 +1570,7 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
         crumbs.append((place["district_label"], place["district_url"]))
     crumbs.append((place["name"], f"/mesta/{cp.id}"))
     faq = _auto_faq(db, f"mesta-{cp.id}")
+    block = trip_facts.block_for(cp.id)
     return templates.TemplateResponse(
         "place_detail.html",
         _ctx(
@@ -1585,13 +1579,14 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
             faq=faq, faq_items=_faq_items_html(faq["items"]), faq_ld=_faq_ld(faq["items"]),
             breadcrumbs_ld=seo.breadcrumbs_ld(SITE_URL, crumbs),
             mentioned_in=_mentioned_in(db, "mesta", cp.id),
-            practical=_place_practical(db, cp),
-            practical_heading=seo.practical_heading(cp.id, cp.name),
-            practical_checked=seo.practical_checked(cp.id),
+            practical=_place_practical(db, cp, block),
+            practical_heading=trip_facts.heading(block, cp.name),
+            practical_checked=trip_facts.checked(block),
             place_ld=seo.place_ld(
                 cp.id, name=place["name"], url=SITE_URL + f"/mesta/{cp.id}",
                 description=place["seo_description"], images=place["photos"],
                 lat=place["lat"], lon=place["lon"], is_paid=place["is_paid"],
+                facts=trip_facts.facts(block, cp.name), checked=trip_facts.checked(block),
             ),
             like=_like_info(db, request, "checkpoint", cp.id),
         ),

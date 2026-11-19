@@ -25,6 +25,7 @@
     <a class="tab" href="/admin/inbox">Входящие</a>
     <a class="tab" href="/admin/templates">Шаблоны бота</a>
     <a class="tab" href="/admin/partners">Партнёры</a>
+    <a class="tab" href="/admin/texts">Тексты сайта</a>
   </nav>
   <div class="topbar-actions">
     <button class="btn btn-ghost btn-sm" onclick="openCategories()">Категории</button>
@@ -290,6 +291,7 @@
       <button class="btn btn-ghost btn-sm" onclick="closePlaceEditor()">← Назад</button>
       <span class="save-state" id="pl-save-state"></span>
       <span class="spacer"></span>
+      <a class="btn btn-ghost" id="pl-trip-link" href="/admin/texts/places" hidden title="Строки «Коротко для поездки», title и description для поиска">Коротко для поездки и поиск</a>
       <button class="btn btn-ghost" onclick="previewPlace()">Предпросмотр</button>
       <button class="btn btn-primary" onclick="savePlace()">Сохранить</button>
     </div>

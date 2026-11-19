@@ -1,0 +1,67 @@
+{% extends "bot_base.html" %}
+{% block title %}Плашка {{ n.name or 'новая' }}{% endblock %}
+{% macro d(v) %}{{ v.isoformat() if v else '' }}{% endmacro %}
+{% block content %}
+<div class="page">
+  <div class="page-head"><div>
+    <a class="muted" href="/admin/texts/notices">← Все плашки</a>
+    <h1>{{ n.name or 'Новая плашка' }}</h1>
+    <div class="sub">Показывается над подбором поездки · <a href="/podbor" target="_blank" rel="noopener">открыть /podbor ↗</a>{% if n.updated_at %} · последняя правка {{ msk(n.updated_at) }}{% if n.updated_by %} ({{ n.updated_by }}){% endif %}{% endif %}</div>
+  </div></div>
+  {% include "_texts_nav.html" %}
+  {% if saved %}<div class="psaved">Сохранено — на сайте уже новая версия.</div>{% endif %}
+  <div class="pcols">
+  <form class="pbox" method="post" action="/admin/texts/notices/save">
+    <input type="hidden" name="id" value="{{ n.id or '' }}">
+    <div class="field"><label><input type="checkbox" name="is_enabled" value="1"{% if n.is_enabled %} checked{% endif %}> <b>Включена</b></label></div>
+    <div class="field-row">
+      <div class="field"><label>Название (видно только в админке)</label><input type="text" name="name" value="{{ n.name }}" required maxlength="200"></div>
+      <div class="field"><label>Приоритет</label><input type="number" name="priority" value="{{ n.priority }}"></div>
+    </div>
+    {% if not n.id %}<div class="field"><label>Код (латиницей, необязательно)</label><input type="text" name="slug" value="" placeholder="mayskie"></div>{% endif %}
+    <h2 style="margin-top:8px">Когда показывать</h2>
+    <div class="field-row">
+      <div class="field"><label>Только тем, кто выбрал «зиму», с</label><input type="date" name="winter_from" value="{{ d(n.winter_from) }}"><div class="tx-hint">до дня перед «всем с». Пусто — не показывать заранее.</div></div>
+      <div class="field"><label>Всем с</label><input type="date" name="show_from" value="{{ d(n.show_from) }}"></div>
+      <div class="field"><label>по (включительно)</label><input type="date" name="show_to" value="{{ d(n.show_to) }}"></div>
+    </div>
+    <div class="field"><label><input type="checkbox" name="repeat_yearly" value="1"{% if n.repeat_yearly %} checked{% endif %}> Повторять каждый год (год в датах не важен)</label><div class="tx-hint">Все даты пустые — плашка видна всем всё время, пока включена.</div></div>
+    <h2 style="margin-top:8px">Текст</h2>
+    <div class="field-row">
+      <div class="field"><label>Надпись над заголовком</label><input type="text" name="kicker" value="{{ n.kicker or '' }}" maxlength="200"></div>
+      <div class="field"><label>…а с этой даты — другая надпись</label><input type="date" name="kicker_late_from" value="{{ d(n.kicker_late_from) }}"></div>
+    </div>
+    <div class="field"><label>Другая надпись</label><input type="text" name="kicker_late" value="{{ n.kicker_late or '' }}" maxlength="200" placeholder="Сейчас новогодние каникулы"></div>
+    <div class="field"><label>Заголовок</label><input type="text" name="title" value="{{ n.title or '' }}" maxlength="300"></div>
+    <div class="field"><label>Вид текста</label><select name="mode" id="mode">{% for code, label in modes.items() %}<option value="{{ code }}"{% if code == n.mode %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+      <div class="tx-hint">Автоматический текст сам берёт цену КПП, «только наличные» и часы запасных мест из «Коротко для поездки» карточек.</div></div>
+    <div class="field" id="body-field"><label>Свой текст</label><textarea name="body" id="body" rows="7" maxlength="4000">{{ n.body or '' }}</textarea>
+      <div class="tx-hint">Можно **жирный**, *курсив*, [ссылка](/mesta/55#kratko). Цифры из карточек: <code>{цена:55}</code> — цена входа карточки № 55, <code>{закрытие:24}</code> — во сколько закрывается № 24. Используется, только если выбран «Свой текст».</div>
+      <button type="button" class="btn btn-ghost btn-sm" id="fill-auto" style="margin-top:6px">Вставить автоматический текст как заготовку</button></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+      <button class="btn btn-primary" name="action" value="save">Сохранить</button>
+      {% if n.id %}<button class="btn btn-ghost" name="action" value="delete" onclick="return confirm('Удалить плашку? Её можно будет вернуть из истории.')">Удалить</button>{% endif %}
+    </div>
+  </form>
+  <div>
+    <div class="pbox"><h2>Предпросмотр (как на сайте, без учёта дат)</h2>
+      {% if preview %}<div class="tx-notice-prev"><p class="k">{{ preview.kicker }}</p><p class="t">{{ preview.title }}</p>
+        {% if preview.tips %}<ol>{% for tip in preview.tips %}<li><b>{{ tip.head }}</b> {{ tip.html }}</li>{% endfor %}</ol>{% else %}<p style="margin:0">{{ preview.text }}</p>{% endif %}</div>
+      {% else %}<p class="muted">Появится после сохранения.</p>{% endif %}
+    </div>
+    <div class="pbox"><h2>История</h2>
+      {% if history %}<table class="ptable tx-hist"><tbody>
+      {% for h in history %}<tr><td>{{ msk(h.created_at) }}<br><span class="muted">{{ h.author or '—' }}</span></td><td>{% if h.new_value %}{{ h.new_value.title }}{% if not h.new_value.is_enabled %} (выкл.){% endif %}{% else %}удалена{% endif %}</td>
+        <td>{% if h.new_value %}<form method="post" action="/admin/texts/history/{{ h.id }}/restore"><button class="btn btn-ghost btn-sm">Вернуть</button></form>{% endif %}</td></tr>{% endfor %}
+      </tbody></table>{% else %}<p class="muted">Правок ещё не было.</p>{% endif %}
+    </div>
+  </div>
+  </div>
+</div>
+<script>
+(function(){
+  const auto = {{ auto_body|tojson }}, body = document.getElementById('body');
+  document.getElementById('fill-auto').onclick = () => { if (!body.value || confirm('Заменить текст заготовкой?')) { body.value = auto; document.getElementById('mode').value = 'custom'; } };
+})();
+</script>
+{% endblock %}

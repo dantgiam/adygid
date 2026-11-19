@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Страница не найдена — АдыГид{% endblock %}
+{% block title %}{{ tp('notfound.meta.title', 'Страница не найдена — АдыГид') }}{% endblock %}
 {% block meta_description %}Такой страницы на сайте нет. Вернитесь на главную — оттуда открываются места, маршруты и планы поездки по Адыгее.{% endblock %}
 
 {# Ошибочные адреса в индексе не нужны — они плодят дубли одной и той же
@@ -17,14 +17,14 @@
     </picture>
 
     <p class="eyebrow">Ошибка 404</p>
-    <h1 class="page-title">Кажется, вы опечатались</h1>
+    <h1 class="page-title">{{ t('notfound.title', 'Кажется, вы опечатались') }}</h1>
     <p class="notfound-text">
       Такой страницы на сайте нет — возможно, адрес набран с ошибкой или страницу уже убрали.
       Проходите на главную, оттуда найдётся всё остальное.
     </p>
 
     <p class="notfound-actions">
-      <a class="btn btn-primary" href="/">На главную</a>
+      <a class="btn btn-primary" href="/">{{ t('notfound.home', 'На главную') }}</a>
       <a class="btn btn-ghost" href="/kuda">Куда поехать</a>
     </p>
 

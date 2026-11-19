@@ -471,3 +471,78 @@ class PartnerLead(Base):
     notes              = Column(Text)
     created_at         = Column(DateTime, server_default=func.now())
     updated_at         = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+# ─────────────────────────────────────────────
+#  Тексты сайта, которые правятся в админке «Тексты сайта» (/admin/texts).
+#  DDL — migrations/20261119_admin_texts.sql (повторяемая, выполняется при старте).
+# ─────────────────────────────────────────────
+
+class PlaceTripBlock(Base):
+    """«Коротко для поездки» и поисковый сниппет одной карточки места.
+    rows — строки таблицы по порядку: {key, label, text, verified, checked_on,
+    source_url, ld}. В JSON-LD и в title/description идут только строки
+    с verified=true (их ld — поля для поисковика)."""
+    __tablename__ = "place_trip_blocks"
+
+    place_id       = Column(Integer, primary_key=True, autoincrement=False)
+    enabled        = Column(Boolean, nullable=False, default=True)
+    heading_name   = Column(String(200))
+    seo_title      = Column(String(300))
+    seo_description = Column(Text)
+    rows           = Column(JSONB, nullable=False, default=list)
+    combine_ids    = Column(JSONB, nullable=False, default=list)
+    route_id       = Column(Integer)
+    auto_visit     = Column(Boolean, nullable=False, default=True)
+    search_facts   = Column(JSONB, nullable=False, default=dict)
+    sources        = Column(JSONB, nullable=False, default=list)
+    updated_at     = Column(DateTime, server_default=func.now())
+    updated_by     = Column(String(120))
+
+
+class SiteNotice(Base):
+    """Плашка на странице (сейчас — /podbor). mode: auto_b / auto_a — текст
+    собирается из фактов карточек, custom — свой текст из body."""
+    __tablename__ = "site_notices"
+
+    id             = Column(Integer, primary_key=True)
+    slug           = Column(String(60), nullable=False, unique=True)
+    name           = Column(String(200), nullable=False)
+    placement      = Column(String(40), nullable=False, default="podbor")
+    is_enabled     = Column(Boolean, nullable=False, default=True)
+    priority       = Column(Integer, nullable=False, default=0)
+    repeat_yearly  = Column(Boolean, nullable=False, default=True)
+    winter_from    = Column(Date)
+    show_from      = Column(Date)
+    show_to        = Column(Date)
+    kicker         = Column(String(200))
+    kicker_late    = Column(String(200))
+    kicker_late_from = Column(Date)
+    title          = Column(String(300))
+    mode           = Column(String(20), nullable=False, default="custom")
+    body           = Column(Text)
+    updated_at     = Column(DateTime, server_default=func.now())
+    updated_by     = Column(String(120))
+
+
+class SiteText(Base):
+    """Переопределённый текст шаблона: ключ из t('ключ', 'текст по умолчанию')."""
+    __tablename__ = "site_texts"
+
+    key            = Column(String(120), primary_key=True)
+    value          = Column(Text, nullable=False)
+    updated_at     = Column(DateTime, server_default=func.now())
+    updated_by     = Column(String(120))
+
+
+class AdminTextHistory(Base):
+    """История правок текстов: кто, когда, что было и что стало."""
+    __tablename__ = "admin_text_history"
+
+    id             = Column(Integer, primary_key=True)
+    entity         = Column(String(40), nullable=False)
+    entity_key     = Column(String(120), nullable=False)
+    old_value      = Column(JSONB)
+    new_value      = Column(JSONB)
+    author         = Column(String(120))
+    created_at     = Column(DateTime, server_default=func.now())

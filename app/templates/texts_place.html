@@ -1,0 +1,200 @@
+{% extends "bot_base.html" %}
+{% block title %}{{ cp.name }} · Коротко для поездки{% endblock %}
+{% macro row_box(i, r) %}
+{% set key = r.key if r.key in ['hours','tickets','cash','how','visit','winter','kids','pets'] else 'custom' %}
+{% set ld = r.ld or {} %}
+<div class="tx-row{% if r.verified %} is-verified{% endif %}" data-row>
+  <input type="hidden" name="r{{ i }}_order" value="{{ i }}" data-order>
+  <div class="tx-row-head">
+    <select name="r{{ i }}_key" data-key aria-label="Тип строки">
+      {% for k, lbl in row_keys %}<option value="{{ k }}"{% if k == key %} selected{% endif %}>{{ lbl }}</option>{% endfor %}
+    </select>
+    <input type="text" name="r{{ i }}_label" value="{{ r.label or '' }}" placeholder="Подпись слева в таблице" maxlength="60" aria-label="Подпись">
+    <div class="tx-row-tools">
+      <button type="button" data-up title="Выше">↑</button><button type="button" data-down title="Ниже">↓</button><button type="button" data-del title="Убрать строку">✕</button>
+    </div>
+  </div>
+  <textarea name="r{{ i }}_text" rows="2" placeholder="Значение — что увидит турист" maxlength="1500" style="margin-top:8px">{{ r.text or '' }}</textarea>
+  <div class="tx-row-meta">
+    <label><input type="checkbox" name="r{{ i }}_verified" value="1" data-verified{% if r.verified %} checked{% endif %}> <b>Проверено</b> по официальному источнику</label>
+    <label>дата проверки <input type="date" name="r{{ i }}_checked_on" value="{{ r.checked_on or '' }}" data-date></label>
+    <label>ссылка «источник» у строки <input type="url" name="r{{ i }}_source_url" value="{{ r.source_url or '' }}" placeholder="https://… (необязательно)"></label>
+  </div>
+  <details class="tx-ld" data-ld{% if key not in ld_keys %} hidden{% endif %}{% if r.verified and ld %} open{% endif %}>
+    <summary>Для поисковика (JSON-LD) — попадёт в разметку, только если строка «проверено»</summary>
+    <div class="tx-ld-grid" data-ld-for="hours"{% if key != 'hours' %} hidden{% endif %}>
+      <div style="grid-column:1/-1"><label>Коротко для сниппета (description)</label><input type="text" name="r{{ i }}_ld_short" value="{{ ld.short or '' }}" placeholder="ежедневно 9:00–17:00"></div>
+      <div><label>Открывается</label><input type="text" name="r{{ i }}_ld_opens" value="{{ ld.opens or '' }}" placeholder="09:00"></div>
+      <div><label>Закрывается</label><input type="text" name="r{{ i }}_ld_closes" value="{{ ld.closes or '' }}" placeholder="17:00"></div>
+      <div><label>Что именно открыто</label><input type="text" name="r{{ i }}_ld_hours_place" value="{{ ld.hours_place or '' }}" placeholder="Касса КПП «Лагонаки»"></div>
+      <div style="grid-column:1/-1"><label>Дни (все отмечены — ежедневно)</label>
+        {% for en, ru in days %}<label style="display:inline-flex;gap:3px;margin-right:8px;font-size:13px;color:inherit"><input type="checkbox" name="r{{ i }}_ld_day_{{ en }}" value="1"{% if not ld.days or en in ld.days %} checked{% endif %}>{{ ru }}</label>{% endfor %}
+      </div>
+      <div style="grid-column:1/-1"><label>Сложное расписание — по строке на интервал, вместо «открывается/закрывается»</label><textarea name="r{{ i }}_ld_spec" rows="2" placeholder="Вт Ср Чт Пт Сб Вс 10:00–18:00">{{ spec_to_text(ld.spec) }}</textarea></div>
+    </div>
+    <div class="tx-ld-grid" data-ld-for="tickets"{% if key != 'tickets' %} hidden{% endif %}>
+      <div><label>Цена, ₽ (0 — вход свободный)</label><input type="text" name="r{{ i }}_ld_price" value="{{ ld.price if ld.price is not none else '' }}" inputmode="numeric"></div>
+      <div style="grid-column:span 2"><label>Цена словами (description и разметка)</label><input type="text" name="r{{ i }}_ld_label" value="{{ ld.label or '' }}" placeholder="500 ₽, дети и пенсионеры бесплатно"></div>
+      <div style="grid-column:1/-1"><label>За что платят (название предложения)</label><input type="text" name="r{{ i }}_ld_place" value="{{ ld.place or '' }}" placeholder="Посещение экоцентра «Гузерипль»"></div>
+    </div>
+    <div class="tx-ld-grid" data-ld-for="cash"{% if key != 'cash' %} hidden{% endif %}>
+      <div><label><input type="checkbox" name="r{{ i }}_ld_cash_only" value="1"{% if ld.cash_only %} checked{% endif %}> Только наличные</label></div>
+    </div>
+    <div class="tx-ld-grid" data-ld-for="pets"{% if key != 'pets' %} hidden{% endif %}>
+      <div><label>С животными можно?</label><select name="r{{ i }}_ld_allowed">
+        <option value="">не указывать</option>
+        <option value="yes"{% if ld.allowed is sameas true %} selected{% endif %}>да</option>
+        <option value="no"{% if ld.allowed is sameas false %} selected{% endif %}>нет</option>
+      </select></div>
+    </div>
+  </details>
+</div>
+{% endmacro %}
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <a class="muted" href="/admin/texts/places">← Все карточки</a>
+      <h1>{{ cp.name }}</h1>
+      <div class="sub">Карточка № {{ cp.id }} · <a href="{{ page_url }}#kratko" target="_blank" rel="noopener">открыть на сайте ↗</a> · <a href="/admin#places">описание, фото и остальное — в «Местах»</a>
+        · последняя правка: {{ msk(b.updated_at) }}{% if b.updated_by %} ({{ b.updated_by }}){% endif %}{% if b.from_code %} · <b>пока из кода</b>, в базу запишется при сохранении{% endif %}</div>
+    </div>
+  </div>
+  {% include "_texts_nav.html" %}
+  {% if saved == '1' %}<div class="psaved">Сохранено — на сайте уже новая версия.</div>{% elif saved == 'reset' %}<div class="psaved">Вернул версию из кода.</div>{% elif saved == 'restored' %}<div class="psaved">Вернул выбранную версию из истории.</div>{% endif %}
+
+  <form method="post" action="/admin/texts/places/{{ cp.id }}" id="place-form">
+  <div class="pcols">
+    <div>
+      <div class="pbox">
+        <h2>Поиск: title и description</h2>
+        <div class="field"><label>Title — заголовок в выдаче <span class="tx-count" data-count-for="seo_title" data-rec="{{ title_rec }}"></span></label>
+          <input type="text" name="seo_title" id="seo_title" value="{{ b.seo_title }}" placeholder="{{ auto_title }}" maxlength="300">
+          <div class="tx-hint">Пусто — собирается сам: {{ auto_title }}</div></div>
+        <div class="field"><label>Description — описание под заголовком <span class="tx-count" data-count-for="seo_description" data-rec="{{ desc_rec }}"></span></label>
+          <textarea name="seo_description" id="seo_description" rows="3" placeholder="{{ auto_desc }}" maxlength="1000">{{ b.seo_description }}</textarea>
+          <div class="tx-hint">Пусто — собирается из проверенных часов и цены, иначе начало описания места. Яндекс показывает около {{ desc_rec }} знаков.</div></div>
+        <p class="muted" style="margin:6px 0">Так примерно будет в выдаче:</p>
+        <div class="tx-snippet" id="snippet">
+          <div class="sn-url">www.adygid.ru › mesta › {{ cp.id }}</div>
+          <div class="sn-title" data-sn="title">{{ effective_title }}</div>
+          <div class="sn-desc" data-sn="desc">{{ effective_desc }}</div>
+        </div>
+      </div>
+
+      <div class="pbox">
+        <h2>«Коротко для поездки» — строки таблицы</h2>
+        <div class="field"><label><input type="checkbox" name="enabled" value="1"{% if b.enabled %} checked{% endif %}> Показывать блок на карточке</label></div>
+        <div class="tx-hint" style="margin-bottom:10px">Пустое значение — строка не показывается. «Проверено» ставьте только по официальному источнику (сайт объекта, заповедника, госпортал): только такие строки попадают в разметку для поисковиков и в title/description.</div>
+        <div id="rows">
+          {% for r in b.rows %}{{ row_box(loop.index0, r) }}{% endfor %}
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" id="add-row">+ Добавить строку</button>
+        <div class="field" style="margin-top:14px"><label><input type="checkbox" name="auto_visit" value="1"{% if b.auto_visit %} checked{% endif %}> Если строки «Время посещения» нет — подставить из длительности карточки{% if cp.duration_minutes %} ({{ cp.duration_minutes }} мин){% endif %}</label></div>
+        <div class="field-row">
+          <div class="field"><label>«С чем совместить» — номера карточек через запятую</label><input type="text" name="combine_ids" value="{{ b.combine_ids|join(', ') }}">
+            <div class="tx-hint">{% for i in b.combine_ids %}{{ names.get(i, '№' ~ i ~ ' не найдено') }}{% if not loop.last %} · {% endif %}{% endfor %}</div></div>
+          <div class="field"><label>…и маршрут</label><select name="route_id"><option value="">— без маршрута —</option>{% for tid, tname in trails %}<option value="{{ tid }}"{% if b.route_id == tid %} selected{% endif %}>{{ tname }}</option>{% endfor %}</select></div>
+        </div>
+      </div>
+
+      <div class="pbox">
+        <h2>Проверено и источники</h2>
+        <div class="field"><label>Название в заголовке блока и в поиске</label><input type="text" name="heading_name" value="{{ b.heading_name }}" placeholder="{{ cp.name }}"><div class="tx-hint">Например, «Экоцентр „Гузерипль“». Пусто — название карточки.</div></div>
+        <div class="field"><label>Источники под таблицей — по строке: «название | ссылка»</label><textarea name="sources" rows="4" placeholder="официальный сайт «АкваТермо» | https://aquatermo01.ru/…">{{ sources_text }}</textarea>
+          <div class="tx-hint">Строка «Проверено &lt;дата&gt; · источники» показывается, если есть хотя бы одна проверенная строка; дата — самая свежая из них.</div></div>
+        <div class="field-row">
+          <div class="field"><label>Посёлок / место (адрес в разметке)</label><input type="text" name="sf_locality" value="{{ b.search_facts.locality or '' }}"></div>
+          <div class="field"><label>Улица, дом</label><input type="text" name="sf_street" value="{{ b.search_facts.street or '' }}"></div>
+          <div class="field"><label>Телефон</label><input type="text" name="sf_phone" value="{{ b.search_facts.phone or '' }}"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+        <button class="btn btn-primary">Сохранить</button>
+        <a class="btn btn-ghost" href="{{ page_url }}#kratko" target="_blank" rel="noopener">Открыть на сайте ↗</a>
+      </div>
+    </div>
+
+    <div>
+      <div class="tx-stick">
+      <div class="pbox">
+        <h2>Сейчас на сайте</h2>
+        <div class="tx-preview-block">
+          {% if b.enabled and b.rows %}
+          <p class="muted" style="margin:0 0 4px">{% if checked %}Коротко для поездки{% endif %}</p>
+          <p style="font-weight:700;margin:0 0 8px">{{ heading }}</p>
+          <table>{% for r in b.rows %}{% if r.text %}<tr><th>{{ r.label }}</th><td>{{ r.text }}{% if r.verified %} <span class="tx-badge ok">проверено</span>{% endif %}</td></tr>{% endif %}{% endfor %}</table>
+          <p class="muted" style="margin:8px 0 0">{% if checked %}Проверено {{ checked.label }} · {% for s in checked.sources %}{{ s.title }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}Цены и часы меняются — перед выездом проверь у объекта.{% endif %}</p>
+          {% else %}<p class="muted">Блок не показывается.</p>{% endif %}
+        </div>
+        <details style="margin-top:10px"><summary class="muted">Факты для поисковика (из проверенных строк)</summary>
+          {% if facts %}<pre style="font-size:11.5px;white-space:pre-wrap">{{ ld_json }}</pre>{% else %}<p class="muted">Нет проверенных строк — в разметке только название, описание, фото и координаты.</p>{% endif %}
+        </details>
+      </div>
+      <div class="pbox">
+        <h2>История правок</h2>
+        {% if history %}
+        <table class="ptable tx-hist"><tbody>
+        {% for h in history %}<tr><td>{{ msk(h.created_at) }}<br><span class="muted">{{ h.author or '—' }}</span></td>
+          <td style="text-align:right">{% if h.new_value %}<form method="post" action="/admin/texts/history/{{ h.id }}/restore" onsubmit="return confirm('Вернуть эту версию?')"><button class="btn btn-ghost btn-sm">Вернуть эту версию</button></form>{% endif %}</td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}<p class="muted">Правок через админку ещё не было{% if b.updated_by %}; запись перенесена из кода {{ msk(b.updated_at) }}{% endif %}.</p>{% endif %}
+        <form method="post" action="/admin/texts/places/{{ cp.id }}/reset" onsubmit="return confirm('Вернуть блок к версии из кода? Текущие правки останутся в истории.')" style="margin-top:10px">
+          <button class="btn btn-ghost btn-sm">Вернуть версию из кода</button>
+        </form>
+      </div>
+      </div>
+    </div>
+  </div>
+  </form>
+</div>
+<template id="row-tpl">{{ row_box('__I__', {'key': 'custom', 'label': '', 'text': '', 'verified': false, 'checked_on': '', 'source_url': '', 'ld': {}}) }}</template>
+<script>
+(function () {
+  const rows = document.getElementById('rows');
+  const LABELS = {{ row_keys|tojson }};
+  const LD = {{ ld_keys|list|tojson }};
+  const today = {{ today|tojson }};
+  let next = rows.querySelectorAll('[data-row]').length + 100;
+  function renumber() { rows.querySelectorAll('[data-row]').forEach((el, i) => { el.querySelector('[data-order]').value = i; }); }
+  function wire(el) {
+    const sel = el.querySelector('[data-key]'), lab = el.querySelector('input[name$="_label"]');
+    sel.addEventListener('change', () => {
+      const std = LABELS.find(x => x[0] === sel.value);
+      if (sel.value !== 'custom' && std && (!lab.value || LABELS.some(x => x[1] === lab.value))) lab.value = std[1];
+      const det = el.querySelector('[data-ld]');
+      det.hidden = !LD.includes(sel.value);
+      det.querySelectorAll('[data-ld-for]').forEach(g => { g.hidden = g.dataset.ldFor !== sel.value; });
+    });
+    el.querySelector('[data-verified]').addEventListener('change', e => {
+      el.classList.toggle('is-verified', e.target.checked);
+      const d = el.querySelector('[data-date]');
+      if (e.target.checked && !d.value) d.value = today;
+    });
+    el.querySelector('[data-up]').onclick = () => { if (el.previousElementSibling) rows.insertBefore(el, el.previousElementSibling); renumber(); };
+    el.querySelector('[data-down]').onclick = () => { if (el.nextElementSibling) rows.insertBefore(el.nextElementSibling, el); renumber(); };
+    el.querySelector('[data-del]').onclick = () => { if (confirm('Убрать строку?')) { el.remove(); renumber(); } };
+  }
+  rows.querySelectorAll('[data-row]').forEach(wire);
+  document.getElementById('add-row').onclick = () => {
+    const html = document.getElementById('row-tpl').innerHTML.replaceAll('__I__', String(next++));
+    const box = document.createElement('div'); box.innerHTML = html.trim();
+    const el = box.firstElementChild; rows.appendChild(el); wire(el); renumber();
+    el.querySelector('textarea').focus();
+  };
+  // Счётчики длины и превью сниппета
+  const ttl = document.getElementById('seo_title'), dsc = document.getElementById('seo_description');
+  function cut(s, n) { return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s; }
+  function upd() {
+    document.querySelectorAll('[data-count-for]').forEach(c => {
+      const inp = document.getElementById(c.dataset.countFor), v = inp.value || inp.placeholder, rec = +c.dataset.rec;
+      c.textContent = '· ' + v.length + ' из ~' + rec + ' зн.' + (inp.value ? '' : ' (автоматически)');
+      c.classList.toggle('over', v.length > rec);
+    });
+    document.querySelector('[data-sn=title]').textContent = cut(ttl.value || ttl.placeholder, 70);
+    document.querySelector('[data-sn=desc]').textContent = cut(dsc.value || dsc.placeholder, 170);
+  }
+  ttl.addEventListener('input', upd); dsc.addEventListener('input', upd); upd();
+})();
+</script>
+{% endblock %}

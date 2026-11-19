@@ -1785,6 +1785,14 @@ ensure_partner_tables()
 app.include_router(partners_router)
 app.include_router(partners_admin_router)
 
+# Тексты сайта в админке (/admin/texts): «Коротко для поездки», плашки, тексты
+# страниц. Миграция повторяемая и наполняет таблицы из кода один раз.
+from site_app.admin_texts_db import ensure_admin_text_tables
+from app.texts_admin import router as texts_admin_router
+
+ensure_admin_text_tables()
+app.include_router(texts_admin_router)
+
 
 @app.get("/api/podbor/stats")
 def get_podbor_stats(db: Session = Depends(get_db), _: bool = Depends(require_admin)):

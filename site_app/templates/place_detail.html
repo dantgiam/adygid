@@ -58,7 +58,7 @@
             {% if practical_checked %}
             <p class="practical-note">Проверено <time datetime="{{ practical_checked.iso }}">{{ practical_checked.label }}</time> · {% for s in practical_checked.sources %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.title }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
             {% else %}
-            <p class="practical-note">Цены и часы меняются — перед выездом проверь у объекта.</p>
+            <p class="practical-note">{{ t('place.practical_note_unverified', 'Цены и часы меняются — перед выездом проверь у объекта.') }}</p>
             {% endif %}
           </section>
           {% endif %}
@@ -102,7 +102,7 @@
 {% if related_routes %}
 <section class="section">
   <div class="wrap">
-    <div class="section-head"><h2>Маршруты с этим местом:</h2></div>
+    <div class="section-head"><h2>{{ t('place.routes_title', 'Маршруты с этим местом:') }}</h2></div>
     <div class="grid">
       {% for r in related_routes %}{{ cards.route_card(r) }}{% endfor %}
     </div>
@@ -115,7 +115,7 @@
 {% if nearby %}
 <section class="section">
   <div class="wrap">
-    <div class="section-head"><h2>Места рядом:</h2></div>
+    <div class="section-head"><h2>{{ t('place.nearby_title', 'Места рядом:') }}</h2></div>
     <div class="grid">
       {% for p in nearby %}{{ cards.place_card(p) }}{% endfor %}
     </div>
@@ -126,7 +126,7 @@
 {% if similar %}
 <section class="section">
   <div class="wrap">
-    <div class="section-head"><h2>Похожие места:</h2></div>
+    <div class="section-head"><h2>{{ t('place.similar_title', 'Похожие места:') }}</h2></div>
     <div class="grid">
       {% for p in similar %}{{ cards.place_card(p) }}{% endfor %}
     </div>
