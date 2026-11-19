@@ -51,7 +51,7 @@
         <div class="featured-row">
           <h4>Точки по пути</h4>
           {% for cp in route.checkpoints %}
-          <div class="checkpoint-row">
+          <div class="checkpoint-row" id="stop-{{ cp.id }}">
             <span class="num">{{ loop.index }}</span>
             <div>
               <div class="cname">{% if cp.url %}<a href="{{ cp.url }}" style="color:inherit">{{ cp.name }}</a>{% else %}{{ cp.name }}{% endif %}</div>

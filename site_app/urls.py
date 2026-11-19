@@ -41,7 +41,7 @@ class _SlugIndex:
 
     def __init__(self):
         self._lock = threading.Lock()
-        self._map: dict[str, dict[int, str]] = {"place": {}, "route": {}}
+        self._map: dict[str, dict[int, str]] = {"place": {}, "route": {}, "stop": {}}
         self._at = 0.0
 
     def invalidate(self) -> None:
@@ -59,6 +59,10 @@ class _SlugIndex:
                 if model is Checkpoint:
                     q = q.where(Checkpoint.show_as_place == True)
                 fresh[kind] = {i: s for i, s in db.execute(q).all()}
+            # Точка маршрута без своей страницы → её строка в списке маршрута.
+            q = (select(Checkpoint.id, Trail.id, Trail.slug).join(Trail, Checkpoint.trail_id == Trail.id)
+                 .where(Checkpoint.show_as_place == False, Checkpoint.is_published == True, Trail.is_published == True))
+            fresh["stop"] = {cid: f"/marshruty/{ts or tid}#stop-{cid}" for cid, tid, ts in db.execute(q).all()}
         finally:
             db.close()
         self._map = fresh
@@ -108,7 +112,7 @@ def url_for_id(kind: str, obj_id: int) -> str:
 # цифра или дефис, чтобы /mesta/24abc остался как есть.
 _OWN_HOSTS = r"(?:https?://(?:www\.)?adygid\.ru|https?://localhost(?::\d+)?|https?://127\.0\.0\.1(?::\d+)?)"
 _LINK_RE = re.compile(
-    r"(?:(?<=[\"'\s(>=:])|^)(" + _OWN_HOSTS + r")?/(mesta|marshruty)/(\d{1,9})(?![\w-])"
+    r"(?:(?<=[\"'\s(>=:])|^)(" + _OWN_HOSTS + r")?/(mesta|marshruty)/(\d{1,9})(?![\w-])(#[\w-]*)?"
 )
 
 
@@ -120,8 +124,15 @@ def rewrite_links(value: str) -> str:
 
     def sub(m):
         kind = _SEGMENT[m.group(2)]
-        slug = SLUGS.slug(kind, int(m.group(3)))
-        return f"{m.group(1) or ''}{PREFIX[kind]}/{slug}" if slug else m.group(0)
+        obj_id = int(m.group(3))
+        slug = SLUGS.slug(kind, obj_id)
+        if slug:
+            return f"{m.group(1) or ''}{PREFIX[kind]}/{slug}{m.group(4) or ''}"
+        if kind == "place":
+            stop = SLUGS.fresh().get("stop", {}).get(obj_id)
+            if stop:
+                return f"{m.group(1) or ''}{stop}"
+        return m.group(0)
 
     out = _LINK_RE.sub(sub, value)
     return Markup(out) if isinstance(value, Markup) else out

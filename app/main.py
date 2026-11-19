@@ -282,6 +282,9 @@ _DEFAULT_CATEGORIES = [
 # старт ничего не меняет; /mesta/<id> навсегда редиректит на слаг.
 from app.slugs import migrate as _migrate_slugs, set_slug as _set_slug, remember_old_slug as _remember_old_slug  # noqa: E402
 _migrate_slugs(engine)
+# Ссылки на точки маршрута без своей страницы → на настоящие карточки (app/content_fixes.py).
+from app.content_fixes import apply as _apply_content_fixes  # noqa: E402
+_apply_content_fixes(engine)
 
 with Session(engine) as _seed_db:
     _existing_names = {row[0] for row in _seed_db.execute(select(Category.name)).all()}
@@ -542,6 +545,40 @@ with Session(engine) as _seed_db:
 security = HTTPBasic()
 ADMIN_USER = os.getenv("ADMIN_USER", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "adygid")
+
+
+_optional_security = HTTPBasic(auto_error=False)
+
+
+def viewer_is_admin(credentials: Optional[HTTPBasicCredentials] = Depends(_optional_security)) -> bool:
+    """Открытые GET /api/* видят черновики только с паролем админки. Браузер,
+    вошедший в /admin, сам подставляет его в запросы к /api; гость, бот и
+    поисковик получают лишь опубликованное — тексты черновиков не утекают."""
+    if credentials is None:
+        return False
+    return secrets.compare_digest(credentials.username, ADMIN_USER) and \
+        secrets.compare_digest(credentials.password, ADMIN_PASSWORD)
+
+
+def _public_trail_out(t, admin: bool) -> dict:
+    out = _trail_out(t)
+    if not admin:
+        out["checkpoints"] = [c for c in out["checkpoints"] if c["is_published"]]
+    return out
+
+
+def _cp_visible_q(q):
+    """Точка видна гостю, если опубликована она сама и её маршрут (если есть)."""
+    hidden_trails = select(Trail.id).where(Trail.is_published == False)
+    return q.where(Checkpoint.is_published == True,
+                   (Checkpoint.trail_id.is_(None)) | (Checkpoint.trail_id.not_in(hidden_trails)))
+
+
+def _get_public_or_404(db: Session, model, obj_id: int, admin: bool):
+    obj = _get_or_404(db, model, obj_id)
+    if not admin and not obj.is_published:
+        raise HTTPException(404, "Не найдено")
+    return obj
 
 
 def require_admin(credentials: HTTPBasicCredentials = Depends(security)):
@@ -944,16 +981,18 @@ def _category_out(c: Category):
 # ─────────────────────────────────────────────
 
 @app.get("/api/trails")
-def list_trails(db: Session = Depends(get_db)):
-    trails = db.execute(select(Trail)).scalars().all()
-    return [_trail_out(t) for t in trails]
+def list_trails(db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    q = select(Trail)
+    if not admin:
+        q = q.where(Trail.is_published == True)
+    return [_public_trail_out(t, admin) for t in db.execute(q).scalars().all()]
 
 
 @app.get("/api/trails/{trail_id}")
-def get_trail(trail_id: int, db: Session = Depends(get_db)):
+def get_trail(trail_id: int, db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
     """Один маршрут целиком. Редактору карты после каждой правки нужна только
     свежая геометрия — тянуть ради этого весь список маршрутов незачем."""
-    return _trail_out(_get_or_404(db, Trail, trail_id))
+    return _public_trail_out(_get_public_or_404(db, Trail, trail_id, admin), admin)
 
 
 @app.post("/api/trails", status_code=201)
@@ -1059,8 +1098,8 @@ def _trail_out(t: Trail):
 # ─────────────────────────────────────────────
 
 @app.get("/api/trails/{trail_id}/segments")
-def list_segments(trail_id: int, db: Session = Depends(get_db)):
-    _get_or_404(db, Trail, trail_id)
+def list_segments(trail_id: int, db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    _get_public_or_404(db, Trail, trail_id, admin)
     segs = db.execute(select(TrailSegment).where(TrailSegment.trail_id == trail_id)).scalars().all()
     return [_seg_out(s) for s in segs]
 
@@ -1114,16 +1153,21 @@ def _seg_out(s: TrailSegment):
 # ─────────────────────────────────────────────
 
 @app.get("/api/checkpoints")
-def list_all_checkpoints(db: Session = Depends(get_db)):
-    cps = db.execute(select(Checkpoint)).scalars().all()
+def list_all_checkpoints(db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    q = select(Checkpoint)
+    cps = db.execute(q if admin else _cp_visible_q(q)).scalars().all()
     return [_cp_out(c) for c in cps]
 
 
 @app.get("/api/checkpoints/nearby")
-def nearby_checkpoints(lat: float, lon: float, limit: int = 10, db: Session = Depends(get_db)):
+def nearby_checkpoints(lat: float, lon: float, limit: int = 10, db: Session = Depends(get_db),
+                       admin: bool = Depends(viewer_is_admin)):
     point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
     dist = func.ST_DistanceSphere(Checkpoint.geom, point).label("distance_m")
-    rows = db.execute(select(Checkpoint, dist).order_by(dist).limit(limit)).all()
+    q = select(Checkpoint, dist)
+    if not admin:
+        q = _cp_visible_q(q)
+    rows = db.execute(q.order_by(dist).limit(min(max(limit, 1), 100))).all()
     result = []
     for cp, distance_m in rows:
         out = _cp_out(cp)
@@ -1133,9 +1177,12 @@ def nearby_checkpoints(lat: float, lon: float, limit: int = 10, db: Session = De
 
 
 @app.get("/api/trails/{trail_id}/checkpoints")
-def list_checkpoints(trail_id: int, db: Session = Depends(get_db)):
-    _get_or_404(db, Trail, trail_id)
-    cps = db.execute(select(Checkpoint).where(Checkpoint.trail_id == trail_id)).scalars().all()
+def list_checkpoints(trail_id: int, db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    _get_public_or_404(db, Trail, trail_id, admin)
+    q = select(Checkpoint).where(Checkpoint.trail_id == trail_id)
+    if not admin:
+        q = q.where(Checkpoint.is_published == True)
+    cps = db.execute(q).scalars().all()
     return [_cp_out(c) for c in cps]
 
 
@@ -1301,14 +1348,17 @@ def list_equipment_tags(db: Session = Depends(get_db)):
 # ─────────────────────────────────────────────
 
 @app.get("/api/articles")
-def list_articles(db: Session = Depends(get_db)):
-    arts = db.execute(select(Article).order_by(Article.created_at.desc())).scalars().all()
+def list_articles(db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    q = select(Article).order_by(Article.created_at.desc())
+    if not admin:
+        q = q.where(Article.is_published == True)
+    arts = db.execute(q).scalars().all()
     return [_article_out(a) for a in arts]
 
 
 @app.get("/api/articles/{article_id}")
-def get_article(article_id: int, db: Session = Depends(get_db)):
-    a = _get_or_404(db, Article, article_id)
+def get_article(article_id: int, db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    a = _get_public_or_404(db, Article, article_id, admin)
     return _article_out(a)
 
 
@@ -1416,8 +1466,9 @@ def _apply_scenario(sc: Scenario, body: ScenarioIn):
 
 
 @app.get("/api/scenarios")
-def list_scenarios(db: Session = Depends(get_db)):
-    rows = db.execute(select(Scenario).order_by(Scenario.order_index, Scenario.id)).scalars().all()
+def list_scenarios(db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    q = select(Scenario).order_by(Scenario.order_index, Scenario.id)
+    rows = db.execute(q if admin else q.where(Scenario.is_published == True)).scalars().all()
     return [_scenario_out(s) for s in rows]
 
 
@@ -1589,8 +1640,9 @@ def _magnet_out(m: Magnet):
 
 
 @app.get("/api/magnets")
-def list_magnets(db: Session = Depends(get_db)):
-    rows = db.execute(select(Magnet).order_by(Magnet.id)).scalars().all()
+def list_magnets(db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    q = select(Magnet).order_by(Magnet.id)
+    rows = db.execute(q if admin else q.where(Magnet.is_published == True)).scalars().all()
     return [_magnet_out(m) for m in rows]
 
 
@@ -1628,8 +1680,9 @@ def _faq_set_out(f: FaqSet):
 
 
 @app.get("/api/faq-sets")
-def list_faq_sets(db: Session = Depends(get_db)):
-    rows = db.execute(select(FaqSet).order_by(FaqSet.order_index, FaqSet.id)).scalars().all()
+def list_faq_sets(db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    q = select(FaqSet).order_by(FaqSet.order_index, FaqSet.id)
+    rows = db.execute(q if admin else q.where(FaqSet.is_published == True)).scalars().all()
     return [_faq_set_out(f) for f in rows]
 
 
@@ -1700,8 +1753,9 @@ def _district_out(d: District) -> dict:
 
 
 @app.get("/api/districts")
-def list_districts(db: Session = Depends(get_db)):
-    rows = db.execute(select(District).order_by(District.order_index, District.id)).scalars().all()
+def list_districts(db: Session = Depends(get_db), admin: bool = Depends(viewer_is_admin)):
+    q = select(District).order_by(District.order_index, District.id)
+    rows = db.execute(q if admin else q.where(District.is_published == True)).scalars().all()
     return [_district_out(d) for d in rows]
 
 

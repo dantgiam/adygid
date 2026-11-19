@@ -1138,6 +1138,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
                 "name": cp.name,
                 # Ссылка только у точек, выделенных в самостоятельные места —
                 # у остальных страницы нет, ведут в 404.
+                "id": cp.id,
                 "url": place_url(cp) if cp.show_as_place else None,
                 "category_name": cp.category.name if cp.category else None,
             }
@@ -1561,6 +1562,11 @@ def _resolve_page(db: Session, request: Request, kind: str, key: str, suffix: st
         obj = db.get(model, int(key))
         if obj is not None and obj.slug is None and _visible(kind, obj):
             return obj.id, None
+        # Точка маршрута без своей страницы (старые ссылки вида /mesta/96) —
+        # на её строку в списке точек на странице маршрута.
+        if kind == "place" and obj is not None and not obj.show_as_place and obj.is_published \
+                and obj.trail is not None and obj.trail.is_published:
+            return None, RedirectResponse(f"{route_url(obj.trail)}#stop-{obj.id}", status_code=301)
         return go(obj)
     low = key.lower().strip("-")
     if low != key and len(low) <= 120:
