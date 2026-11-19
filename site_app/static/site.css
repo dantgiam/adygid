@@ -1227,23 +1227,29 @@ h1.article-title {
 .mentioned-arrow { color: var(--accent); flex: none; }
 @media (min-width: 800px) { .mentioned-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
-/* «Коротко для поездки» на карточке места: практические поля, которые
-   есть в данных. Строка «название поля — текст», на телефоне — столбиком. */
+/* «Коротко для поездки» на карточке места: таблица «признак — значение»
+   (быстрые ответы поисковиков любят таблицы), на телефоне — столбиком.
+   Часы, вход и оплата идут первыми; часы и оплата — жирным. */
 .practical {
   margin: 4px 0 26px; padding: 16px 18px 12px; max-width: 68ch;
   background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius);
 }
-.detail-body .practical-title { font-family: var(--font-display); font-size: 21px; margin: 0 0 8px; }
-.practical-list { margin: 0; }
-.practical-row { display: grid; grid-template-columns: 1fr; gap: 2px; padding: 9px 0; border-top: 1px solid var(--border); }
-.practical-row:first-child { border-top: 0; }
-.practical-row dt { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
-.practical-row dd { margin: 0; font-size: 15.5px; line-height: 1.45; }
-.practical-row dd a { color: var(--accent-dark); font-weight: 600; }
+.detail-body .practical-kicker { margin: 0 0 2px; font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
+.detail-body .practical-title { font-family: var(--font-display); font-size: 21px; line-height: 1.25; margin: 0 0 8px; }
+.practical-table { width: 100%; border-collapse: collapse; }
+.practical-row th, .practical-row td { display: block; padding: 0; text-align: left; vertical-align: baseline; }
+.practical-row th { padding-top: 9px; font-family: var(--font-mono); font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); }
+.practical-row td { padding: 2px 0 9px; font-size: 15.5px; line-height: 1.45; }
+.practical-row + .practical-row th { border-top: 1px solid var(--border); }
+.practical-row td a { color: var(--accent-dark); font-weight: 600; }
+.practical-hours td, .practical-cash td { font-weight: 600; }
 .practical-src { font-size: 13px; font-weight: 400 !important; color: var(--text-muted) !important; }
-.detail-body .practical-note { margin: 8px 0 0; font-size: 13px; color: var(--text-muted); }
+.detail-body .practical-note { margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--text-muted); }
+.detail-body .practical-note a { color: var(--text-muted); text-decoration: underline; text-underline-offset: 2px; }
 @media (min-width: 700px) {
-  .practical-row { grid-template-columns: 150px 1fr; gap: 14px; align-items: baseline; }
+  .practical-row th, .practical-row td { display: table-cell; padding: 9px 0; }
+  .practical-row th { width: 150px; padding-right: 14px; }
+  .practical-row + .practical-row td { border-top: 1px solid var(--border); }
 }
 
 /* Прямые ссылки на карточки мест под сезонным блоком и на странице района. */

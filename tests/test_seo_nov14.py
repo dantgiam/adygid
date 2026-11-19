@@ -117,7 +117,8 @@ def test_district_titles_are_not_one_template():
 
 def test_key_place_titles_varied_and_without_prices():
     assert 10 <= len(seo.PLACE_TITLES) <= 15
-    assert seo.place_title("Хаджохская теснина", "khadzhokh", 24) == seo.PLACE_TITLES[24]
+    # карточка без проверенных часов — по ручному словарю
+    assert seo.place_title("Водопады Руфабго", "khadzhokh", 40) == seo.PLACE_TITLES[40]
     tails = {t.split(":", 1)[1].split("—")[0].strip() for t in seo.PLACE_TITLES.values() if ":" in t}
     assert len(tails) >= 10
     for t in seo.PLACE_TITLES.values():
@@ -126,16 +127,17 @@ def test_key_place_titles_varied_and_without_prices():
 
 def test_practical_fields_never_carry_unsourced_prices():
     keys = {k for k, _ in seo.PRACTICAL_LABELS}
-    assert 10 <= len(seo.PLACE_PRACTICAL) <= 15
+    assert 10 <= len(seo.PLACE_PRACTICAL) <= 25
     for pid, cfg in seo.PLACE_PRACTICAL.items():
-        assert set(cfg) <= keys | {"route"}, pid
+        assert set(cfg) <= keys | seo.PRACTICAL_META_KEYS, pid
         tickets = cfg.get("tickets")
         text = tickets["text"] if isinstance(tickets, dict) else (tickets or "")
         if "₽" in text:
             # цифра либо с официальным источником, либо явно «не подтверждён»
             # или с пометкой «по данным путеводителей» (решение 14.11.2026)
             assert ((isinstance(tickets, dict) and tickets.get("source")) or "не подтвержд" in text
-                    or "по данным путеводителей" in text.lower()), pid
+                    or "по данным путеводителей" in text.lower()
+                    or (cfg.get("checked") and cfg.get("sources"))), pid
 
 
 def test_place_practical_block_renders_only_filled_fields(client, monkeypatch):
@@ -149,10 +151,13 @@ def test_place_practical_block_renders_only_filled_fields(client, monkeypatch):
     html = client.get(f"/mesta/{pid}").text
     assert "Коротко для поездки" in html
     assert "Время посещения" in html and "1 ч 30 мин" in html
-    assert "Прямо в посёлке." in html and "Актуальный тариф не подтверждён" in html
+    assert "Прямо в посёлке." in html and "Официального прайса нет" in html
     assert f'<a href="/mesta/{other}">Соседнее место для связки</a>' in html
     # незаполненные поля не показываются
-    assert "Часы работы" not in html and "<dt>Зимой</dt>" not in html
+    assert "Часы работы" not in html and ">Зимой</th>" not in html
+    # без проверенных фактов — нейтральный заголовок и общая оговорка
+    assert '<h2 class="practical-title" id="practical-title">Коротко для поездки</h2>' in html
+    assert "Цены и часы меняются" in html
     # блок — до описания и FAQ
     assert html.index("Коротко для поездки") < html.index('class="like-row"')
 
@@ -285,9 +290,11 @@ def test_guidebook_prices_are_labelled_and_new_photos_credited():
     blob = json.dumps(c, ensure_ascii=False)
     assert "по прайсу комплекса" not in blob and "Последняя известная цена по путеводителям" not in blob
     assert "1150 ₽" in blob and "по данным путеводителей на 14.11.2026, актуальный тариф" in blob
-    for pid in (24, 40, 67):
+    for pid in (24, 40):
         p = seo.PLACE_PRACTICAL[pid]
         assert "по данным путеводителей" in (p["tickets"] if isinstance(p["tickets"], str) else p["tickets"]["text"]).lower()
+    # у «АкваТермо» с 19.11.2026 цены с официального сайта, с датой проверки
+    assert seo.PLACE_PRACTICAL[67]["sources"] == ["aquatermo"] and seo.PLACE_PRACTICAL[67]["checked"]
     # без Альп и без чужих фото на новых страницах
     assert "581ad467b3414354b038915f243f8e79" not in blob
     assert "68c87251f4cb492b93a278a6436b78bf" not in blob

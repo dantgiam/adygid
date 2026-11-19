@@ -4,26 +4,18 @@
 {% import "_faq.html" as faqui %}
 
 {% block title %}{{ place.seo_title }}{% endblock %}
-{% block meta_description %}{{ place.excerpt or place.name }}{% endblock %}
+{% block meta_description %}{{ place.seo_description }}{% endblock %}
 {% block og_image %}{% if place.cover %}<meta property="og:image" content="{{ place.cover|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 
 {% block extra_ld %}
-{# isAccessibleForFree пишем только когда стоимость проверена. false при
-   неизвестной цене поисковик читает как «вход платный». #}
-{% set attraction_ld = {
-  "@context": "https://schema.org",
-  "@type": "TouristAttraction",
-  "name": place.name,
-  "description": place.excerpt or place.name,
-  "url": canonical_url,
-  "image": place.photos,
-  "address": {"@type": "PostalAddress", "addressRegion": "Республика Адыгея", "addressCountry": "RU"}
-} %}
-{% if place.is_paid is false %}{% set _ = attraction_ld.update({"isAccessibleForFree": true}) %}
-{% elif place.is_paid is true %}{% set _ = attraction_ld.update({"isAccessibleForFree": false}) %}{% endif %}
+{# TouristAttraction (+ Offer, если цена проверена) собирается в seo.place_ld:
+   часы, цена, наличные и животные попадают в разметку только из
+   проверенных фактов карточки. #}
+{% for block in place_ld %}
 <script type="application/ld+json">
-{{ attraction_ld | tojson }}
+{{ block | tojson }}
 </script>
+{% endfor %}
 {{ faqui.ld(faq_ld) }}
 {{ faqui.ld(breadcrumbs_ld) }}
 {% endblock %}
@@ -48,17 +40,26 @@
            за описанием и галереей. Заголовок при этом остаётся наверху. #}
         <div class="detail-text">
           {% if practical %}
-          <section class="practical" aria-labelledby="practical-title">
-            <h2 class="practical-title" id="practical-title">Коротко для поездки</h2>
-            <dl class="practical-list">
+          {# Таблица, а не абзацы: Яндекс и Google охотнее берут такие пары
+             «признак — значение» в быстрые ответы на «… время работы». #}
+          <section class="practical" id="kratko" aria-labelledby="practical-title">
+            {% if practical_checked %}<p class="practical-kicker">Коротко для поездки</p>{% endif %}
+            <h2 class="practical-title" id="practical-title">{{ practical_heading }}</h2>
+            <table class="practical-table">
+              <tbody>
               {% for row in practical %}
-              <div class="practical-row practical-{{ row.key }}">
-                <dt>{{ row.label }}</dt>
-                <dd>{% if row.links %}{% for l in row.links %}<a href="{{ l.url }}">{{ l.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ row.text }}{% if row.source %} <a class="practical-src" href="{{ row.source }}" target="_blank" rel="noopener">источник</a>{% endif %}{% endif %}</dd>
-              </div>
+              <tr class="practical-row practical-{{ row.key }}">
+                <th scope="row">{{ row.label }}</th>
+                <td>{% if row.links %}{% for l in row.links %}<a href="{{ l.url }}">{{ l.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ row.text }}{% if row.source %} <a class="practical-src" href="{{ row.source }}" target="_blank" rel="noopener">источник</a>{% endif %}{% endif %}</td>
+              </tr>
               {% endfor %}
-            </dl>
+              </tbody>
+            </table>
+            {% if practical_checked %}
+            <p class="practical-note">Проверено <time datetime="{{ practical_checked.iso }}">{{ practical_checked.label }}</time> · {% for s in practical_checked.sources %}<a href="{{ s.url }}" target="_blank" rel="noopener">{{ s.title }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+            {% else %}
             <p class="practical-note">Цены и часы меняются — перед выездом проверь у объекта.</p>
+            {% endif %}
           </section>
           {% endif %}
           {% if place.description_html %}{{ place.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}

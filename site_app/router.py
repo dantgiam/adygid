@@ -1039,6 +1039,14 @@ def _related_articles(db: Session, current: Article, limit: int = 3) -> list:
     return [_article_card_dict(a) for a in ranked[:limit]]
 
 
+def _fact_price_label(place_id: int) -> Optional[str]:
+    f = seo.place_facts(place_id) or {}
+    label = f.get("price_label")
+    if f.get("price") is None or not label:
+        return None
+    return label[:1].upper() + label[1:]
+
+
 def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
     # Тот же редактор, что у статьи (см. descEditorHtml в admin.js), даёт те
     # же вставки — коллаж, лид-магнит, набор вопросов. Раньше здесь разворачивался
@@ -1064,7 +1072,9 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "season_label": SEASON_LABELS.get(cp.seasonality, cp.seasonality),
         "access_label": ACCESS_LABELS.get(cp.access_type, cp.access_type),
         "is_paid": cp.is_paid,
-        "price_label": _price_label(cp.is_paid, cp.price_note),
+        # Если цена проверена в «Коротко для поездки», в спецификации та же
+        # цифра — иначе справа «уточняем», а слева «500 ₽».
+        "price_label": _fact_price_label(cp.id) or _price_label(cp.is_paid, cp.price_note),
         "kid_friendly": cp.kid_friendly,
         "equipment_tags": cp.equipment_tags or [],
         "yandex_url": _yandex_point_url(cp),
@@ -1073,6 +1083,11 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "district_url": f"/okrugi/{cp.district}" if cp.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(cp.checked_at),
         "seo_title": seo.place_title(cp.name, cp.district, cp.id),
+        # Для карточек с проверенными часами/ценой description собирается
+        # из этих фактов (seo.fact_description), иначе — начало описания.
+        "seo_description": seo.fact_description(cp.id, cp.name) or _excerpt(cp.description, 200) or cp.name,
+        "lat": to_shape(cp.geom).y,
+        "lon": to_shape(cp.geom).x,
     }
 
 
@@ -1569,6 +1584,13 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
             breadcrumbs_ld=seo.breadcrumbs_ld(SITE_URL, crumbs),
             mentioned_in=_mentioned_in(db, "mesta", cp.id),
             practical=_place_practical(db, cp),
+            practical_heading=seo.practical_heading(cp.id, cp.name),
+            practical_checked=seo.practical_checked(cp.id),
+            place_ld=seo.place_ld(
+                cp.id, name=place["name"], url=SITE_URL + f"/mesta/{cp.id}",
+                description=place["seo_description"], images=place["photos"],
+                lat=place["lat"], lon=place["lon"], is_paid=place["is_paid"],
+            ),
             like=_like_info(db, request, "checkpoint", cp.id),
         ),
     )
