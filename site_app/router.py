@@ -6,6 +6,7 @@ import time
 import uuid
 from html import escape, unescape
 from markupsafe import Markup
+from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -30,6 +31,7 @@ from site_app.icons import category_svg
 from site_app.podbor_catalog import catalog_items, invalidate_podbor_cache, load_copy, script_json
 from site_app import images as site_images
 from site_app import seo
+from site_app.travel_notices import holiday_notice, in_holiday_window, HOLIDAY_TEXT, SOURCES
 from site_app.autolink import autolink
 
 router = APIRouter()
@@ -1477,6 +1479,14 @@ def podbor_page(request: Request, db: Session = Depends(get_db), src: str = "", 
         "fresh": bool(src or known_season),
         # Клуб в MAX — для блока «уточните детали» между днями плана.
         "club": _club_url(db),
+        "holiday": {
+            "in_window": in_holiday_window(date.today()),
+            "kicker": (holiday_notice(season="winter") or {}).get("kicker") or "Праздники и выходные",
+            "title": "В пиковые дни на популярных местах бывает тесно",
+            "text": HOLIDAY_TEXT,
+            "source_url": SOURCES["queues_jan_2025"]["url"],
+            "source_label": "Источник: 93.ru, январь 2025",
+        },
     }
     return templates.TemplateResponse(
         "podbor.html",

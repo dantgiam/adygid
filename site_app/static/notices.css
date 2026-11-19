@@ -1,0 +1,142 @@
+/* Плашки практических предупреждений. Три варианта на скрытом разборе;
+   в подборщике используется вариант A (.trip-notice--plaque). */
+
+.trip-notice {
+  font-family: var(--font-body);
+  color: var(--text);
+  text-align: left;
+}
+.trip-notice-kicker {
+  margin: 0 0 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--gold-dark);
+}
+.trip-notice-title {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.25;
+  color: #14170F;
+}
+.trip-notice p { margin: 0; font-size: 14.5px; line-height: 1.5; }
+.trip-notice a { color: var(--accent-dark); font-weight: 600; }
+.trip-notice a:hover { text-decoration: underline; }
+
+/* A. Плашка — рекомендую для /podbor: компактная, сразу видна, не орёт. */
+.trip-notice--plaque {
+  position: relative;
+  padding: 14px 16px 14px 18px;
+  background: var(--gold-soft);
+  border: 1px solid #E6CE8E;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.trip-notice--plaque::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 10px; bottom: 10px;
+  width: 3px;
+  background: var(--gold);
+  border-radius: 2px;
+}
+
+/* B. Чек-лист — ближе к блоку «Коротко для поездки» на карточке места. */
+.trip-notice--checklist {
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.trip-notice--checklist .trip-tips {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+.trip-notice--checklist .trip-tips li {
+  position: relative;
+  padding: 8px 0 8px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+.trip-notice--checklist .trip-tips li:first-child { border-top: 0; }
+.trip-notice--checklist .trip-tips li::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 1em;
+  width: 8px; height: 2px;
+  background: var(--gold);
+  border-radius: 1px;
+}
+.trip-notice--checklist .trip-tips strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 13px;
+  color: var(--accent-dark);
+}
+
+/* C. Карточка-совет — более «журнальная», для хаба или статьи. */
+.trip-notice--editorial {
+  padding: 22px 22px 20px;
+  background: linear-gradient(180deg, #F3FAF3, #fff 55%);
+  border: 1px solid #C9E3C9;
+  border-radius: 16px;
+}
+.trip-notice--editorial .trip-notice-title {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+.trip-notice--editorial p { font-size: 16px; max-width: 42em; }
+
+/* Страница разбора вариантов */
+.notices-preview { background: #F7FBF5; min-height: 100vh; color: var(--text); }
+.notices-preview .np-top { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+@media (max-width: 640px) {
+  .notices-preview .np-top { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
+.notices-preview .np-top,
+.notices-preview .np-main,
+.notices-preview .np-foot {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 16px 20px;
+}
+.notices-preview .np-brand {
+  display: inline-flex; align-items: center; gap: 8px; font-weight: 700;
+}
+.notices-preview .np-note { margin: 0; color: var(--text-muted); font-size: 13px; }
+.notices-preview h1 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5vw, 40px);
+  line-height: 1.15;
+  margin: 12px 0 12px;
+}
+.notices-preview .np-lead { font-size: 17px; max-width: 42em; }
+.notices-preview .np-var {
+  margin: 28px 0 36px;
+}
+.notices-preview .np-var h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+.notices-preview .np-rec {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.notices-preview .np-var-note { margin: 0 0 12px; color: var(--text-muted); }
+.notices-preview .np-sources { font-size: 14px; color: var(--text-muted); }
+.notices-preview .np-sources a { color: var(--accent-dark); }
+.notices-preview .np-foot { color: var(--text-muted); font-size: 14px; padding-bottom: 40px; }
+.notices-preview .np-foot a { margin-right: 16px; }

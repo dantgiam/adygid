@@ -695,3 +695,9 @@
   background: rgba(14, 26, 18, .38); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); box-shadow: none;
 }
 .podbor .a3-stop-cap h4 { text-align: center; }
+
+
+/* Плашка «праздники и очереди»: стили в notices.css, здесь только место в вёрстке. */
+.podbor .trip-notice-slot { margin: 0 0 20px; }
+.podbor .trip-notice-slot[hidden] { display: none; }
+.podbor .trip-notice { max-width: 720px; }

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Черновик: предупреждения о праздниках и кассах — АдыГид</title>
+<meta name="description" content="Скрытый разбор вариантов плашки «праздники и очереди». Черновик, не для индексации.">
+<link rel="canonical" href="{{ canonical_url }}">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/assets/favicon.ico" sizes="any">
+<meta property="og:title" content="Черновик: предупреждения о праздниках и кассах — АдыГид">
+<meta property="og:url" content="{{ canonical_url }}">
+<link rel="stylesheet" href="/assets/site.css?v={{ rev }}">
+<link rel="stylesheet" href="/assets/notices.css?v={{ rev }}">
+</head>
+<body class="notices-preview">
+  <header class="np-top">
+    <a class="np-brand" href="/" aria-label="АдыГид — на главную">
+      <svg class="brand-mark" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+        <polygon points="4,24 12,10 20,24" fill="#9BCBA4"/>
+        <polygon points="10,24 21,8 30,24" fill="#278C3E"/>
+        <circle cx="24" cy="9" r="2.6" fill="#D6A324"/>
+      </svg>
+      <span>АдыГид</span>
+    </a>
+    <p class="np-note">Черновик · noindex · сегодня {{ today }}</p>
+  </header>
+
+  <main class="np-main">
+    <p class="trip-notice-kicker">Скрытый разбор</p>
+    <h1>Как предупредить о праздниках, кассах и плато</h1>
+    <p class="np-lead">Один и тот же учебный текст в трёх вёрстках. В подборщике я рекомендую вариант A — «Плашку»: она короткая и не пугает. Вариант B ближе к блоку «Коротко для поездки» на карточке места. Конкретных цен здесь нет: часть тарифов ещё нужно сверить с первоисточником.</p>
+
+    <section class="np-var" id="var-a">
+      <h2>Вариант A · Плашка <span class="np-rec">Рекомендую для подбора</span></h2>
+      <p class="np-var-note">Компактная золотая кромка, как заметка на полях, не аварийный баннер.</p>
+      <aside class="trip-notice trip-notice--plaque">
+        <p class="trip-notice-kicker">{{ demo_notice.kicker }}</p>
+        <p class="trip-notice-title">{{ demo_notice.title }}</p>
+        <p>{{ demo_notice.text }} <a href="{{ demo_notice.source.url }}" rel="noopener">Источник: 93.ru, январь 2025</a></p>
+      </aside>
+    </section>
+
+    <section class="np-var" id="var-b">
+      <h2>Вариант B · Чек-лист</h2>
+      <p class="np-var-note">Для карточки места: короткие пункты над длинным текстом.</p>
+      <aside class="trip-notice trip-notice--checklist">
+        <p class="trip-notice-kicker">Перед поездкой</p>
+        <p class="trip-notice-title">Что стоит учесть</p>
+        <ul class="trip-tips">
+          {% for tip in tips %}
+          <li><strong>{{ tip.title }}</strong>{{ tip.text }}</li>
+          {% endfor %}
+        </ul>
+      </aside>
+    </section>
+
+    <section class="np-var" id="var-c">
+      <h2>Вариант C · Карточка-совет</h2>
+      <p class="np-var-note">Просторнее, как врезка в статье. Для подборщика тяжеловата.</p>
+      <aside class="trip-notice trip-notice--editorial">
+        <p class="trip-notice-kicker">{{ demo_notice.kicker }}</p>
+        <p class="trip-notice-title">{{ demo_notice.title }}</p>
+        <p>{{ demo_notice.text }} <a href="{{ demo_notice.source.url }}" rel="noopener">Как это уже бывало в январе 2025 — в репортаже 93.ru</a></p>
+      </aside>
+    </section>
+
+    <section class="np-sources">
+      <h2>Источники и оговорки</h2>
+      <ul>
+        <li><a href="{{ sources.queues_jan_2025.url }}">{{ sources.queues_jan_2025.title }}</a></li>
+        <li>{{ sources.ny_peak_media.title }}. {{ sources.ny_peak_media.note }} <a href="{{ sources.ny_peak_media.url }}">РБК</a>, <a href="{{ sources.ny_peak_media.also }}">Вестник Кавказа</a>.</li>
+        <li>Цены заповедника и часов касс в этой плашке нет — они вынесены в отдельный черновик хаба входных, со статусом «сверить».</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="np-foot">
+    <a href="/">АдыГид</a>
+    <a href="/podbor">Подбор поездки</a>
+    <a href="/privacy">Политика конфиденциальности</a>
+  </footer>
+</body>
+</html>

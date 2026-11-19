@@ -1302,10 +1302,25 @@
     layout.classList.toggle("is-wide", !!state.final);
     layout.classList.toggle("is-preview", !!(reviewOpen && !state.final));
   }
+  function holidayNoticeHtml(h) {
+    if (!h || !h.text) return "";
+    const src = h.source_url ? ' <a href="' + esc(h.source_url) + '" rel="noopener">' + esc(h.source_label || "Источник") + "</a>" : "";
+    return '<aside class="trip-notice trip-notice--plaque"><p class="trip-notice-kicker">' + esc(h.kicker || "Праздники и выходные") + '</p><p class="trip-notice-title">' + esc(h.title || "") + "</p><p>" + esc(h.text) + src + "</p></aside>";
+  }
+  function syncHolidayNotice() {
+    const slot = document.getElementById("trip-notice-slot");
+    const h = boot.holiday;
+    if (!slot || !h) return;
+    const show = !!h.in_window || state.answers.season === "winter";
+    if (!show) { slot.hidden = true; slot.innerHTML = ""; return; }
+    slot.hidden = false;
+    slot.innerHTML = holidayNoticeHtml(h);
+  }
   function render() {
     document.getElementById("wizard").innerHTML = wizard();
     syncWizard();
     renderResults();
+    syncHolidayNotice();
     persist();
   }
   function updateAnswer(key, value, mutate) {

@@ -5,6 +5,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="/assets/podbor.css?v={{ asset_version }}">
+<link rel="stylesheet" href="/assets/notices.css?v={{ asset_version }}">
 <link rel="preload" as="image" href="/assets/podbor/winter.webp?v={{ asset_version }}">
 <link rel="preload" as="image" href="/assets/podbor/summer.webp?v={{ asset_version }}">
 <link rel="preload" as="image" href="/assets/podbor/anyseason.webp?v={{ asset_version }}">
@@ -28,6 +29,8 @@
         <path d="M32 105Q70 72 90 99t55-5" fill="none" stroke="#83976d" stroke-width="2" stroke-dasharray="4 5"/>
       </svg>
     </div>
+
+    <div id="trip-notice-slot" class="trip-notice-slot" hidden></div>
 
     <noscript>
       <p>Подбор считается в браузере. Можно сразу открыть <a href="/mesta">места</a> и <a href="/marshruty">маршруты</a>.</p>
