@@ -975,7 +975,11 @@
     const link = ' href="' + esc(x.url) + '" title="' + esc(x.name) + '" target="_blank" rel="noopener" data-act="open" data-item="' + keyOf(x) + '" data-pos="' + i + '" data-block="plan"';
     const photo = x.image ? '<img src="' + esc(photoSrc(x.image, 800)) + '"' + (photoSrcset(x.image) ? ' srcset="' + esc(photoSrcset(x.image)) + '" sizes="(max-width: 640px) 92vw, 420px"' : "") + ' alt="' + esc(x.name) + '" width="800" height="500" loading="lazy" decoding="async">' : "";
     const kind = x.type === "route" ? "маршрут" : "место";
-    const drive = z.drive == null ? "" : '<span class="a3-drive">' + (z.drive === 0 ? "рядом с базой" : (i === 0 ? "от базы" : "в дороге") + " <b>≈ " + esc(C.fmtMin(z.drive)) + "</b> <em>(по расчёту сайта)</em>") + "</span>";
+    /* Пометка «приблизительно, по прямой» — один раз у итога дня (dayHtml),
+       здесь только откуда считаем: от базы для первой точки, дальше переезд. */
+    const baseName = AREA_NAMES[state.answers.base];
+    const from = i === 0 ? "от базы" + (baseName ? " (" + baseName + ")" : "") + " на машине" : "переезд на машине";
+    const drive = z.drive == null ? "" : '<span class="a3-drive">' + (z.drive === 0 ? (i === 0 ? "рядом с базой, без переезда" : "рядом, без переезда") : esc(from) + " <b>≈ " + esc(C.fmtMin(z.drive)) + "</b>") + "</span>";
     const winter = state.answers.season === "winter" && x.winter_ok === "unknown" ? '<p class="a3-warn">Зимой уточнить подход</p>' : "";
     const also = z.kind === "also" ? '<span class="a3-also">по пути, не из ваших тем</span>' : "";
     const v = x.visit;
@@ -1009,7 +1013,7 @@
     const mapUrl = yandexDayUrl(d);
     const mapBtn = mapUrl ? '<a class="podbor-yamaps" href="' + esc(mapUrl) + '" target="_blank" rel="noopener" data-act="yamaps" data-day="' + (i + 1) + '">Открыть день в Яндекс Картах</a>' : "";
     const toc = '<ol class="a3-toc">' + d.stops.map((z, k) => '<li><a href="#' + stopId(z.x) + '" data-act="toc" data-target="' + stopId(z.x) + '"><i>' + (k + 1) + "</i>" + esc(z.x.name) + "</a></li>").join("") + "</ol>";
-    return '<section class="podbor-day a3-day" id="day-' + (i + 1) + '"><div class="podbor-dayhead"><span>День ' + (i + 1) + "</span><div><h3>" + esc(AREA_NAMES[d.area] || "Адыгея") + '</h3><p>' + d.stops.length + " " + word + " · ≈ " + esc(C.fmtMin(d.totalMin)) + " с дорогой</p></div></div>" + toc + '<div class="podbor-bud" aria-hidden="true"><i class="is-visit" style="width:' + Math.min(100, vp) + '%"></i><i class="is-drive" style="width:' + Math.min(100 - Math.min(100, vp), dp) + '%"></i></div><p class="podbor-bud-label">на местах · дорога · запас. Светлое время ≈ ' + esc(C.fmtMin(d.daylight)) + "</p>" + '<div class="a3-stops">' + d.stops.map(stopRow).join("") + "</div>" + (d.returnDrive != null ? '<p class="a3-return">обратно на базу <b>≈ ' + esc(C.fmtMin(d.returnDrive)) + "</b></p>" : "") + (d.long ? '<p class="podbor-daynote">Длинный выход — на весь день, другие точки не добавляем.</p>' : "") + mapBtn + "</section>";
+    return '<section class="podbor-day a3-day" id="day-' + (i + 1) + '"><div class="podbor-dayhead"><span>День ' + (i + 1) + "</span><div><h3>" + esc(AREA_NAMES[d.area] || "Адыгея") + '</h3><p>' + d.stops.length + " " + word + " · ≈ " + esc(C.fmtMin(d.totalMin)) + " с дорогой</p>" + (d.driveMin > 0 ? '<p class="a3-drive-note">из них в пути ≈ ' + esc(C.fmtMin(d.driveMin)) + " — время в пути приблизительное, по прямой с поправкой на горные дороги, не по навигатору</p>" : "") + "</div></div>" + toc + '<div class="podbor-bud" aria-hidden="true"><i class="is-visit" style="width:' + Math.min(100, vp) + '%"></i><i class="is-drive" style="width:' + Math.min(100 - Math.min(100, vp), dp) + '%"></i></div><p class="podbor-bud-label">на местах · дорога · запас. Светлое время ≈ ' + esc(C.fmtMin(d.daylight)) + "</p>" + '<div class="a3-stops">' + d.stops.map(stopRow).join("") + "</div>" + (d.returnDrive != null ? '<p class="a3-return">обратно на базу на машине <b>≈ ' + esc(C.fmtMin(d.returnDrive)) + "</b></p>" : "") + (d.long ? '<p class="podbor-daynote">Длинный выход — на весь день, другие точки не добавляем.</p>' : "") + mapBtn + "</section>";
   }
   function planCode() {
     if (!state.planId || !/^[A-Za-z0-9_-]{4,32}$/.test(state.planId)) state.planId = C.contextId();

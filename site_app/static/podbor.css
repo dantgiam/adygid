@@ -628,6 +628,7 @@
 .podbor .a3-stop-meta { margin: 0 0 4px; font-size: 13px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .podbor .a3-drive b { color: var(--text); }
 .podbor .a3-drive em { font-style: normal; font-size: 12px; }
+.podbor .a3-drive-note { margin: 2px 0 0; font-size: 12px; line-height: 1.35; color: var(--text-muted); }
 .podbor .a3-also { color: #6b604c; }
 .podbor .a3-why { margin: 0; font-size: 14px; color: var(--text); line-height: 1.35; }
 .podbor .a3-warn { margin: 4px 0 0; font-size: 13px; color: #a26b00; }
