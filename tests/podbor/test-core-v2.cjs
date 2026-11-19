@@ -146,6 +146,17 @@ test("drive estimate: same point 0, Maykop→Даховская ≈ 50–90 min,
   assert.ok(C.driveMin(C.baseAnchor("maykop"), C.baseAnchor("lago")) > m);
 });
 
+test("walk estimate is slower than driving on a long hop and zero at the same point", () => {
+  assert.equal(C.walkMin([44.6, 40.1], [44.6, 40.1]), 0);
+  const walk = C.walkMin(C.baseAnchor("maykop"), C.baseAnchor("dakhovskaya"));
+  const drive = C.driveMin(C.baseAnchor("maykop"), C.baseAnchor("dakhovskaya"));
+  assert.ok(walk > drive, "walk " + walk + " drive " + drive);
+  // ~200 м пешком: 0.2 / 4 км/ч × 60 ≈ 3 мин, округление до 5.
+  const short = C.walkMin([44.30, 40.18], [44.3018, 40.18]);
+  assert.equal(short, 5);
+  assert.equal(C.PARAMS.walkSpeedKmh, 4);
+});
+
 test("budgets: winter shorter than summer for active; small kids −20%", () => {
   assert.ok(C.dayBudget({ pace: "active", season: "winter" }).budget < C.dayBudget({ pace: "active", season: "summer" }).budget);
   assert.equal(C.dayBudget({ pace: "balanced", party: "small" }).budget, Math.round(450 * 0.8));

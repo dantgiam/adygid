@@ -6,7 +6,7 @@
 const VERSION='podbor-core 2.0 · 2026-11-09';
 const AREAS={maykop:['Майкоп',44.605,40.100],tulsky:['Тульский и Цветочный',44.490,40.160],khadzhokh:['Каменномостский (Хаджох)',44.295,40.185],dakhovskaya:['Даховская',44.235,40.210],lago:['Лаго-Наки',44.085,40.015],valley:['Хамышки и Гранитный каньон',44.125,40.110],guzeripl:['Гузерипль',44.000,40.136],sakhray:['Сахрай',44.174,40.300],pobeda:['Победа',44.288,40.330],novosvobodnaya:['Новосвободная',44.417,40.346],north:['Гончарка (равнина)',44.807,39.947],other:['Адыгея',null,null]};
 const PARAMS={ // все числа — оценки/гипотезы, вынесены в данные для правки
-  speedKmh:50, mountainFactor:1.3, plainFactor:1.2, plainLat:44.45, parkingMin:10, maxHopMin:40, hopWeight:1.5, otherAreaPenalty:15,
+  speedKmh:50, mountainFactor:1.3, plainFactor:1.2, plainLat:44.45, parkingMin:10, walkSpeedKmh:4, maxHopMin:40, hopWeight:1.5, otherAreaPenalty:15,
   paceBudget:{calm:330,balanced:450,active:570,any:450},          // мин: ≈5,5 / 7,5 / 9,5 / 7,5 ч
   daylight:{winter:540,summer:840,any:660},                        // ≈ светлое время, мин
   paceCap:{calm:3,balanced:4,active:5,any:4},                      // потолок точек в день
@@ -17,8 +17,10 @@ const INTERESTS=['views','water','culture','thermal','familyfun','caves'];
 function km(a,b,c,d){const R=6371,p=x=>x*Math.PI/180,dl=p(c-a),dn=p(d-b),h=Math.sin(dl/2)**2+Math.cos(p(a))*Math.cos(p(c))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
 function point(x){if(!x)return null;if(Array.isArray(x))return x[0]==null?null:{lat:x[0],lon:x[1]};return x.lat==null?null:{lat:x.lat,lon:x.lon}}
 function baseAnchor(base){const a=AREAS[base];return a&&a[1]!=null?{lat:a[1],lon:a[2]}:null}
-/* Дорога ≈ прямая × горный коэффициент / средняя скорость + парковка. Округление до 5 мин. */
+/* Дорога ≈ прямая × горный коэффициент / средняя скорость + парковка. Округление до 5 мин. Это оценка на машине, не маршрут по дорогам. */
 function driveMin(from,to){const a=point(from),b=point(to);if(!a||!b)return null;const d=km(a.lat,a.lon,b.lat,b.lon);if(d<0.4)return 0;const f=(a.lat>PARAMS.plainLat&&b.lat>PARAMS.plainLat)?PARAMS.plainFactor:PARAMS.mountainFactor;return Math.max(5,Math.round((d*f/PARAMS.speedKmh*60+PARAMS.parkingMin)/5)*5)}
+/* Пеший подход по прямой, без парковки и дорожного коэффициента. Для будущего сегмента «парковка → точка»; в переездах плана не подменяет driveMin. */
+function walkMin(from,to){const a=point(from),b=point(to);if(!a||!b)return null;const d=km(a.lat,a.lon,b.lat,b.lon);if(d<0.05)return 0;return Math.max(5,Math.round((d/PARAMS.walkSpeedKmh*60)/5)*5)}
 function smallKids(a){return a.party==='small'||(['small','family'].includes(a.party)&&['tiny','preschool'].includes(a.childage))}
 function interestCount(x,interests){return (interests||[]).filter(t=>x.tags.includes(t)).length}
 /* Жёсткие ограничения: безопасность/сезон/явные исключения. Возвращает список причин (пусто = подходит). */
@@ -94,5 +96,5 @@ function fmtRange(v){if(v.source==='card'||v.min===v.max)return fmtMin(v.typ);if
 function contextId(){const al='abcdefghjkmnpqrstuvwxyz23456789';let s='';const c=(typeof crypto!=='undefined'&&crypto.getRandomValues)?crypto.getRandomValues(new Uint8Array(8)):Array.from({length:8},()=>Math.floor(Math.random()*256));for(const b of c)s+=al[b%al.length];return s}
 /* Событие для серверного журнала (гибрид): без IP, без ID Метрики, без свободного текста. */
 function makeEvent(session,type,f){f=f||{};return {event_id:contextId(),anonymous_session_id:session,event_type:type,ts:new Date().toISOString(),question_id:f.question_id||null,answer_code:f.answer_code==null?null:String(f.answer_code),skipped:!!f.skipped,item_key:f.item_key||null,plan_id:f.plan_id||null,algorithm_version:VERSION}}
-return {VERSION,AREAS,PARAMS,INTERESTS,km,driveMin,baseAnchor,exclusionReasons,secondary,score,rankAll,planDays,dayBudget,daysFor,fmtMin,fmtRange,contextId,makeEvent,smallKids,interestCount}
+return {VERSION,AREAS,PARAMS,INTERESTS,km,driveMin,walkMin,baseAnchor,exclusionReasons,secondary,score,rankAll,planDays,dayBudget,daysFor,fmtMin,fmtRange,contextId,makeEvent,smallKids,interestCount}
 });
