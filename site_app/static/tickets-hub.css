@@ -1,0 +1,70 @@
+/* Черновик хаба входных. Два варианта: таблица и статьи. */
+.th-page { background: #F7FBF5; min-height: 100vh; color: var(--text); }
+.th-top, .th-main, .th-foot { max-width: 920px; margin: 0 auto; padding: 16px 20px; }
+.th-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+@media (max-width: 640px) {
+  .th-top { flex-direction: column; align-items: flex-start; gap: 6px; }
+}
+.th-brand { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.th-note { margin: 0; color: var(--text-muted); font-size: 13px; }
+.th-kicker {
+  margin: 8px 0 8px; color: var(--gold-dark); font-size: 12px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+.th-page h1 {
+  font-family: var(--font-display); font-size: clamp(28px, 5vw, 42px);
+  line-height: 1.15; margin: 0 0 12px;
+}
+.th-lead { font-size: 17px; max-width: 44em; margin: 0 0 18px; }
+.th-switch { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; }
+.th-switch a {
+  padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
+  background: #fff; font-weight: 600; font-size: 14px;
+}
+.th-switch a.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-dark); }
+.th-rec { font-size: 12px; font-weight: 700; color: var(--accent-dark); margin-left: 4px; }
+
+.th-draft {
+  margin: 0 0 22px; padding: 12px 14px; border-radius: 10px;
+  background: var(--gold-soft); border: 1px solid #E6CE8E; font-size: 14.5px;
+}
+
+/* Таблица */
+.th-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
+.th-table th, .th-table td { text-align: left; vertical-align: top; padding: 12px 14px; border-top: 1px solid var(--border); font-size: 14.5px; line-height: 1.45; }
+.th-table th { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); font-weight: 700; background: #F3FAF3; border-top: 0; }
+.th-status {
+  display: inline-block; padding: 2px 8px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+.th-status.is-draft { background: #FBF1D9; color: #7A5A0A; }
+.th-status.is-none { background: #EEE; color: #444; }
+.th-status.is-ok { background: var(--accent-soft); color: var(--accent-dark); }
+.th-figure {
+  margin: 8px 0 0; padding: 8px 10px; border-left: 3px solid #C44; background: #FDF4F4;
+  font-size: 13.5px; color: #5A1F1F;
+}
+.th-table a { color: var(--accent-dark); font-weight: 600; }
+
+@media (max-width: 700px) {
+  .th-table, .th-table thead, .th-table tbody, .th-table th, .th-table td, .th-table tr { display: block; }
+  .th-table thead { display: none; }
+  .th-table tr { padding: 14px 0; border-top: 1px solid var(--border); }
+  .th-table td { padding: 4px 0; border: 0; }
+}
+
+/* Статьи */
+.th-article { display: grid; gap: 14px; }
+.th-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 18px 16px; box-shadow: var(--shadow);
+}
+.th-card h2 { font-family: var(--font-display); font-size: 22px; margin: 8px 0 8px; }
+.th-card p { margin: 0; font-size: 16px; line-height: 1.5; }
+
+.th-check { margin: 32px 0 12px; }
+.th-check h2 { font-family: var(--font-display); font-size: 22px; }
+.th-check ol { margin: 0; padding-left: 1.3em; max-width: 44em; }
+.th-check li { margin: 0 0 6px; }
+.th-foot { color: var(--text-muted); font-size: 14px; padding-bottom: 40px; }
+.th-foot a { margin-right: 16px; }
