@@ -272,7 +272,7 @@
     accordion_open: { kind: oneOf(["toc", "partners"]), id: code },
     gallery_nav: { kind: oneOf(["carousel", "article"]), dir: oneOf(["prev", "next", "dot"]), index: intBetween(1, 40) },
     difficulty_open: { page: 1 },
-    podbor_nav: { action: oneOf(["back", "restart", "more", "tab", "alt", "unseen", "toc", "enough"]), tab: oneOf(["all", "route", "place"]), state: onOff },
+    podbor_nav: { action: oneOf(["back", "restart", "more", "tab", "alt", "unseen", "toc", "enough", "notice_open", "notice_close"]), tab: oneOf(["all", "route", "place"]), state: onOff },
     podbor_plan_adjust: { action: oneOf(["reason", "density", "fix", "day"]), value: 1 },
     podbor_share_result: { result: oneOf(["copied", "shared", "failed"]) },
     podbor_save_attempt: { channel: oneOf(["max", "tg"]), retry: intBetween(0, 1) },

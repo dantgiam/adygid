@@ -1306,10 +1306,29 @@
     layout.classList.toggle("is-wide", !!state.final);
     layout.classList.toggle("is-preview", !!(reviewOpen && !state.final));
   }
+  /* Плашка «Новогодние каникулы» (разметка — в podbor.html): в пиковое
+     окно видна всегда, в окно планирования — только при выбранной зиме. */
+  function syncHolidayNotice() {
+    const el = document.getElementById("trip-notice");
+    if (!el) return;
+    const show = el.dataset.always === "1" || (el.dataset.winterOnly === "1" && state.answers.season === "winter");
+    el.hidden = !show;
+    const btn = el.querySelector(".trip-notice-toggle");
+    if (btn && !btn.dataset.bound) {
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", () => {
+        const open = el.classList.toggle("is-open");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        btn.textContent = open ? "Свернуть" : "Подробнее";
+        goal("podbor_nav", { action: open ? "notice_open" : "notice_close" });
+      });
+    }
+  }
   function render() {
     document.getElementById("wizard").innerHTML = wizard();
     syncWizard();
     renderResults();
+    syncHolidayNotice();
     persist();
   }
   function updateAnswer(key, value, mutate) {

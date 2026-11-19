@@ -5,6 +5,7 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="/assets/podbor.css?v={{ asset_version }}">
+<link rel="stylesheet" href="/assets/notices.css?v={{ asset_version }}">
 <link rel="preload" as="image" href="/assets/podbor/winter.webp?v={{ asset_version }}">
 <link rel="preload" as="image" href="/assets/podbor/summer.webp?v={{ asset_version }}">
 <link rel="preload" as="image" href="/assets/podbor/anyseason.webp?v={{ asset_version }}">
@@ -28,6 +29,24 @@
         <path d="M32 105Q70 72 90 99t55-5" fill="none" stroke="#83976d" stroke-width="2" stroke-dasharray="4 5"/>
       </svg>
     </div>
+
+    {% if holiday %}
+    {# Плашка про новогодние каникулы. В пиковое окно видна всем; в окно
+       планирования (с 15.11) — только если в подборе выбрана зима:
+       видимость переключает podbor.js по data-always / data-winter-only. #}
+    <aside class="trip-notice trip-notice--plaque" id="trip-notice" data-always="{{ 1 if holiday.always else 0 }}" data-winter-only="{{ 1 if holiday.winter_only else 0 }}"{% if not holiday.always %} hidden{% endif %}>
+      <p class="trip-notice-kicker">{{ holiday.kicker }}</p>
+      <p class="trip-notice-title">{{ holiday.title }}</p>
+      {% if holiday.tips %}
+      <ol class="trip-tips">
+        {% for tip in holiday.tips %}<li><strong>{{ tip.head }}</strong><span class="trip-tip-more">{{ tip.html }}</span></li>{% endfor %}
+      </ol>
+      <button type="button" class="trip-notice-toggle" aria-expanded="false">Подробнее</button>
+      {% else %}
+      <p>{{ holiday.text }}</p>
+      {% endif %}
+    </aside>
+    {% endif %}
 
     <noscript>
       <p>Подбор считается в браузере. Можно сразу открыть <a href="/mesta">места</a> и <a href="/marshruty">маршруты</a>.</p>

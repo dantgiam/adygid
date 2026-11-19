@@ -1538,7 +1538,7 @@
         {
           "name": "action",
           "type": "code",
-          "description_ru": "back, restart, more, tab, alt, unseen, toc, enough"
+          "description_ru": "back, restart, more, tab, alt, unseen, toc, enough, notice_open, notice_close"
         },
         {
           "name": "tab",
@@ -1552,7 +1552,7 @@
         }
       ],
       "triggers": [
-        "Назад, заново, ещё, вкладка, похожие, вернуть скрытые, оглавление дня, «достаточно». Пропуск вопроса остаётся в podbor_q*_done"
+        "Назад, заново, ещё, вкладка, похожие, вернуть скрытые, оглавление дня, «достаточно», «Подробнее»/«Свернуть» в плашке про каникулы. Пропуск вопроса остаётся в podbor_q*_done"
       ]
     },
     {

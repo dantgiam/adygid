@@ -30,6 +30,7 @@ from site_app.icons import category_svg
 from site_app.podbor_catalog import catalog_items, invalidate_podbor_cache, load_copy, script_json
 from site_app import images as site_images
 from site_app import seo
+from site_app.travel_notices import holiday_notice
 from site_app.autolink import autolink
 
 router = APIRouter()
@@ -1498,6 +1499,7 @@ def podbor_page(request: Request, db: Session = Depends(get_db), src: str = "", 
         _ctx(
             request, db, active_nav="podbor",
             boot_json=script_json(boot),
+            holiday=holiday_notice(),
             n_places=sum(1 for item in items if item["type"] == "place"),
             n_routes=sum(1 for item in items if item["type"] == "route"),
         ),
