@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Черновик: входные и наличные 2026 — АдыГид</title>
+<meta name="description" content="Скрытый черновик хаба по входным и наличным в горной Адыгее. Не для индексации, цифры без сверки не публикуются.">
+<link rel="canonical" href="{{ canonical_url }}">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/assets/favicon.ico" sizes="any">
+<meta property="og:title" content="Черновик: входные и наличные 2026 — АдыГид">
+<meta property="og:url" content="{{ canonical_url }}">
+<link rel="stylesheet" href="/assets/site.css?v={{ rev }}">
+<link rel="stylesheet" href="/assets/tickets-hub.css?v={{ rev }}">
+</head>
+<body class="th-page th--{{ variant }}">
+  <header class="th-top">
+    <a class="th-brand" href="/" aria-label="АдыГид — на главную">
+      <svg class="brand-mark" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+        <polygon points="4,24 12,10 20,24" fill="#9BCBA4"/>
+        <polygon points="10,24 21,8 30,24" fill="#278C3E"/>
+        <circle cx="24" cy="9" r="2.6" fill="#D6A324"/>
+      </svg>
+      <span>АдыГид</span>
+    </a>
+    <p class="th-note">Черновик · noindex · не публиковать как прайс</p>
+  </header>
+
+  <main class="th-main">
+    <p class="th-kicker">Черновик хаба</p>
+    <h1>Входные и наличные — 2026</h1>
+    <p class="th-lead">Заготовка будущей справочной страницы: структура, статусы сверки и только то, что можно сказать без выдуманных цен. Готового прайса здесь нет.</p>
+    <p class="th-draft"><b>Это черновик.</b> Страницы нет в меню и sitemap. Цифру «500 ₽ с 15.08.2026 по приказу № 359» в основной текст не ставлю: полный приказ не читался. Она лежит только в красной пометке «сверить».</p>
+
+    <nav class="th-switch" aria-label="Варианты вёрстки">
+      <a href="/chernovik/vhodnye-2026" class="{{ 'is-on' if variant == 'tablitsa' else '' }}">Таблица{% if variant == 'tablitsa' %} <span class="th-rec">рекомендую</span>{% endif %}</a>
+      <a href="/chernovik/vhodnye-2026?v=statyi" class="{{ 'is-on' if variant == 'statyi' else '' }}">Статьи</a>
+    </nav>
+
+    {% if variant == 'tablitsa' %}
+    <table class="th-table">
+      <thead>
+        <tr><th>Объект</th><th>Статус</th><th>Что можно сказать сейчас</th></tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td><b>{{ row.title }}</b></td>
+          <td><span class="th-status {{ 'is-draft' if row.status == 'draft_price' else ('is-ok' if row.status == 'qualitative' else 'is-none') }}">{{ row.status_label }}</span></td>
+          <td>
+            <p>{{ row.body }}</p>
+            {% if row.draft_figure %}<p class="th-figure"><b>Сверить перед публикацией.</b> {{ row.draft_figure }}</p>{% endif %}
+            {% if row.sources %}
+              <p>{% for key in row.sources %}<a href="{{ sources[key].url }}" rel="noopener">{{ sources[key].title }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="th-article">
+      {% for row in rows %}
+      <article class="th-card" id="{{ row.id }}">
+        <span class="th-status {{ 'is-draft' if row.status == 'draft_price' else ('is-ok' if row.status == 'qualitative' else 'is-none') }}">{{ row.status_label }}</span>
+        <h2>{{ row.title }}</h2>
+        <p>{{ row.body }}</p>
+        {% if row.draft_figure %}<p class="th-figure"><b>Сверить перед публикацией.</b> {{ row.draft_figure }}</p>{% endif %}
+        {% if row.sources %}
+          <p>{% for key in row.sources %}<a href="{{ sources[key].url }}" rel="noopener">{{ sources[key].title }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+        {% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <section class="th-check">
+      <h2>Что сделать, прежде чем снимать noindex</h2>
+      <ol>
+        {% for item in checklist %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ol>
+    </section>
+  </main>
+
+  <footer class="th-foot">
+    <a href="/">АдыГид</a>
+    <a href="/podbor">Подбор поездки</a>
+    <a href="/privacy">Политика конфиденциальности</a>
+  </footer>
+</body>
+</html>
