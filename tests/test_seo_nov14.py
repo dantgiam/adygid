@@ -127,7 +127,7 @@ def test_key_place_titles_varied_and_without_prices():
 
 def test_practical_fields_never_carry_unsourced_prices():
     keys = {k for k, _ in seo.PRACTICAL_LABELS}
-    assert 10 <= len(seo.PLACE_PRACTICAL) <= 25
+    assert 10 <= len(seo.PLACE_PRACTICAL) <= 70
     for pid, cfg in seo.PLACE_PRACTICAL.items():
         assert set(cfg) <= keys | seo.PRACTICAL_META_KEYS, pid
         tickets = cfg.get("tickets")

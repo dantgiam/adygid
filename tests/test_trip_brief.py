@@ -134,3 +134,39 @@ def test_card_renders_table_high_with_heading_and_ld(client, monkeypatch):
     assert attr["url"].endswith(f"/mesta/{pid}")
     # спецификация справа не спорит с блоком: та же цена
     assert "<dt>Стоимость</dt><dd>500 ₽, дети и пенсионеры бесплатно</dd>" in html
+
+
+# Все опубликованные карточки мест сайта, кроме отложенных (мост 49 и пустынь 30).
+_ALL_CARDS = [
+    24, 25, 27, 29, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 48, 50, 51, 52,
+    53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
+    72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
+    91, 92, 93, 94, 99, 102, 103, 105,
+]
+_POSTPONED = {30, 49}
+
+
+def test_practical_block_on_all_cards_except_postponed():
+    for pid in _ALL_CARDS:
+        cfg = seo.PLACE_PRACTICAL[pid]
+        assert any(cfg.get(k) for k, _ in seo.PRACTICAL_LABELS), pid
+    for pid in _POSTPONED:
+        assert pid not in seo.PLACE_PRACTICAL
+
+
+def test_new_official_facts_and_varied_titles():
+    assert seo.place_facts(68)["price"] == 1500
+    assert seo.place_facts(72)["price"] == 650
+    assert seo.place_facts(77)["price"] == 200
+    assert seo.place_facts(83)["price"] == 100
+    assert seo.place_facts(69)["price"] == 100
+    assert seo.place_facts(41)["price"] == 0
+    assert seo.place_facts(85)["price"] == 0
+    assert seo.fact_title(67, "x") == "«АкваТермо» в Тульском: часы работы и цены 2026"
+    assert seo.fact_title(68, "x") == "«Кедровый бор» в Цветочном: часы работы и цены 2026"
+    assert seo.fact_title(72, "x") == "Термы Псыгупс: часы работы и цены 2026"
+    assert seo.fact_title(77, "x") == "Картинная галерея Адыгеи: режим работы и билеты 2026"
+    assert seo.fact_title(41, "x") == "Долина аммонитов: вход свободный, как добраться"
+    # закрытые маршруты заповедника — в тексте, без разметки часов как «открыто»
+    assert seo.place_facts(29) is None and "закрыт" in seo.PLACE_PRACTICAL[29]["hours"]["text"]
+    assert seo.place_facts(66) is None and "закрыт" in seo.PLACE_PRACTICAL[66]["hours"]["text"]
