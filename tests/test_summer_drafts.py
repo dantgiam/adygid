@@ -34,7 +34,7 @@ def test_index_and_articles_are_hidden_drafts():
         assert 'name="robots" content="noindex, nofollow"' in page.text
         assert "Это черновик" in page.text
         assert "Источники" in page.text
-        assert "kavkazzapoved.ru" in page.text
+        assert any(d in page.text for d in ("kavkazzapoved.ru", "adygheya.gov.ru", "aquatermo01.ru"))
         assert "[[PHOTO]]" in page.text
     assert client.get("/chernovik/leto/", follow_redirects=False).status_code == 307
 
@@ -60,4 +60,9 @@ def test_three_working_titles_from_research():
     assert any("приказ № 359" in t for t in titles)
     assert any("собак" in t.lower() for t in titles)
     assert any("2–3 дня" in t for t in titles)
-    assert len(ARTICLES) == 3
+    assert any("наличных" in t for t in titles)
+    assert any("теснина" in t.lower() for t in titles)
+    assert any("Азишская" in t for t in titles)
+    assert len(ARTICLES) == 6
+    slugs = {a["slug"] for a in ARTICLES}
+    assert slugs >= {"vkhodnye-bilety-nalichnye-2026", "hadzhohskaya-tesnina-bez-syurprizov", "azishskaya-peschera-chasy-i-lago"}
