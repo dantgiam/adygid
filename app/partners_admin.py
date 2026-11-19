@@ -17,7 +17,7 @@ from app.bot_admin import (
     BotApiError, BotNotConfigured, _filter_items, _kind_titles, _load_inbox, _page, require_bot_admin,
 )
 from app.database import get_db
-from app.models import Checkpoint, Partner, PartnerApplication, PartnerLead, Trail
+from app.models import Checkpoint, DEFAULT_SERVICE_FEE_PCT, Partner, PartnerApplication, PartnerLead, Trail
 from site_app import partners_audience
 from site_app import partners_taxonomy as tx
 from site_app.partners import bot_links, pd_in_site_db
@@ -180,7 +180,7 @@ def application_convert(app_id: int, db: Session = Depends(get_db), _: str = Dep
         name=row.company, category=row.category, subcategory=row.subcategory, location=row.location,
         short=(row.services or "")[:280], description=row.services, price_from=row.prices, seasons=row.seasons,
         discount=row.discount, booking_terms=row.booking_terms, contacts=contacts, is_active=False,
-        application_id=row.id, photos=[], place_ids=[], route_ids=[], service_fee_pct=Decimal("5"),
+        application_id=row.id, photos=[], place_ids=[], route_ids=[], service_fee_pct=Decimal(DEFAULT_SERVICE_FEE_PCT),
     )
     db.add(p)
     db.flush()
@@ -209,7 +209,7 @@ def _card(request, db, p, leads, saved):
 @router.get("/admin/partners/new")
 def partner_new(request: Request, db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
     blank = Partner(name="", category="adventure", photos=[], place_ids=[], route_ids=[], contacts={},
-                    service_fee_pct=Decimal("5"), is_active=False)
+                    service_fee_pct=Decimal(DEFAULT_SERVICE_FEE_PCT), is_active=False)
     return _card(request, db, blank, [], False)
 
 

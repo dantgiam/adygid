@@ -422,6 +422,11 @@ class PartnerApplication(Base):
     updated_at        = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+# Предложение ночной смены 19.11.2026: сбор гостя по умолчанию 3%.
+# Владелец это ещё не утвердил — не мержить без его решения.
+DEFAULT_SERVICE_FEE_PCT = 3
+
+
 class Partner(Base):
     """Карточка партнёра. contacts — только для админки, на сайт не выводятся."""
     __tablename__ = "partners"
@@ -439,7 +444,7 @@ class Partner(Base):
     discount           = Column(Text)
     booking_terms      = Column(Text)
     cancellation_terms = Column(Text)
-    service_fee_pct    = Column(Numeric(5, 2), nullable=False, default=5)
+    service_fee_pct    = Column(Numeric(5, 2), nullable=False, default=DEFAULT_SERVICE_FEE_PCT)
     place_ids          = Column(JSONB, nullable=False, default=list)
     route_ids          = Column(JSONB, nullable=False, default=list)
     contacts           = Column(JSONB, nullable=False, default=dict)
