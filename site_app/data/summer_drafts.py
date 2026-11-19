@@ -140,3 +140,6 @@ ARTICLES = [
 """,
     },
 ]
+from site_app.data.summer_drafts_more import NEW_ARTICLES, NEW_SOURCES
+SOURCES.update(NEW_SOURCES)
+ARTICLES += NEW_ARTICLES
