@@ -65,9 +65,31 @@ def test_preview_is_hidden_and_has_three_variants():
         assert page.headers["x-robots-tag"] == "noindex, nofollow"
         assert "Лаго-Наки" in page.text
         assert "Каменное море" in page.text
+        assert "Яворова поляна" in page.text
+        assert "Михайло-Афонская" in page.text
+        assert "Старый мост" in page.text
         assert "500 ₽" in page.text
         assert "kavkazzapoved.ru" in page.text
     assert "рекомендую" in a.text
     assert "tb-grid" in c.text
     slash = client.get("/chernovik/korotko-dlya-poezdki/", follow_redirects=False)
     assert slash.status_code == 307
+
+
+def test_yavorova_bridge_monastery_official_only():
+    bridge = seo.PLACE_PRACTICAL[49]
+    assert _src(bridge["tickets"]) == "https://pokolenie.adygheya.gov.ru/tourism/dakhovskiy-most/"
+    assert "бесплатн" in _text(bridge["tickets"]).lower()
+    assert "круглосуточн" in _text(bridge["hours"])
+    mon = seo.PLACE_PRACTICAL[30]
+    assert "Родниковая, 5" in _text(mon["how"])
+    assert "mae-monastery.cerkov.ru" in (_src(mon["how"]) or "")
+    assert "прайса" in _text(mon["tickets"]).lower()
+    assert "часы работы не указаны" in _text(mon["hours"])
+    yav = seo.PLACE_PRACTICAL[64]
+    assert "Узуруб" in _text(yav["how"])
+    assert _src(yav["how"]).endswith("ruchey-belyy")
+    assert "06:00–20:00" in _text(yav["hours"]) and _src(yav["hours"]) == PUNKTY
+    assert "только наличными" in _text(yav["cash"])
+    assert 50 not in seo.PLACE_PRACTICAL
+    assert 19 <= len(seo.PLACE_PRACTICAL) <= 20
