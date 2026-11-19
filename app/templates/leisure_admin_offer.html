@@ -1,0 +1,200 @@
+{% extends "bot_base.html" %}
+{% block title %}{{ o.title }}{% endblock %}
+{% block content %}
+{% set season_codes = (o.seasons or '').split(',') %}
+{% set lang_codes = (o.languages or '').split(',') %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <a class="muted" href="/admin/dosug">← Очередь досуга</a>
+      <h1>{{ o.title }}</h1>
+      <div class="sub">{{ o.provider.display_name }} · кабинет {{ o.provider.code }} · сбор {{ pct_label(o.service_fee_pct) }}%{% if o.slug %} · /dosug/{{ o.slug }}{% endif %}</div>
+    </div>
+    {% if o.is_published and o.status == 'approved' %}
+    <a class="btn btn-primary" href="/dosug/{{ o.slug }}" target="_blank" rel="noopener">Открыть на сайте</a>
+    {% endif %}
+  </div>
+  {% if saved %}<div class="psaved">Сохранено.{% if o.status != 'approved' %} На сайте карточки нет.{% endif %}</div>{% endif %}
+  {% if error %}<div class="pnote">{{ error }}</div>{% endif %}
+  {% if fee %}<div class="pnote">Расчёт от {{ rub(fee.price) }}: сбор {{ pct_label(o.service_fee_pct) }}% = {{ rub(fee.fee) }}, гостю скидка {{ rub(fee.discount) }}, организатору на месте {{ rub(fee.pay_provider) }}.</div>{% endif %}
+
+  <form method="post" action="/admin/dosug/{{ o.id }}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="pcols">
+      <div>
+        <div class="pbox">
+          <h2>Текст карточки</h2>
+          <div class="field"><label>Название</label><input type="text" name="title" value="{{ o.title }}" maxlength="200"></div>
+          <div class="field"><label>Адрес страницы (слаг)</label><input type="text" name="slug" value="{{ o.slug or '' }}" maxlength="120"><div class="hint">Публичный адрес только такой. /dosug/{{ o.id }} у опубликованной карточки ведёт сюда с кодом 301. «zayavka» и «kabinet» заняты.</div></div>
+          <div class="field-row">
+            <div class="field"><label>Тип</label>
+              <select name="activity_type">{% for code, title, _s in activities %}<option value="{{ code }}" {% if o.activity_type == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
+            <div class="field"><label>Район</label>
+              <select name="district"><option value="">—</option>{% for slug, label in districts %}<option value="{{ slug }}" {% if o.district == slug %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="field"><label>Описание</label><textarea name="description" rows="6">{{ o.description }}</textarea></div>
+          <div class="field"><label>Точка сбора</label><input type="text" name="meeting_address" value="{{ o.meeting_address }}"></div>
+          <div class="field"><label>Точка финиша</label><input type="text" name="finish_address" value="{{ o.finish_address or '' }}"></div>
+          <div class="field-row">
+            <div class="field"><label>Широта</label><input type="text" name="lat" value="{{ o.lat if o.lat is not none else '' }}"></div>
+            <div class="field"><label>Долгота</label><input type="text" name="lon" value="{{ o.lon if o.lon is not none else '' }}"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Продолжительность</label><input type="text" name="duration_text" value="{{ o.duration_text }}"></div>
+            <div class="field"><label>Сложность</label>
+              <select name="difficulty">{% for code, title in difficulties %}<option value="{{ code }}" {% if o.difficulty == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="field"><label>Сезон</label>
+            <div>{% for code, title in seasons %}<label style="margin-right:10px"><input type="checkbox" name="seasons" value="{{ code }}" {% if code in season_codes %}checked{% endif %}> {{ title }}</label>{% endfor %}</div>
+          </div>
+          <div class="field"><label>Расписание</label><textarea name="schedule_text" rows="2">{{ o.schedule_text or '' }}</textarea></div>
+          <div class="field"><label>Погода и отмена из-за погоды</label><textarea name="weather_terms" rows="2">{{ o.weather_terms or '' }}</textarea></div>
+          <div class="field-row">
+            <div class="field"><label>Цена числом</label><input type="text" name="price_amount" value="{{ o.price_amount if o.price_amount is not none else '' }}"></div>
+            <div class="field"><label>За что</label>
+              <select name="price_unit">{% for code, title in price_units %}<option value="{{ code }}" {% if o.price_unit == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="field"><label>Цена словами</label><textarea name="price_text" rows="2">{{ o.price_text }}</textarea></div>
+          <div class="field"><label>Что включено</label><textarea name="included" rows="2">{{ o.included or '' }}</textarea></div>
+          <div class="field"><label>Что не включено</label><textarea name="excluded" rows="2">{{ o.excluded or '' }}</textarea></div>
+          <div class="field"><label>Ограничение по весу</label><input type="text" name="weight_limit" value="{{ o.weight_limit or '' }}"></div>
+          <div class="field"><label>Что взять с собой</label><textarea name="what_to_bring" rows="2">{{ o.what_to_bring or '' }}</textarea></div>
+          <div class="field"><label>Что выдают</label><textarea name="provided_gear" rows="2">{{ o.provided_gear or '' }}</textarea></div>
+          <div class="field-row">
+            <div class="field"><label>Группа от</label><input type="text" name="group_min" value="{{ o.group_min or '' }}"></div>
+            <div class="field"><label>Группа до</label><input type="text" name="group_max" value="{{ o.group_max or '' }}"></div>
+          </div>
+          <div class="field"><label>Возраст</label><input type="text" name="age_text" value="{{ o.age_text }}"></div>
+          <div class="field"><label>Здоровье</label><textarea name="health_limits" rows="2">{{ o.health_limits }}</textarea></div>
+          <div class="field-row">
+            <div class="field"><label>Трансфер</label>
+              <select name="transfer">{% for code, title in transfers %}<option value="{{ code }}" {% if o.transfer == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
+            <div class="field"><label>Про трансфер</label><input type="text" name="transfer_note" value="{{ o.transfer_note or '' }}"></div>
+          </div>
+          <div class="field"><label>Язык</label>
+            <div>{% for code, title in languages %}<label style="margin-right:10px"><input type="checkbox" name="languages" value="{{ code }}" {% if code in lang_codes %}checked{% endif %}> {{ title }}</label>{% endfor %}</div>
+          </div>
+          <div class="field"><label>Другой язык</label><input type="text" name="language_note" value="{{ o.language_note or '' }}"></div>
+          <div class="field-row">
+            <div class="field"><label>Жилет</label>
+              <select name="vest">{% for code, title in gear_answer %}<option value="{{ code }}" {% if o.vest == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
+            <div class="field"><label>Шлем</label>
+              <select name="helmet">{% for code, title in gear_answer %}<option value="{{ code }}" {% if o.helmet == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
+          </div>
+          <div class="field"><label>Кто и когда проверяет снаряжение</label><textarea name="gear_check" rows="2">{{ o.gear_check or '' }}</textarea></div>
+          <div class="field-row">
+            <div class="field"><label>Инструктаж</label>
+              <select name="briefing">{% for code, title in briefing_answer %}<option value="{{ code }}" {% if o.briefing == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
+            <div class="field"><label>Что в инструктаже</label><input type="text" name="briefing_note" value="{{ o.briefing_note or '' }}"></div>
+          </div>
+          {% for activity, fields in category_fields.items() %}
+          <div class="field">
+            <label>Поля типа «{{ activity }}» — заполните, если выбран этот тип</label>
+            {% for field in fields %}
+            <div class="field"><label>{{ field.label }}{% if not field.public %} — не на сайте{% endif %}</label>
+              {% set current = (o.category_extra or {}).get(field.key, '') %}
+              {% if field.choices %}
+              <select name="extra_{{ activity }}_{{ field.key }}">{% for code, title in field.choices %}<option value="{{ code }}" {% if current == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select>
+              {% else %}
+              <textarea name="extra_{{ activity }}_{{ field.key }}" rows="2">{{ current }}</textarea>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="pbox" style="border:2px solid var(--accent);background:#F4FBF3">
+          <h2>Условия</h2>
+          <p class="hint">Отдельное поле: правила, отмена, предоплата, требования. Не часть описания.</p>
+          <div class="field"><textarea name="conditions" rows="6">{{ o.conditions }}</textarea></div>
+          <div class="field"><label>Отмена и возврат</label><textarea name="cancellation_terms" rows="3">{{ o.cancellation_terms or '' }}</textarea></div>
+        </div>
+        <div class="pbox" style="border:2px solid #B4860F;background:#FBF6E8">
+          <h2>Состояние снаряжения и техники</h2>
+          <p class="hint">{% if needs_state %}Для этого типа поле обязательно.{% else %}Для экскурсии можно оставить пустым.{% endif %} Это не описание.</p>
+          <div class="field"><textarea name="equipment_state" rows="6">{{ o.equipment_state or '' }}</textarea></div>
+        </div>
+
+        <div class="pbox">
+          <h2>Фото</h2>
+          {% for p in o.photos if not p.item_id %}
+          <label style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+            <img src="{{ p.thumb_url or p.url }}" alt="" style="width:96px;height:64px;object-fit:cover;border-radius:8px">
+            <span><input type="text" name="alt_id_{{ p.id }}" value="{{ p.alt }}" placeholder="Подпись"> <input type="checkbox" name="delete_photo" value="{{ p.id }}"> убрать</span>
+          </label>
+          {% endfor %}
+          {% for n in photo_slots %}
+          <div class="field-row">
+            <div class="field"><label>Новое фото {{ n }}</label><input type="file" name="photo_{{ n }}" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"></div>
+            <div class="field"><label>Подпись</label><input type="text" name="alt_{{ n }}" maxlength="300"></div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="pbox">
+          <h2>Поставки и единицы</h2>
+          {% for item in o.items %}
+          <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px">
+            <div class="field"><label>Название</label><input type="text" name="item_{{ item.id }}_title" value="{{ item.title }}"></div>
+            <div class="field" style="border:2px solid #B4860F;border-radius:10px;padding:8px;background:#FBF6E8"><label>Состояние</label><textarea name="item_{{ item.id }}_state" rows="3">{{ item.state_text }}</textarea></div>
+            <div class="field-row">
+              <div class="field"><label>Количество</label><input type="text" name="item_{{ item.id }}_quantity" value="{{ item.quantity or '' }}"></div>
+              <div class="field"><label>Цена числом</label><input type="text" name="item_{{ item.id }}_price_amount" value="{{ item.price_amount if item.price_amount is not none else '' }}"></div>
+            </div>
+            <div class="field"><label>Цена словами</label><input type="text" name="item_{{ item.id }}_price_text" value="{{ item.price_text or '' }}"></div>
+            <div class="field"><label>Комментарий</label><textarea name="item_{{ item.id }}_note" rows="2">{{ item.note or '' }}</textarea></div>
+            <div class="field"><label>Статус поставки</label>
+              <select name="item_{{ item.id }}_status">{% for code, label in statuses %}<option value="{{ code }}" {% if item.status == code %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+              <div class="hint">Гость видит только «Опубликовано».</div>
+            </div>
+          </div>
+          {% else %}
+          <p class="hint">Поставок нет. Организатор добавляет их из кабинета.</p>
+          {% endfor %}
+        </div>
+      </div>
+      <div>
+        <div class="pbox">
+          <h2>Модерация</h2>
+          <div class="field"><label>Сбор гостя, %</label><input type="text" name="service_fee_pct" value="{{ pct_label(o.service_fee_pct) }}"><div class="hint">Для досуга по умолчанию 5. Это не сбор жилья и не продажа активности.</div></div>
+          <label class="field"><input type="checkbox" name="consent_own_service" value="1" {% if o.consent_own_service %}checked{% endif %}> Услугу и оплату принимает организатор, АдыГид не агент</label>
+          <label class="field"><input type="checkbox" name="consent_docs" value="1" {% if o.consent_docs %}checked{% endif %}> Документы и страховку готов показать по запросу</label>
+          <label class="field"><input type="checkbox" name="photos_honest" value="1" {% if o.photos_honest %}checked{% endif %}> Фото без логотипов и без ИИ</label>
+          <label class="field"><input type="checkbox" name="photos_vests" value="1" {% if o.photos_vests %}checked{% endif %}> На фото сплава все в жилетах</label>
+          <div class="field"><label>Заметка организатору</label><textarea name="moderation_note" rows="3">{{ o.moderation_note or '' }}</textarea><div class="hint">Видна в кабинете организатора, не на сайте.</div></div>
+          <div class="field"><label>Заметки себе</label><textarea name="admin_notes" rows="4">{{ o.admin_notes or '' }}</textarea></div>
+          <div class="lz-actions" style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-primary" name="action" value="approve" type="submit">Одобрить и опубликовать</button>
+            <button class="btn" name="action" value="save" type="submit">Сохранить, не меняя статус</button>
+            <button class="btn" name="action" value="pending" type="submit">Вернуть на модерацию</button>
+            <button class="btn" name="action" value="reject" type="submit">Отклонить</button>
+          </div>
+        </div>
+        <div class="pbox">
+          <h2>Организатор</h2>
+          <p class="hint">Телефон и имя на сайте не показываются.</p>
+          <div class="field"><label>Название для гостей</label><input type="text" name="display_name" value="{{ o.provider.display_name }}"></div>
+          <div class="field"><label>Статус</label>
+            <select name="legal_status">{% for code, title in legal_statuses %}<option value="{{ code }}" {% if o.provider.legal_status == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
+          <div class="field"><label>Реквизиты (только здесь)</label><input type="text" name="legal_details" value="{{ o.provider.legal_details or '' }}"></div>
+          <div class="field"><label>Лицензии</label><textarea name="licenses_note" rows="2">{{ o.provider.licenses_note or '' }}</textarea></div>
+          <div class="field"><label>Страховка</label><textarea name="insurance_note" rows="2">{{ o.provider.insurance_note or '' }}</textarea></div>
+          <div class="field"><label>Инструктор</label>
+            <select name="has_instructor">
+              <option value="1" {% if o.provider.has_instructor %}selected{% endif %}>Есть</option>
+              <option value="0" {% if not o.provider.has_instructor %}selected{% endif %}>Нет</option>
+            </select></div>
+          <div class="field"><label>Про инструктора</label><input type="text" name="instructor_note" value="{{ o.provider.instructor_note or '' }}"></div>
+          <div class="field"><label>Сайт</label><input type="text" name="website" value="{{ o.provider.website or '' }}"></div>
+          <div class="field"><label>Соцсети</label><input type="text" name="socials" value="{{ o.provider.socials or '' }}"></div>
+          <div class="field"><label>Имя контакта</label><input type="text" name="contact_name" value="{{ o.provider.contact_name or '' }}"></div>
+          <div class="field"><label>Телефон</label><input type="text" name="contact_phone" value="{{ o.provider.contact_phone or '' }}"></div>
+          <div class="field"><label>Мессенджер</label><input type="text" name="contact_messenger" value="{{ o.provider.contact_messenger or '' }}"></div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% include "_partners_admin_css.html" %}
+{% endblock %}

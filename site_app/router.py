@@ -16,7 +16,9 @@ from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import SessionLocal, get_db
-from app.models import Article, Category, Checkpoint, DifficultyLevel, District, FaqSet, Like, Magnet, Scenario, SitePage, Trail
+from app.models import (
+    Article, Category, Checkpoint, DifficultyLevel, District, FaqSet, LeisureOffer, Like, Magnet, Scenario, SitePage, Trail,
+)
 from site_app.content import (
     ACCESS_LABELS,
     CLUB_URL,
@@ -2322,11 +2324,23 @@ def sitemap_xml(db: Session = Depends(get_db)):
     trail_urls = [(route_url(r), day(r.updated_at or r.created_at), "monthly") for r in trails]
     article_urls = [(f"/stati/{r.slug}", day(r.updated_at or r.created_at), "monthly") for r in articles]
     scenario_urls = [(f"/kuda/{r.slug}", day(r.updated_at or r.created_at), "weekly") for r in scenarios]
+    leisure = db.execute(
+        select(LeisureOffer.slug, LeisureOffer.updated_at, LeisureOffer.created_at).where(
+            LeisureOffer.is_published == True,
+            LeisureOffer.status == "approved",
+            LeisureOffer.slug.is_not(None),
+        )
+    ).all()
+    leisure_urls = [
+        (f"/dosug/{r.slug}", day(r.updated_at or r.created_at), "weekly")
+        for r in leisure if r.slug and not str(r.slug).isdigit()
+    ]
 
     last_places = latest(*[u[1] for u in place_urls])
     last_trails = latest(*[u[1] for u in trail_urls])
     last_articles = latest(*[u[1] for u in article_urls])
     last_scenarios = latest(*[u[1] for u in scenario_urls])
+    last_leisure = latest(*[u[1] for u in leisure_urls])
 
     district_urls = []
     for d in _districts(db):
@@ -2349,8 +2363,9 @@ def sitemap_xml(db: Session = Depends(get_db)):
         ("/voprosy", None, "monthly"),
         ("/klub", None, "monthly"),
         ("/podbor", latest(last_places, last_trails), "weekly"),
+        ("/dosug", last_leisure, "weekly"),
     ]
-    urls += scenario_urls + district_urls + place_urls + trail_urls + article_urls
+    urls += scenario_urls + district_urls + place_urls + trail_urls + article_urls + leisure_urls
 
     body = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for path, lastmod, changefreq in urls:
