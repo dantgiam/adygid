@@ -30,10 +30,13 @@ PLACE_NAMES = {
     56: "Каменное море",
     57: "Азишский перевал: панорама у дороги",
     43: "Экстрим-парк «Мишоко»",
+    49: "Старый мост в Даховской",
+    30: "Михайло-Афонская пустынь",
+    64: "Яворова поляна",
 }
 
 # Карточки, которые в этой ветке получили новые официальные факты.
-UPDATED = {24, 55, 62, 63, 48, 67, 56, 57, 43}
+UPDATED = {24, 55, 62, 63, 48, 67, 56, 57, 43, 49, 30, 64}
 
 VARIANTS = {"kompakt": "A", "istochniki": "B", "kartochki": "C"}
 
@@ -78,14 +81,18 @@ def slash():
 
 
 @router.get("/chernovik/korotko-dlya-poezdki", include_in_schema=False)
-def preview(request: Request, v: str = "kompakt"):
+def preview(request: Request, v: str = "kompakt", ids: str = ""):
     variant = v if v in VARIANTS else "kompakt"
+    places = _places()
+    if ids:
+        wanted = {int(x) for x in ids.split(",") if x.strip().isdigit()}
+        places = [p for p in places if p["id"] in wanted]
     response = templates.TemplateResponse(
         "trip_brief_preview.html",
         {
             "request": request,
             "variant": variant,
-            "places": _places(),
+            "places": places,
             "rev": int(datetime.now().timestamp()),
             "canonical_url": str(request.base_url).rstrip("/") + "/chernovik/korotko-dlya-poezdki",
         },
