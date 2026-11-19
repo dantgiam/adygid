@@ -39,6 +39,7 @@ router = APIRouter()
 
 CONSENT_VERSION = "1.0"
 MIGRATION = os.path.join(os.path.dirname(__file__), "..", "migrations", "20261115_partners.sql")
+REGISTRY_MIGRATION = os.path.join(os.path.dirname(__file__), "..", "migrations", "20261119_partner_stay_registry.sql")
 
 # Реальные фото Адыгеи из базы сайта (места 54, 43, 72, 86, 55, 24).
 _MEDIA = "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/"
@@ -76,6 +77,22 @@ def ensure_partner_tables() -> None:
                 conn.execute(text(stmt))
     except Exception:
         log.exception("partners migration failed")
+    try:
+        raw = open(REGISTRY_MIGRATION, encoding="utf-8").read()
+    except OSError:
+        log.warning("stay registry migration missing")
+        return
+    stmts = []
+    for chunk in raw.split(";"):
+        lines = [ln for ln in chunk.splitlines() if ln.strip() and not ln.strip().startswith("--")]
+        if lines:
+            stmts.append("\n".join(lines))
+    try:
+        with engine.begin() as conn:
+            for stmt in stmts:
+                conn.execute(text(stmt))
+    except Exception:
+        log.exception("stay registry migration failed")
 
 
 def bot_links(code: str) -> dict:
