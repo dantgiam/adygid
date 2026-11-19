@@ -1,12 +1,50 @@
-"""SEO-настройки, которые пока живут в коде, а не в админке.
+"""SEO-настройки. Title и description статей, маршрутов, округов и сценариев
+уже можно править в админке. Поле из админки важнее словаря ниже, словарь
+важнее формулы в шаблоне. Словари не удаляем: пока поле пустое, на сайте
+остаётся прежний текст.
 
 Title страницы и H1 — разные вещи: H1 остаётся живым авторским заголовком,
 а в <title> добавляем формулировку, которую реально ищут («Каменномостский»,
-«Адыгея», «что посмотреть»). Пусто в словаре — title собирается как раньше.
-Когда правил станет больше, их стоит перенести в поле seo_title в админке.
+«Адыгея», «что посмотреть»). Пусто и в админке, и в словаре — title
+собирается как раньше.
 """
 from datetime import date
 from typing import Optional
+
+# Длины как у карточек мест: в поле рекомендуем 60 и 160 знаков,
+# сохраняем title не длиннее 80, description — от 60 до 230.
+# Пустое поле не ошибка: на сайте остаётся словарь или формула шаблона.
+SEO_TITLE_RECOMMENDED = 60
+SEO_TITLE_MAX = 80
+SEO_DESC_RECOMMENDED = 160
+SEO_DESC_MIN = 60
+SEO_DESC_MAX = 230
+
+
+def _seo_flat(value: Optional[str]) -> str:
+    return " ".join((value or "").split())
+
+
+def normalize_seo_title(value: Optional[str]) -> Optional[str]:
+    """Пусто → None. Длиннее потолка — ValueError, вызывающий отдаёт 400."""
+    text = _seo_flat(value)
+    if not text:
+        return None
+    if len(text) > SEO_TITLE_MAX:
+        raise ValueError(f"Title для поиска — до {SEO_TITLE_MAX} знаков (сейчас {len(text)}).")
+    return text
+
+
+def normalize_seo_description(value: Optional[str]) -> Optional[str]:
+    """Пусто → None. Вне 60–230 знаков — ValueError."""
+    text = _seo_flat(value)
+    if not text:
+        return None
+    if len(text) < SEO_DESC_MIN or len(text) > SEO_DESC_MAX:
+        raise ValueError(
+            f"Description для поиска — от {SEO_DESC_MIN} до {SEO_DESC_MAX} знаков (сейчас {len(text)})."
+        )
+    return text
 
 # /okrugi/{slug}: title. В имени округа в базе «Округ Хаджоха» — по такому
 # названию никто не ищет, ищут посёлок и «что посмотреть». Формулы разные:

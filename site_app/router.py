@@ -193,6 +193,12 @@ def _with_route_relations(stmt):
 #  Мелкие помощники форматирования
 # ─────────────────────────────────────────────
 
+def _manual_seo(value: Optional[str]) -> Optional[str]:
+    """Непустое SEO-поле из админки. Пустая строка — как будто поля нет."""
+    text = " ".join((value or "").split())
+    return text or None
+
+
 def _excerpt(text: Optional[str], length: int = 140) -> str:
     if not text:
         return ""
@@ -1133,6 +1139,10 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         "gpx_url": f"{route_url(t)}/track.gpx" if t.segments else None,
         "district_url": f"/okrugi/{t.district}" if t.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(t.checked_at),
+        # Пусто — заголовок и description собирает шаблон, как раньше.
+        # Словаря title для маршрутов в seo.py нет.
+        "seo_title": _manual_seo(t.seo_title),
+        "seo_description": _manual_seo(t.seo_description),
         "checkpoints": [
             {
                 "name": cp.name,
@@ -1210,6 +1220,9 @@ def _districts(db: Session) -> list:
             "cover": d.cover_url, "cover_thumb": d.cover_thumb_url or d.cover_url,
             "cover_style": _crop_style(d.cover_focus),
             "published": d.is_published,
+            # Title: поле админки, затем словарь. Description: поле, затем вступление в шаблоне.
+            "seo_title": _manual_seo(d.seo_title) or seo.DISTRICT_TITLES.get(d.slug),
+            "seo_description": _manual_seo(d.seo_description),
         }
         for d in rows
     ]
@@ -1927,7 +1940,7 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "faq": auto_faq,
         "faq_items": _faq_items_html(auto_faq["items"]),
         "curated": bool(curated),
-        "seo_title": seo.SCENARIO_TITLES.get(sc.slug),
+        "seo_title": _manual_seo(sc.seo_title) or seo.SCENARIO_TITLES.get(sc.slug),
         "updated_iso": (getattr(sc, "updated_at", None) or sc.created_at).date().isoformat() if (getattr(sc, "updated_at", None) or sc.created_at) else None,
         "breadcrumbs_ld": seo.breadcrumbs_ld(SITE_URL, [("Куда поехать", "/kuda"), (sc.title, f"/kuda/{sc.slug}")]),
         "seo_description": sc.seo_description or _excerpt(sc.lead, 200) or sc.title,
@@ -2034,7 +2047,10 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "places": places,
         "routes": routes,
         "articles": articles,
-        "seo_title": seo.DISTRICT_TITLES.get(slug),
+        # Поле админки, затем словарь — уже собрано в _districts. Шаблон
+        # подставляет формулу, если и то и другое пусто.
+        "seo_title": page.get("seo_title"),
+        "seo_description": page.get("seo_description"),
         "faq": faq,
         "faq_items": _faq_items_html(faq["items"]),
         "faq_ld": _faq_ld(faq["items"]),
@@ -2132,7 +2148,8 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "faq_title": faq_title,
         "faq_items": _faq_items_html(faq),
         "faq_ld": faq_ld,
-        "seo_title": seo.ARTICLE_TITLES.get(a.slug),
+        "seo_title": _manual_seo(a.seo_title) or seo.ARTICLE_TITLES.get(a.slug),
+        "seo_description": _manual_seo(a.seo_description),
         "published_iso": a.created_at.date().isoformat() if a.created_at else None,
         "modified_iso": modified.date().isoformat() if modified else None,
         "next_hub": _next_hub(db, a.slug),

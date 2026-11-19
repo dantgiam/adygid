@@ -3,7 +3,7 @@
 {% import "_faq.html" as faqui %}
 
 {% block title %}{{ article.seo_title or (article.title ~ " — АдыГид") }}{% endblock %}
-{% block meta_description %}{{ article.excerpt or article.title }}{% endblock %}
+{% block meta_description %}{{ article.seo_description or article.excerpt or article.title }}{% endblock %}
 {% block og_type %}article{% endblock %}
 {% block og_image %}{% if article.cover_url %}<meta property="og:image" content="{{ article.cover_url|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 
@@ -13,7 +13,7 @@
   "@context": "https://schema.org",
   "@type": "Article",
   "headline": article.title,
-  "description": article.excerpt or article.title,
+  "description": article.seo_description or article.excerpt or article.title,
   "url": canonical_url,
   "image": [article.cover_url] if article.cover_url else [],
   "inLanguage": "ru-RU",

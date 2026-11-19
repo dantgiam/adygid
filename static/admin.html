@@ -110,6 +110,16 @@
           <textarea id="a-excerpt" placeholder="Пара предложений для карточки" oninput="scheduleAutosave()"></textarea>
         </div>
         <div class="field">
+          <label>Title для поиска <span class="seo-count" data-seo-for="a-seo-title" data-seo-kind="title"></span></label>
+          <input type="text" id="a-seo-title" maxlength="80" placeholder="Пусто — останется текущий заголовок в поиске" oninput="scheduleAutosave(); paintSeoCounts()">
+          <div class="hint">Около 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «заголовок — АдыГид».</div>
+        </div>
+        <div class="field">
+          <label>Description для поиска <span class="seo-count" data-seo-for="a-seo-desc" data-seo-kind="desc"></span></label>
+          <textarea id="a-seo-desc" maxlength="230" rows="3" placeholder="Пусто — короткий анонс" oninput="scheduleAutosave(); paintSeoCounts()"></textarea>
+          <div class="hint">От 60 до 230 знаков, лучше около 160. Пусто — короткий анонс статьи.</div>
+        </div>
+        <div class="field">
           <label>Обложка</label>
           <input type="file" id="a-cover-file" accept="image/jpeg,image/png,image/webp">
           <input type="text" id="a-cover-url" placeholder="или ссылка https://..." style="margin-top:6px" oninput="scheduleAutosave()">
@@ -200,6 +210,16 @@
         <div class="field"><label>Ссылка на Яндекс Навигатор</label>
           <input id="rt-yandex-url" type="url" placeholder="https://yandex.ru/maps/?rtext=…" oninput="scheduleRouteAutosave()">
           <div class="hint">Пусто — соберётся автоматически по точкам маршрута.</div>
+        </div>
+        <div class="field">
+          <label>Title для поиска <span class="seo-count" data-seo-for="rt-seo-title" data-seo-kind="title"></span></label>
+          <input type="text" id="rt-seo-title" maxlength="80" placeholder="Пусто — название и длительность, как сейчас" oninput="scheduleRouteAutosave(); paintSeoCounts()">
+          <div class="hint">Около 60 знаков, не длиннее 80. Пусто — «название — длительность, маршрут по Адыгее».</div>
+        </div>
+        <div class="field">
+          <label>Description для поиска <span class="seo-count" data-seo-for="rt-seo-desc" data-seo-kind="desc"></span></label>
+          <textarea id="rt-seo-desc" maxlength="230" rows="3" placeholder="Пусто — начало описания" oninput="scheduleRouteAutosave(); paintSeoCounts()"></textarea>
+          <div class="hint">От 60 до 230 знаков, лучше около 160. Пусто — начало описания маршрута.</div>
         </div>
         <div id="rt-criteria-slot"></div>
         <div class="hint" id="rt-map-hint" style="margin-top:4px">Тропу и точки по пути редактируйте кнопкой «Карта и точки» в списке маршрутов.</div>
@@ -419,8 +439,14 @@
           <div class="cover-preview" id="sc-tile-cover-preview" hidden></div>
           <div class="hint">Потяните по картинке, чтобы выбрать видимую часть кадра.</div>
         </div>
-        <div class="field"><label>Описание для поиска (SEO)</label>
-          <textarea id="sc-seo" oninput="scheduleScenarioAutosave()"></textarea>
+        <div class="field">
+          <label>Title для поиска <span class="seo-count" data-seo-for="sc-seo-title" data-seo-kind="title"></span></label>
+          <input type="text" id="sc-seo-title" maxlength="80" placeholder="Пусто — останется текущий заголовок в поиске" oninput="scheduleScenarioAutosave(); paintSeoCounts()">
+          <div class="hint">Около 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «заголовок — АдыГид».</div>
+        </div>
+        <div class="field"><label>Описание для поиска (SEO) <span class="seo-count" data-seo-for="sc-seo" data-seo-kind="desc"></span></label>
+          <textarea id="sc-seo" maxlength="230" oninput="scheduleScenarioAutosave(); paintSeoCounts()"></textarea>
+          <div class="hint">От 60 до 230 знаков, лучше около 160. Пусто — начало текста сценария.</div>
         </div>
         <div class="field"><label>Статьи по теме</label><div id="sc-articles"></div></div>
 
