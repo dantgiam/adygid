@@ -1881,6 +1881,14 @@ from app.texts_admin import router as texts_admin_router
 ensure_admin_text_tables()
 app.include_router(texts_admin_router)
 
+# Поездки автора (/admin/poezdki) и разовые правки карточек: монастырь 30
+# и черновик Белореченского водопада. Повторный старт уже записанное не затирает.
+from app.content_fixes import apply_editorial as _apply_editorial
+from app.trips_admin import router as trips_admin_router
+
+_apply_editorial(engine)
+app.include_router(trips_admin_router)
+
 
 @app.get("/api/podbor/stats")
 def get_podbor_stats(db: Session = Depends(get_db), _: bool = Depends(require_admin)):

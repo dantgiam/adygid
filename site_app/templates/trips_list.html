@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+{% import "_faq.html" as faqui %}
+
+{% block title %}{{ tp('poezdki.meta.title', 'Поездки автора — АдыГид') }}{% endblock %}
+{% block meta_description %}{{ tp('poezdki.meta.desc', 'Куда Данила ездил сам: дата, что изменилось и сколько вышло по деньгам.') }}{% endblock %}
+
+{% block extra_ld %}
+{{ faqui.ld(breadcrumbs_ld) }}
+{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:40px">
+  <div class="wrap">
+    <p class="eyebrow">{{ t('poezdki.eyebrow', 'Автор') }}</p>
+    <h1 class="page-title">{{ t('poezdki.title', 'Поездки автора') }}</h1>
+    <p class="section-note">{{ t('poezdki.lead', 'Заметки Данилы с выездов. Карточки мест — отдельно, здесь сам выезд.') }} <a href="/avtor">{{ t('poezdki.author_link', 'Об авторе') }}</a></p>
+    {% if trips %}
+    <div class="grid">
+      {% for t in trips %}
+      <a class="card" href="{{ t.url }}">
+        <div class="cover">{{ cards.rimg(t.cover, alt=t.cover_alt, class='cover-img', sizes=img_sizes.card, width=900, height=600) }}</div>
+        <div class="body">
+          <span class="kicker"><time datetime="{{ t.date_iso }}">{{ t.date_label }}</time></span>
+          <h3>{{ t.title }}</h3>
+          {% if t.excerpt %}<p class="excerpt">{{ t.excerpt }}</p>{% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">{{ t('poezdki.empty', 'Поездок пока нет. Данила добавит их после следующих выездов.') }}</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

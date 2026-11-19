@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% import "_faq.html" as faqui %}
+
+{% block title %}{{ tp('avtor.meta.title', 'Данила — автор АдыГид') }}{% endblock %}
+{% block meta_description %}{{ tp('avtor.meta.desc', 'Данила (Даня), автор АдыГид: студент МГТУ в Адыгее. Каналы в Telegram и MAX.') }}{% endblock %}
+
+{% block extra_ld %}
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@type": "ProfilePage",
+  "url": canonical_url,
+  "mainEntity": {
+    "@type": "Person",
+    "name": tp('avtor.schema_name', 'Данила'),
+    "alternateName": tp('avtor.schema_aka', 'Даня'),
+    "url": site_url ~ "/avtor",
+    "description": tp('avtor.schema_desc', 'Автор АдыГид, студент МГТУ в Адыгее'),
+    "sameAs": [tp('avtor.telegram_url', 'https://t.me/adygid'), tp('avtor.max_url', 'https://max.ru/join/0qCTe9sSqljJIWYNI5hWBecoM1rr3B_proAXGK5O0tE')]
+  }
+} | tojson }}
+</script>
+{{ faqui.ld(breadcrumbs_ld) }}
+{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:40px">
+  <div class="wrap" style="max-width:760px">
+    <p class="eyebrow">{{ t('avtor.eyebrow', 'Автор') }}</p>
+    <h1 class="page-title">{{ tp('avtor.schema_name', 'Данила') }}</h1>
+    <p class="section-note">{{ t('avtor.aka_line', 'Для своих — Даня.') }}</p>
+    <p class="about-text">{{ t('avtor.lead', 'Автор АдыГид. Студент Майкопского государственного технологического университета (МГТУ) в Адыгее.') }}</p>
+    <p class="about-text">{{ t('avtor.bio', 'Пишет о местах и маршрутах, которые смотрит сам.') }}</p>
+    <div class="hero-ctas">
+      {% set tg = tp('avtor.telegram_url', 'https://t.me/adygid') %}
+      {% set mx = tp('avtor.max_url', 'https://max.ru/join/0qCTe9sSqljJIWYNI5hWBecoM1rr3B_proAXGK5O0tE') %}
+      {% if tg.startswith('https://') %}
+      <a class="btn btn-messenger btn-tg" href="{{ tg }}" target="_blank" rel="noopener">
+        <img src="/assets/magnet-tg.png?v={{ asset_version }}" alt="" width="26" height="26">{{ t('avtor.telegram_label', 'Telegram') }}
+      </a>
+      {% endif %}
+      {% if mx.startswith('https://') %}
+      <a class="btn btn-messenger btn-max" href="{{ mx }}" target="_blank" rel="noopener">
+        <img src="/assets/magnet-max.png?v={{ asset_version }}" alt="" width="26" height="26">{{ t('avtor.max_label', 'Канал в MAX') }}
+      </a>
+      {% endif %}
+      <a class="btn btn-gold" href="/poezdki">{{ t('avtor.trips_link', 'Поездки автора') }}</a>
+    </div>
+  </div>
+</section>
+{% endblock %}
