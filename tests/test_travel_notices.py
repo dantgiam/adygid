@@ -56,7 +56,7 @@ def test_podbor_renders_notice_hidden_until_winter(client, monkeypatch):
     html = client.get("/podbor").text
     m = re.search(r'<aside class="trip-notice[^"]*" id="trip-notice"([^>]*)>', html)
     assert m and 'data-winter-only="1"' in m.group(1) and "hidden" in m.group(1)
-    assert "Три вещи, которые сберегут день" in html and "Возьми наличные на КПП" in html
+    assert "Совет от местных" in html and "наличные" in html
     monkeypatch.setattr(tn, "today_msk", lambda now=None: date(2027, 1, 3))
     m = re.search(r'<aside class="trip-notice[^"]*" id="trip-notice"([^>]*)>', client.get("/podbor").text)
     assert m and 'data-always="1"' in m.group(1) and "hidden" not in m.group(1)

@@ -25,7 +25,7 @@ MSK = ZoneInfo("Europe/Moscow")
 QUEUE_SOURCE = {"title": "93.ru, январь 2025", "url": "https://93.ru/text/winter/2025/01/03/74955743/"}
 
 # Какой текст показывать: "a" — три пункта списком, "b" — одним абзацем.
-VARIANT = "a"
+VARIANT = "b"
 
 LAGO = 55
 PLAN_B = [24, 67, 62]  # теснина, «АкваТермо», музей природы в Гузерипле
