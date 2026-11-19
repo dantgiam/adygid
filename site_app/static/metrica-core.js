@@ -144,6 +144,18 @@
     return s;
   }
 
+  // Страницы мест и маршрутов живут по слагам (/mesta/kedrovyy-bor). id для
+  // параметра item сайт кладёт в window.ADYGID_ITEMS["place/<slug>"] по
+  // карточкам и кнопкам «В избранное» на странице (site.js).
+  function slugItem(kind, slug) {
+    try {
+      var g = typeof window !== "undefined" ? window : (typeof globalThis !== "undefined" ? globalThis : null);
+      var map = g && g.ADYGID_ITEMS;
+      var id = map && map[kind + "/" + slug];
+      return id && /^\d{1,6}$/.test(String(id)) ? kind + ":" + id : undefined;
+    } catch (e) { return undefined; }
+  }
+
   function pathInfo(value) {
     var s = pathOnly(value);
     if (!s) return null;
@@ -153,6 +165,9 @@
       [/^\/mesta$/, function () { return { template: "/mesta" }; }],
       [/^\/marshruty\/(\d{1,6})\/track\.gpx$/, function (m) { return { template: "/marshruty/{id}/track.gpx", item: "route:" + m[1] }; }],
       [/^\/marshruty\/(\d{1,6})$/, function (m) { return { template: "/marshruty/{id}", item: "route:" + m[1] }; }],
+      [/^\/mesta\/([a-z0-9][a-z0-9-]{0,119})$/, function (m) { return { template: "/mesta/{id}", item: slugItem("place", m[1]) }; }],
+      [/^\/marshruty\/([a-z0-9][a-z0-9-]{0,119})\/track\.gpx$/, function (m) { return { template: "/marshruty/{id}/track.gpx", item: slugItem("route", m[1]) }; }],
+      [/^\/marshruty\/([a-z0-9][a-z0-9-]{0,119})$/, function (m) { return { template: "/marshruty/{id}", item: slugItem("route", m[1]) }; }],
       [/^\/marshruty$/, function () { return { template: "/marshruty" }; }],
       [/^\/stati\/([a-z0-9-]{1,80})$/, function (m) { return { template: "/stati/{slug}", slug: m[1] }; }],
       [/^\/stati$/, function () { return { template: "/stati" }; }],

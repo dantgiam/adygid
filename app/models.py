@@ -31,6 +31,10 @@ class Trail(Base):
 
     id               = Column(Integer, primary_key=True, index=True)
     name             = Column(String(255), nullable=False)
+    # Адрес страницы: /marshruty/<slug>. Заполняется сам при создании
+    # (app/slugs.py) и не меняется при переименовании; /marshruty/<id>
+    # и старые слаги навсегда отвечают 301 на текущий.
+    slug             = Column(String(120), nullable=True, unique=True, index=True)
     description      = Column(Text, nullable=True)
     category_id      = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     duration_minutes = Column(Integer, nullable=True)
@@ -102,6 +106,8 @@ class Checkpoint(Base):
     id               = Column(Integer, primary_key=True, index=True)
     trail_id         = Column(Integer, ForeignKey("trails.id"), nullable=True)
     name             = Column(String(255), nullable=False)
+    # Адрес страницы: /mesta/<slug> — см. Trail.slug.
+    slug             = Column(String(120), nullable=True, unique=True, index=True)
     category_id      = Column(Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True)
     description      = Column(Text, nullable=True)
     order_index      = Column(Integer, nullable=False, default=0)
@@ -141,6 +147,21 @@ class Checkpoint(Base):
     category = relationship("Category")
     trail    = relationship("Trail", back_populates="checkpoints")
     photos   = relationship("Photo", back_populates="checkpoint", cascade="all, delete-orphan")
+
+
+class SlugRedirect(Base):
+    """Прежние слаги страниц. Когда слаг меняют в админке, старый адрес
+    записывается сюда и навсегда отвечает 301 на текущий — ссылки из
+    поиска, ботов и чужих постов не ломаются.
+    kind: place | route | article."""
+    __tablename__ = "slug_redirects"
+    __table_args__ = (UniqueConstraint("kind", "old_slug", name="uq_slug_redirects_kind_old"),)
+
+    id         = Column(Integer, primary_key=True)
+    kind       = Column(String(20), nullable=False)
+    old_slug   = Column(String(200), nullable=False)
+    entity_id  = Column(Integer, nullable=False, index=True)
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class Magnet(Base):

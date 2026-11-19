@@ -34,6 +34,9 @@ from site_app import trip_facts
 from site_app import site_texts
 from site_app import travel_notices
 from site_app.autolink import autolink
+from site_app import urls as site_urls
+from site_app.urls import place_url, route_url
+from app.models import SlugRedirect
 
 router = APIRouter()
 templates = Jinja2Templates(directory="site_app/templates")
@@ -107,6 +110,9 @@ def _abs_url(url: Optional[str]) -> str:
 templates.env.filters["abs_url"] = _abs_url
 # t('ключ', 'текст') / tp(...) — тексты, которые правятся в админке «Тексты сайта».
 site_texts.install(templates.env)
+# /mesta/<id> в любом выводе шаблона (тексты из базы, url карточек, JSON для
+# скриптов) → /mesta/<slug>: внутренние ссылки сразу канонические.
+templates.env.finalize = site_urls.jinja_finalize
 templates.env.filters["img_src"] = site_images.default_src
 templates.env.filters["img_srcset"] = site_images.srcset
 templates.env.globals["img_sizes"] = {
@@ -506,7 +512,14 @@ def _auto_faq(db: Session, slug: str) -> dict:
     return {"title": f.title, "items": list(f.items)}
 
 
-_MENTION_RE = re.compile(r'href="/(mesta|marshruty)/(\d+)"')
+# Ссылка в тексте — по id (/mesta/24, так хранится в базе) или уже слагом.
+_MENTION_RE = re.compile(r'href="(?:https?://(?:www\.)?adygid\.ru)?/(mesta|marshruty)/([a-z0-9-]+)[#"?]')
+
+
+def _mention_id(kind: str, key: str) -> Optional[int]:
+    if key.isdigit():
+        return int(key)
+    return site_urls.id_for_slug("place" if kind == "mesta" else "route", key)
 _MENTIONS_CACHE: dict = {"value": None, "at": 0.0}
 
 
@@ -527,8 +540,10 @@ def _mentions_index(db: Session) -> dict:
 
     for a in db.execute(select(Article).where(Article.is_published == True)).scalars().all():
         page = dict(_article_card_dict(a), kind="article")
-        for kind, obj_id in _MENTION_RE.findall(a.body or ""):
-            add(kind, int(obj_id), page)
+        for kind, key in _MENTION_RE.findall(a.body or ""):
+            obj_id = _mention_id(kind, key)
+            if obj_id is not None:
+                add(kind, obj_id, page)
         for i in a.featured_checkpoint_ids or []:
             add("mesta", i, page)
         for i in a.featured_trail_ids or []:
@@ -539,8 +554,10 @@ def _mentions_index(db: Session) -> dict:
             "cover": sc.cover_thumb_url or sc.cover_url, "cover_style": _crop_style(sc.cover_focus),
             "district_label": None, "kind": "scenario",
         }
-        for kind, obj_id in _MENTION_RE.findall(sc.lead or ""):
-            add(kind, int(obj_id), page)
+        for kind, key in _MENTION_RE.findall(sc.lead or ""):
+            obj_id = _mention_id(kind, key)
+            if obj_id is not None:
+                add(kind, obj_id, page)
     # Хабы /kuda — первыми: это самые сильные страницы сайта.
     for pages in index.values():
         pages.sort(key=lambda p: 0 if p["kind"] == "scenario" else 1)
@@ -576,7 +593,7 @@ def _place_links(db: Session, ids: list) -> list:
             )
         ).scalars().all()
     }
-    return [{"name": rows[i].name, "url": f"/mesta/{i}"} for i in ids if i in rows]
+    return [{"name": rows[i].name, "url": place_url(rows[i])} for i in ids if i in rows]
 
 
 def _place_practical(db: Session, cp: Checkpoint, block: Optional[dict] = None) -> list:
@@ -593,7 +610,7 @@ def _place_practical(db: Session, cp: Checkpoint, block: Optional[dict] = None) 
             select(Trail).where(Trail.id == block["route_id"], Trail.is_published == True)
         ).scalars().first()
         if t:
-            links.append({"name": f"маршрут «{t.name}»", "url": f"/marshruty/{t.id}"})
+            links.append({"name": f"маршрут «{t.name}»", "url": route_url(t)})
     dur = _duration_label(cp.duration_minutes)
     return trip_facts.table_rows(
         block, visit_auto=f"Ориентир — {dur} без спешки." if dur else None, combine_links=links,
@@ -961,7 +978,7 @@ def toggle_like(subject_type: str, subject_id: int, request: Request, response: 
 def _place_card_dict(cp: Checkpoint) -> dict:
     return {
         "id": cp.id,
-        "url": f"/mesta/{cp.id}",
+        "url": place_url(cp),
         "name": cp.name,
         "excerpt": _excerpt(cp.description),
         "cover": _thumb_of(cp.photos),
@@ -978,7 +995,7 @@ def _place_card_dict(cp: Checkpoint) -> dict:
 def _route_card_dict(t: Trail) -> dict:
     return {
         "id": t.id,
-        "url": f"/marshruty/{t.id}",
+        "url": route_url(t),
         "name": t.name,
         "excerpt": _excerpt(t.description),
         "cover": _thumb_of(t.photos),
@@ -1068,7 +1085,7 @@ def _place_detail_dict(db: Session, cp: Checkpoint) -> dict:
         "equipment_tags": cp.equipment_tags or [],
         "yandex_url": _yandex_point_url(cp),
         "weather_url": _weather_url(to_shape(cp.geom).y, to_shape(cp.geom).x),
-        "trail": {"name": cp.trail.name, "url": f"/marshruty/{cp.trail.id}"} if cp.trail else None,
+        "trail": {"name": cp.trail.name, "url": route_url(cp.trail)} if cp.trail else None,
         "district_url": f"/okrugi/{cp.district}" if cp.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(cp.checked_at),
         # Title и description: ручная правка из админки, иначе из проверенных
@@ -1113,7 +1130,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         "equipment_tags": t.equipment_tags or [],
         "yandex_url": _yandex_route_url(t),
         "weather_url": weather_url,
-        "gpx_url": f"/marshruty/{t.id}/track.gpx" if t.segments else None,
+        "gpx_url": f"{route_url(t)}/track.gpx" if t.segments else None,
         "district_url": f"/okrugi/{t.district}" if t.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(t.checked_at),
         "checkpoints": [
@@ -1121,7 +1138,7 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
                 "name": cp.name,
                 # Ссылка только у точек, выделенных в самостоятельные места —
                 # у остальных страницы нет, ведут в 404.
-                "url": f"/mesta/{cp.id}" if cp.show_as_place else None,
+                "url": place_url(cp) if cp.show_as_place else None,
                 "category_name": cp.category.name if cp.category else None,
             }
             for cp in ordered_cps
@@ -1361,6 +1378,7 @@ def invalidate_home_cache() -> None:
     _DISTRICT_CACHE["value"] = None
     _CLUB_URL_CACHE["value"] = None
     _MENTIONS_CACHE["value"] = None
+    site_urls.invalidate()
     invalidate_podbor_cache()
     # Тексты из админки «Тексты сайта»: правка видна со следующего запроса.
     trip_facts.invalidate()
@@ -1500,6 +1518,64 @@ def podbor_page(request: Request, db: Session = Depends(get_db), src: str = "", 
 
 
 # ─────────────────────────────────────────────
+#  Адреса страниц: слаг канонический, id и прежние слаги — 301
+# ─────────────────────────────────────────────
+
+_KIND_MODEL = {"place": Checkpoint, "route": Trail, "article": Article}
+_KIND_PREFIX = {"place": "/mesta", "route": "/marshruty", "article": "/stati"}
+
+
+def _visible(kind: str, obj) -> bool:
+    if obj is None or not obj.is_published:
+        return False
+    return obj.show_as_place if kind == "place" else True
+
+
+def _redirect_301(request: Request, path: str) -> RedirectResponse:
+    q = request.url.query
+    return RedirectResponse(path + (f"?{q}" if q else ""), status_code=301)
+
+
+def _resolve_page(db: Session, request: Request, kind: str, key: str, suffix: str = ""):
+    """(id, None) — страница по каноническому слагу; (None, redirect) — 301 на
+    текущий адрес: /mesta/<id>, старый слаг из slug_redirects, слаг в другом
+    регистре. Скрытые и несуществующие — 404. Ссылки на /mesta/<id> работают
+    вечно и у новых карточек: слаг появляется у записи сразу при создании."""
+    model = _KIND_MODEL[kind]
+    prefix = _KIND_PREFIX[kind]
+
+    def go(obj):
+        if not _visible(kind, obj):
+            raise HTTPException(404, "Страница не найдена")
+        if not obj.slug:  # запись без слага (до миграции) — отдаём по id
+            return obj.id, None
+        return None, _redirect_301(request, f"{prefix}/{obj.slug}{suffix}")
+
+    if len(key) <= 120:
+        obj = db.execute(select(model).where(model.slug == key)).scalars().first()
+        if obj is not None:
+            if not _visible(kind, obj):
+                raise HTTPException(404, "Страница не найдена")
+            return obj.id, None
+    if key.isdigit() and len(key) <= 9:
+        obj = db.get(model, int(key))
+        if obj is not None and obj.slug is None and _visible(kind, obj):
+            return obj.id, None
+        return go(obj)
+    low = key.lower().strip("-")
+    if low != key and len(low) <= 120:
+        obj = db.execute(select(model).where(model.slug == low)).scalars().first()
+        if obj is not None:
+            return go(obj)
+    old = db.execute(
+        select(SlugRedirect.entity_id).where(SlugRedirect.kind == kind, SlugRedirect.old_slug.in_({key, low}))
+    ).scalars().first()
+    if old is not None:
+        return go(db.get(model, old))
+    raise HTTPException(404, "Страница не найдена")
+
+
+# ─────────────────────────────────────────────
 #  Места
 # ─────────────────────────────────────────────
 
@@ -1539,8 +1615,11 @@ def places_list(
     )
 
 
-@router.get("/mesta/{place_id}")
-def place_detail(request: Request, place_id: int, db: Session = Depends(get_db)):
+@router.get("/mesta/{key}")
+def place_detail(request: Request, key: str, db: Session = Depends(get_db)):
+    place_id, redirect = _resolve_page(db, request, "place", key)
+    if redirect:
+        return redirect
     # Забираем место сразу с фото, категорией и маршрутом (вместе с его фото и
     # категорией) — иначе каждое из этих полей уходит отдельным запросом.
     cp = db.execute(
@@ -1568,7 +1647,7 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
     crumbs = [("Места", "/mesta")]
     if place["district_url"]:
         crumbs.append((place["district_label"], place["district_url"]))
-    crumbs.append((place["name"], f"/mesta/{cp.id}"))
+    crumbs.append((place["name"], place_url(cp)))
     faq = _auto_faq(db, f"mesta-{cp.id}")
     block = trip_facts.block_for(cp.id)
     return templates.TemplateResponse(
@@ -1583,7 +1662,7 @@ def place_detail(request: Request, place_id: int, db: Session = Depends(get_db))
             practical_heading=trip_facts.heading(block, cp.name),
             practical_checked=trip_facts.checked(block),
             place_ld=seo.place_ld(
-                cp.id, name=place["name"], url=SITE_URL + f"/mesta/{cp.id}",
+                cp.id, name=place["name"], url=SITE_URL + place_url(cp),
                 description=place["seo_description"], images=place["photos"],
                 lat=place["lat"], lon=place["lon"], is_paid=place["is_paid"],
                 facts=trip_facts.facts(block, cp.name), checked=trip_facts.checked(block),
@@ -1629,8 +1708,11 @@ def routes_list(
     )
 
 
-@router.get("/marshruty/{route_id}")
-def route_detail(request: Request, route_id: int, db: Session = Depends(get_db)):
+@router.get("/marshruty/{key}")
+def route_detail(request: Request, key: str, db: Session = Depends(get_db)):
+    route_id, redirect = _resolve_page(db, request, "route", key)
+    if redirect:
+        return redirect
     # Точки по пути показываются с категориями — тянем их одной пачкой.
     t = db.execute(
         _with_route_relations(select(Trail))
@@ -1660,7 +1742,7 @@ def route_detail(request: Request, route_id: int, db: Session = Depends(get_db))
     crumbs = [("Маршруты", "/marshruty")]
     if route["district_url"]:
         crumbs.append((route["district_label"], route["district_url"]))
-    crumbs.append((route["name"], f"/marshruty/{t.id}"))
+    crumbs.append((route["name"], route_url(t)))
     faq = _auto_faq(db, f"marshruty-{t.id}")
     return templates.TemplateResponse(
         "route_detail.html",
@@ -1674,11 +1756,14 @@ def route_detail(request: Request, route_id: int, db: Session = Depends(get_db))
     )
 
 
-@router.get("/marshruty/{route_id}/track.gpx")
-def route_gpx(route_id: int, db: Session = Depends(get_db)):
+@router.get("/marshruty/{key}/track.gpx")
+def route_gpx(request: Request, key: str, db: Session = Depends(get_db)):
     """Трек маршрута в GPX — чтобы залить в навигатор и идти по нему там,
     где нет связи. Ссылки на сайте пока нет: включим, когда тропы будут
     отрисованы, а сейчас файл уже отдаётся по прямому адресу."""
+    route_id, redirect = _resolve_page(db, request, "route", key, suffix="/track.gpx")
+    if redirect:
+        return redirect
     t = db.get(Trail, route_id)
     if not t:
         raise HTTPException(404, "Маршрут не найден")
@@ -1686,7 +1771,7 @@ def route_gpx(route_id: int, db: Session = Depends(get_db)):
     parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<gpx version="1.1" creator="АдыГид" xmlns="http://www.topografix.com/GPX/1/1">',
-        f"<metadata><name>{escape(t.name)}</name><link href=\"{escape(SITE_URL)}/marshruty/{t.id}\"/></metadata>",
+        f"<metadata><name>{escape(t.name)}</name><link href=\"{escape(SITE_URL + route_url(t))}\"/></metadata>",
     ]
 
     for cp in sorted(t.checkpoints, key=lambda c: c.order_index):
@@ -1972,6 +2057,10 @@ def articles_list(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/stati/{slug}")
 def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
+    # /stati/<id> и прежние слаги статьи — 301 на текущий слаг.
+    article_id, redirect = _resolve_page(db, request, "article", slug)
+    if redirect:
+        return redirect
     # is_published проверяем здесь же, как у мест и маршрутов: снятая с публикации
     # статья не должна открываться и по прямой ссылке. Без этого переключатель в
     # админке лишь убирал её из списков и sitemap, а сама страница оставалась
@@ -2210,11 +2299,11 @@ def sitemap_xml(db: Session = Depends(get_db)):
         return max(vals) if vals else None
 
     places = db.execute(
-        select(Checkpoint.id, Checkpoint.district, Checkpoint.updated_at, Checkpoint.created_at)
+        select(Checkpoint.id, Checkpoint.slug, Checkpoint.district, Checkpoint.updated_at, Checkpoint.created_at)
         .where(Checkpoint.show_as_place == True, Checkpoint.is_published == True)
     ).all()
     trails = db.execute(
-        select(Trail.id, Trail.district, Trail.updated_at, Trail.created_at).where(Trail.is_published == True)
+        select(Trail.id, Trail.slug, Trail.district, Trail.updated_at, Trail.created_at).where(Trail.is_published == True)
     ).all()
     articles = db.execute(
         select(Article.slug, Article.district, Article.updated_at, Article.created_at).where(Article.is_published == True)
@@ -2223,8 +2312,8 @@ def sitemap_xml(db: Session = Depends(get_db)):
         select(Scenario.slug, Scenario.updated_at, Scenario.created_at).where(Scenario.is_published == True)
     ).all()
 
-    place_urls = [(f"/mesta/{r.id}", day(r.updated_at or r.created_at), "monthly") for r in places]
-    trail_urls = [(f"/marshruty/{r.id}", day(r.updated_at or r.created_at), "monthly") for r in trails]
+    place_urls = [(place_url(r), day(r.updated_at or r.created_at), "monthly") for r in places]
+    trail_urls = [(route_url(r), day(r.updated_at or r.created_at), "monthly") for r in trails]
     article_urls = [(f"/stati/{r.slug}", day(r.updated_at or r.created_at), "monthly") for r in articles]
     scenario_urls = [(f"/kuda/{r.slug}", day(r.updated_at or r.created_at), "weekly") for r in scenarios]
 

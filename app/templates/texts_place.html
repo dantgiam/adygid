@@ -74,9 +74,12 @@
         <div class="field"><label>Description — описание под заголовком <span class="tx-count" data-count-for="seo_description" data-rec="{{ desc_rec }}"></span></label>
           <textarea name="seo_description" id="seo_description" rows="3" placeholder="{{ auto_desc }}" maxlength="1000">{{ b.seo_description }}</textarea>
           <div class="tx-hint">Пусто — собирается из проверенных часов и цены, иначе начало описания места. Яндекс показывает около {{ desc_rec }} знаков.</div></div>
+        <div class="field"><label>Адрес страницы (slug)</label>
+          <input type="text" name="slug" id="slug" value="{{ cp.slug or '' }}" placeholder="kedrovyy-bor" maxlength="120" pattern="[A-Za-z0-9 -]+">
+          <div class="tx-hint">Страница: www.adygid.ru/mesta/<b>slug</b> — латиница, цифры, дефисы. Старый адрес и /mesta/{{ cp.id }} продолжат вести сюда (301), так что менять можно, но без нужды не стоит: поисковику нужно время, чтобы переклеить адрес.</div></div>
         <p class="muted" style="margin:6px 0">Так примерно будет в выдаче:</p>
         <div class="tx-snippet" id="snippet">
-          <div class="sn-url">www.adygid.ru › mesta › {{ cp.id }}</div>
+          <div class="sn-url">www.adygid.ru › mesta › <span data-sn="slug">{{ cp.slug or cp.id }}</span></div>
           <div class="sn-title" data-sn="title">{{ effective_title }}</div>
           <div class="sn-desc" data-sn="desc">{{ effective_desc }}</div>
         </div>
@@ -194,6 +197,9 @@
     document.querySelector('[data-sn=title]').textContent = cut(ttl.value || ttl.placeholder, 70);
     document.querySelector('[data-sn=desc]').textContent = cut(dsc.value || dsc.placeholder, 170);
   }
+  const slg = document.getElementById('slug');
+  function updSlug() { document.querySelector('[data-sn=slug]').textContent = (slg.value || slg.placeholder).toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+  if (slg) { slg.addEventListener('input', updSlug); }
   ttl.addEventListener('input', upd); dsc.addEventListener('input', upd); upd();
 })();
 </script>

@@ -193,6 +193,10 @@
             <input id="rt-duration" type="number" min="0" placeholder="150" oninput="scheduleRouteAutosave()">
           </div>
         </div>
+        <div class="field"><label>Адрес страницы (slug)</label>
+          <input id="rt-slug" type="text" placeholder="сгенерируется из названия" oninput="scheduleRouteAutosave()">
+          <div class="hint" id="rt-slug-hint">Страница: /marshruty/<b>slug</b>. При переименовании адрес не меняется. Если сменить его здесь, старый адрес и /marshruty/&lt;номер&gt; продолжат вести сюда (301).</div>
+        </div>
         <div class="field"><label>Ссылка на Яндекс Навигатор</label>
           <input id="rt-yandex-url" type="url" placeholder="https://yandex.ru/maps/?rtext=…" oninput="scheduleRouteAutosave()">
           <div class="hint">Пусто — соберётся автоматически по точкам маршрута.</div>
@@ -333,6 +337,10 @@
         </div>
         <div class="field"><label>Входит в маршрут</label>
           <select id="pl-trail" onchange="onPlaceTrailChange()"></select>
+        </div>
+        <div class="field"><label>Адрес страницы (slug)</label>
+          <input id="pl-slug" type="text" placeholder="сгенерируется из названия" oninput="schedulePlaceAutosave()">
+          <div class="hint" id="pl-slug-hint">Страница: /mesta/<b>slug</b>. При переименовании адрес не меняется. Если сменить его здесь, старый адрес и /mesta/&lt;номер&gt; продолжат вести сюда (301).</div>
         </div>
         <div class="field"><label>Ссылка на Яндекс Навигатор</label>
           <input id="pl-yandex-url" type="url" placeholder="https://yandex.ru/maps/?rtext=…" oninput="schedulePlaceAutosave()">

@@ -107,9 +107,10 @@ def test_live_place_is_linked_from_podbor(client):
         auth=AUTH,
     )
     assert created.status_code == 201, created.text
-    place_id = created.json()["id"]
+    place_url = created.json()["url"]
+    assert place_url == "/mesta/" + created.json()["slug"]
     page = client.get("/podbor")
-    assert f"/mesta/{place_id}" in page.text
+    assert place_url in page.text
     assert "Тестовый водопад подбора" in page.text
 
 

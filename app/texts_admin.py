@@ -28,6 +28,8 @@ from app.database import get_db
 from app.models import AdminTextHistory, Checkpoint, PlaceTripBlock, SiteNotice, SiteText, Trail
 from site_app import site_texts, travel_notices, trip_facts
 from site_app.router import SITE_URL, invalidate_home_cache
+from site_app.urls import place_url
+from app.slugs import set_slug
 
 router = APIRouter()
 
@@ -152,12 +154,12 @@ def places_list(request: Request, q: str = "", flt: str = "", db: Session = Depe
         n_ver = sum(1 for r in rows if r.get("verified"))
         title = trip_facts.title(b, cp.name, cp.district)
         item = {
-            "id": cp.id, "name": cp.name, "published": cp.is_published, "has_block": bool(b and b.get("enabled") and rows),
+            "id": cp.id, "name": cp.name, "url": place_url(cp), "published": cp.is_published, "has_block": bool(b and b.get("enabled") and rows),
             "rows": len(rows), "verified": n_ver, "title": title, "title_len": len(title),
             "manual_title": bool(b and b.get("seo_title")), "updated_at": (b or {}).get("updated_at"),
             "updated_by": (b or {}).get("updated_by"), "checked": (trip_facts.checked(b) or {}).get("label"),
         }
-        if ql and ql not in cp.name.lower() and ql != str(cp.id):
+        if ql and ql not in cp.name.lower() and ql != str(cp.id) and ql != (cp.slug or ""):
             continue
         if flt == "noblock" and item["has_block"]:
             continue
@@ -317,7 +319,7 @@ def _place_editor_ctx(request, db, cp, b, *, saved="", error=""):
         title_rec=TITLE_RECOMMENDED, desc_rec=DESC_RECOMMENDED, facts=f, checked=trip_facts.checked(b),
         heading=trip_facts.heading(b, cp.name), history=_recent_history(db, "place", cp.id),
         saved=saved, error=error, today=trip_facts.today_iso(),
-        page_url=f"/mesta/{cp.id}", ld_json=json.dumps(f, ensure_ascii=False, indent=1) if f else "",
+        page_url=place_url(cp), ld_json=json.dumps(f, ensure_ascii=False, indent=1) if f else "",
     )
 
 
@@ -374,6 +376,10 @@ async def place_save(request: Request, place_id: int, db: Session = Depends(get_
         "search_facts": {k: v for k in ("locality", "street", "phone") if (v := _s(form, "sf_" + k, 200))},
         "sources": _sources_from_text(_s(form, "sources", 3000)),
     }
+    # Адрес страницы: меняется только явно; прежний остаётся 301-редиректом.
+    slug = _s(form, "slug", 120)
+    if slug and slug != cp.slug:
+        set_slug(db, cp, slug)
     _save_block(db, cp.id, new, author)
     return RedirectResponse(f"/admin/texts/places/{cp.id}?saved=1", status_code=303)
 

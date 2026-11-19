@@ -152,7 +152,8 @@ def test_place_practical_block_renders_only_filled_fields(client, monkeypatch):
     assert "Коротко для поездки" in html
     assert "Время посещения" in html and "1 ч 30 мин" in html
     assert "Прямо в посёлке." in html and "Официального прайса нет" in html
-    assert f'<a href="/mesta/{other}">Соседнее место для связки</a>' in html
+    other_url = client.get(f"/mesta/{other}", follow_redirects=False).headers["location"]
+    assert f'<a href="{other_url}">Соседнее место для связки</a>' in html
     # незаполненные поля не показываются
     assert "Часы работы" not in html and ">Зимой</th>" not in html
     # без проверенных фактов — нейтральный заголовок и общая оговорка
@@ -195,7 +196,9 @@ def test_seasonal_block_links_to_place_cards_by_name(client, monkeypatch):
     site_router._HOME_CACHE["body"] = None
     html = client.get("/").text
     site_router._HOME_CACHE["body"] = None
-    assert f'<a href="/mesta/{pid}" data-seasonal-click data-target="/mesta/{pid}">Место из сезонного блока</a>' in html
+    url = client.get(f"/mesta/{pid}", follow_redirects=False).headers["location"]
+    assert url.startswith("/mesta/") and not url[7:].isdigit()
+    assert f'<a href="{url}" data-seasonal-click data-target="{url}">Место из сезонного блока</a>' in html
 
 
 def test_publish_script_text_patch_is_safe():

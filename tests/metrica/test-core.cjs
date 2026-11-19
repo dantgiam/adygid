@@ -83,3 +83,19 @@ test("admin, auth and localhost are not tracked", () => {
   assert.equal(M.blocked({ hostname: "localhost", pathname: "/" }), true);
   assert.equal(M.blocked({ hostname: "127.0.0.1", pathname: "/podbor" }), true);
 });
+
+test("slug addresses of places and routes keep the {id} template and take item from the page", () => {
+  global.ADYGID_ITEMS = { "place/kedrovyy-bor": "68" };
+  try {
+    const own = M.sanitize("article_internal_link", { href: "/mesta/kedrovyy-bor#faq", page: "/stati/termy" });
+    assert.equal(own.params.href, "/mesta/{id}");
+    assert.equal(own.params.item, "place:68");
+    const unknown = M.sanitize("article_internal_link", { href: "/marshruty/hadzhoh-za-poldnya", page: "/stati/termy" });
+    assert.equal(unknown.params.href, "/marshruty/{id}");
+    assert.equal(unknown.params.item, undefined);
+    assert.equal(M.pathInfo("/marshruty/hadzhoh-za-poldnya/track.gpx").template, "/marshruty/{id}/track.gpx");
+    assert.equal(M.pathInfo("/mesta/68").item, "place:68");
+  } finally {
+    delete global.ADYGID_ITEMS;
+  }
+});

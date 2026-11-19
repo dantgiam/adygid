@@ -2,7 +2,11 @@
 чтобы случайный DATABASE_URL процесса не увёл запись в чужую базу."""
 import os
 
-os.environ["DATABASE_URL"] = "postgresql+psycopg://adygid:adygid@localhost:5432/adygid_test"
+# ADYGID_TEST_DB — имя отдельной локальной базы, чтобы два прогона из разных
+# веток (worktree) не мешали друг другу. Хост всегда localhost.
+os.environ["DATABASE_URL"] = (
+    "postgresql+psycopg://adygid:adygid@localhost:5432/" + os.environ.get("ADYGID_TEST_DB", "adygid_test")
+)
 os.environ["ADMIN_USER"] = "admin"
 os.environ["ADMIN_PASSWORD"] = "adygid-test"
 

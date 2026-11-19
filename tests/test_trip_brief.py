@@ -131,7 +131,7 @@ def test_card_renders_table_high_with_heading_and_ld(client, monkeypatch):
     attr = next(b for b in _ld_blocks(html) if b.get("@type") == "TouristAttraction")
     assert attr["openingHoursSpecification"][0]["opens"] == "10:00"
     assert attr["address"]["streetAddress"] == "ул. Заречная, 5"
-    assert attr["url"].endswith(f"/mesta/{pid}")
+    assert attr["url"].endswith(client.get(f"/mesta/{pid}", follow_redirects=False).headers["location"])
     # спецификация справа не спорит с блоком: та же цена
     assert "<dt>Стоимость</dt><dd>500 ₽, дети и пенсионеры бесплатно</dd>" in html
 

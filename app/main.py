@@ -277,6 +277,12 @@ _DEFAULT_CATEGORIES = [
     ("Конец маршрута", "checkpoint", "🏁", False),
     ("Другое", "both", "📍", False),
 ]
+# Читаемые адреса /mesta/<slug> и /marshruty/<slug>: колонка, уникальный
+# индекс и слаги для карточек, у которых их ещё нет (app/slugs.py). Повторный
+# старт ничего не меняет; /mesta/<id> навсегда редиректит на слаг.
+from app.slugs import migrate as _migrate_slugs, set_slug as _set_slug, remember_old_slug as _remember_old_slug  # noqa: E402
+_migrate_slugs(engine)
+
 with Session(engine) as _seed_db:
     _existing_names = {row[0] for row in _seed_db.execute(select(Category.name)).all()}
     for name, type_, icon, is_public in _DEFAULT_CATEGORIES:
@@ -695,6 +701,8 @@ class TrailIn(ExtraCriteriaIn):
     checked_at: Optional[datetime] = None
     is_published: bool = True
     yandex_url: Optional[str] = None
+    # Адрес страницы на сайте; пусто — слаг из названия (app/slugs.py).
+    slug: Optional[str] = None
 
 class TrailUpdate(ExtraCriteriaIn):
     name: Optional[str] = None
@@ -704,6 +712,8 @@ class TrailUpdate(ExtraCriteriaIn):
     checked_at: Optional[datetime] = None
     is_published: Optional[bool] = None
     yandex_url: Optional[str] = None
+    # Адрес страницы на сайте; пусто — слаг из названия (app/slugs.py).
+    slug: Optional[str] = None
 
 class SegmentIn(BaseModel):
     difficulty: str = "easy"      # easy | medium | hard
@@ -726,6 +736,8 @@ class CheckpointIn(ExtraCriteriaIn):
     checked_at: Optional[datetime] = None
     is_published: bool = True
     yandex_url: Optional[str] = None
+    # Адрес страницы на сайте; пусто — слаг из названия (app/slugs.py).
+    slug: Optional[str] = None
     lon: float
     lat: float
 
@@ -746,6 +758,8 @@ class CheckpointUpdate(ExtraCriteriaIn):
     checked_at: Optional[datetime] = None
     is_published: Optional[bool] = None
     yandex_url: Optional[str] = None
+    # Адрес страницы на сайте; пусто — слаг из названия (app/slugs.py).
+    slug: Optional[str] = None
     lon: Optional[float] = None
     lat: Optional[float] = None
 
@@ -954,6 +968,8 @@ def create_trail(body: TrailIn, db: Session = Depends(get_db), _: bool = Depends
         yandex_url=body.yandex_url or None,
         **_extra_criteria_kwargs(body),
     )
+    if body.slug and body.slug.strip():
+        t.slug = _requested_slug(db, Trail, body.slug)
     db.add(t); db.commit(); db.refresh(t)
     return _trail_out(t)
 
@@ -968,6 +984,9 @@ def update_trail(trail_id: int, body: TrailUpdate, db: Session = Depends(get_db)
     if body.checked_at is not None:        t.checked_at = body.checked_at
     if body.is_published is not None:      t.is_published = body.is_published
     if body.yandex_url is not None:        t.yandex_url = body.yandex_url or None
+    # Переименование слаг не трогает (адрес стабилен); сменить его можно
+    # только явно — тогда старый адрес остаётся 301-редиректом.
+    if body.slug is not None and body.slug.strip(): _set_slug(db, t, body.slug)
     _apply_extra_criteria(t, body)
     db.commit(); db.refresh(t)
     return _trail_out(t)
@@ -1007,10 +1026,19 @@ def _extra_criteria_out(obj):
     }
 
 
+def _requested_slug(db: Session, model, value: str) -> str:
+    """Слаг, введённый при создании: нормализуем и делаем уникальным."""
+    from app.slugs import not_digits, unique_slug
+    kind = "place" if model is Checkpoint else "route"
+    return unique_slug(db, not_digits(_slugify(value)[:120].strip("-"), kind), model=model)
+
+
 def _trail_out(t: Trail):
     return {
         "id": t.id,
         "name": t.name,
+        "slug": t.slug,
+        "url": f"/marshruty/{t.slug or t.id}",
         "description": t.description,
         "category_id": t.category_id,
         "category": _category_out(t.category) if t.category else None,
@@ -1130,6 +1158,8 @@ def create_checkpoint(body: CheckpointIn, db: Session = Depends(get_db), _: bool
         geom=f"SRID=4326;POINT({body.lon} {body.lat})",
         **_extra_criteria_kwargs(body),
     )
+    if body.slug and body.slug.strip():
+        cp.slug = _requested_slug(db, Checkpoint, body.slug)
     db.add(cp); db.commit(); db.refresh(cp)
     return _cp_out(cp)
 
@@ -1164,6 +1194,7 @@ def update_checkpoint(cp_id: int, body: CheckpointUpdate, db: Session = Depends(
     if body.checked_at is not None:  cp.checked_at = body.checked_at
     if body.is_published is not None: cp.is_published = body.is_published
     if body.yandex_url is not None:  cp.yandex_url = body.yandex_url or None
+    if body.slug is not None and body.slug.strip(): _set_slug(db, cp, body.slug)
     if body.lon is not None and body.lat is not None:
         cp.geom = f"SRID=4326;POINT({body.lon} {body.lat})"
     _apply_extra_criteria(cp, body)
@@ -1230,6 +1261,8 @@ def _cp_out(c: Checkpoint):
     shp = to_shape(c.geom)
     return {
         "id": c.id,
+        "slug": c.slug,
+        "url": f"/mesta/{c.slug or c.id}" if c.show_as_place else None,
         "trail_id": c.trail_id,
         "name": c.name,
         "category_id": c.category_id,
@@ -1304,7 +1337,8 @@ def create_article(body: ArticleIn, db: Session = Depends(get_db), _: bool = Dep
 def update_article(article_id: int, body: ArticleUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     a = _get_or_404(db, Article, article_id)
     if body.title is not None: a.title = body.title
-    if body.slug is not None: a.slug = _unique_slug(db, _slugify(body.slug), exclude_id=article_id)
+    # Старый адрес статьи остаётся 301-редиректом на новый (slug_redirects).
+    if body.slug is not None and body.slug.strip(): _set_slug(db, a, body.slug)
     if body.excerpt is not None: a.excerpt = body.excerpt
     if body.cover_url is not None: a.cover_url = body.cover_url
     if body.cover_thumb_url is not None: a.cover_thumb_url = body.cover_thumb_url

@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import Checkpoint, Trail
+from site_app.urls import place_url, route_url
 
 _COPY_PATH = Path(__file__).resolve().parent / "data" / "podbor_copy.json"
 _COPY_CACHE: dict = {"value": None}
@@ -234,7 +235,7 @@ def _place_item(place: Checkpoint) -> dict:
         "type": "place",
         "id": place.id,
         "name": place.name,
-        "url": f"/mesta/{place.id}",
+        "url": place_url(place),
         "lat": lat,
         "lon": lon,
         "area": area_of(lat, lon),
@@ -306,7 +307,7 @@ def _route_item(trail: Trail, places: dict) -> dict:
         "type": "route",
         "id": trail.id,
         "name": trail.name,
-        "url": f"/marshruty/{trail.id}",
+        "url": route_url(trail),
         "lat": lat,
         "lon": lon,
         "area": area_of(lat, lon),

@@ -510,7 +510,7 @@ document.querySelectorAll("form.filters").forEach((form) => {
       if (!data.length) return;
 
       grid.innerHTML = data.map((item) => {
-        const url = item.kind === "route" ? `/marshruty/${item.id}` : `/mesta/${item.id}`;
+        const url = item.url || (item.kind === "route" ? `/marshruty/${item.id}` : `/mesta/${item.id}`);
         // Разметка обложки — та же, что у серверных карточек (_cards.html:cover_img):
         // картинка внутри .cover, чтобы работала ленивая загрузка и object-fit.
         const coverSrc = item.cover ? window.adygidImg(item.cover, 800) : "";
@@ -736,13 +736,32 @@ document.addEventListener("click", (e) => {
 
   const path = location.pathname;
 
-  function contentItem() {
-    const place = path.match(/^\/mesta\/(\d+)/);
-    if (place) return "place:" + place[1];
-    const route = path.match(/^\/marshruty\/(\d+)/);
-    if (route) return "route:" + route[1];
-    return "";
+  // Адреса страниц — слаги (/mesta/kedrovyy-bor), а в целях Метрики item
+  // по-прежнему «place:<id>»: id берём у кнопки «В избранное».
+  function itemOf(href, fav) {
+    const kind = /^\/mesta\//.test(href) ? "place" : (/^\/marshruty\//.test(href) ? "route" : "");
+    if (!kind) return "";
+    const id = fav && /^\d+$/.test(fav.dataset.id || "") ? fav.dataset.id : ((href.match(/^\/(?:mesta|marshruty)\/(\d+)(?:[/?#]|$)/) || [])[1] || "");
+    return id ? kind + ":" + id : "";
   }
+
+  function registerItems() {
+    const map = window.ADYGID_ITEMS = window.ADYGID_ITEMS || {};
+    const put = (href, fav) => {
+      const m = String(href || "").match(/^\/(mesta|marshruty)\/([a-z0-9-]+)/);
+      const it = itemOf(String(href || ""), fav);
+      if (m && it) map[(m[1] === "mesta" ? "place" : "route") + "/" + m[2]] = it.split(":")[1];
+    };
+    document.querySelectorAll("a.card .fav-btn[data-id]").forEach((fav) => put(fav.closest("a.card").getAttribute("href"), fav));
+    const own = document.querySelector(".fav-btn-lg[data-id]");
+    if (own) put(path, own);
+  }
+
+  function contentItem() {
+    return itemOf(path, document.querySelector(".fav-btn-lg[data-id]"));
+  }
+
+  try { registerItems(); } catch (err) { /* аналитика не роняет страницу */ }
 
   // ── Активное время: считаем только когда вкладка на экране ──
   // «Время на сайте» в Метрике включает вкладки, брошенные в фоне на час.
@@ -928,6 +947,7 @@ document.addEventListener("click", (e) => {
   }
 
   document.addEventListener("click", (e) => {
+    try { registerItems(); } catch (err) { /* карточки избранного дорисовываются позже */ }
     trackCommonLink(e.target);
     // Магнит: в какой мессенджер ушли и на какой секунде чтения
     const pill = e.target.closest(".magnet-pill");
@@ -986,10 +1006,9 @@ document.addEventListener("click", (e) => {
       const card = e.target.closest("a.card, a.random-open");
       if (card) {
         const href = card.getAttribute("href") || "";
-        const place = href.match(/^\/mesta\/(\d+)/);
-        const route = href.match(/^\/marshruty\/(\d+)/);
-        if (place) goal("place_card_click", { item: "place:" + place[1], list: path });
-        else if (route) goal("route_card_click", { item: "route:" + route[1], list: path });
+        const item = itemOf(href, card.querySelector(".fav-btn[data-id]"));
+        if (item.indexOf("place:") === 0) goal("place_card_click", { item: item, list: path });
+        else if (item.indexOf("route:") === 0) goal("route_card_click", { item: item, list: path });
       }
     }
 

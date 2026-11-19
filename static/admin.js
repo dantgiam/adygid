@@ -1301,6 +1301,8 @@ function insertInternalLink(quill) {
 
   const places = checkpoints.filter(c => c.show_as_place);
   const rows = [
+    // В тексты статей ссылки вставляются по номеру: такой адрес не ломается
+    // при смене слага, а на сайте сам подменяется на /mesta/<slug>.
     ...places.map(p => ({ url: `/mesta/${p.id}`, label: p.name, kind: 'Место' })),
     ...trails.map(t => ({ url: `/marshruty/${t.id}`, label: t.name, kind: 'Маршрут' })),
     ...articles.map(a => ({ url: `/stati/${a.slug}`, label: a.title, kind: 'Статья' })),
@@ -1391,6 +1393,7 @@ function openRouteForm(id) {
   document.getElementById('rt-category').innerHTML = categoryOptionsHtml('trail', v.category_id);
   document.getElementById('rt-duration').value = v.duration_minutes || '';
   document.getElementById('rt-yandex-url').value = v.yandex_url || '';
+  document.getElementById('rt-slug').value = v.slug || '';
   document.getElementById('rt-desc-slot').innerHTML = descEditorHtml('Описание');
   document.getElementById('rt-criteria-slot').innerHTML = criteriaHtml(v);
   document.getElementById('rt-map-hint').style.display = t ? '' : 'none';
@@ -1423,6 +1426,7 @@ async function saveRoute() {
     category_id: parseInt(document.getElementById('rt-category').value, 10) || null,
     duration_minutes: parseInt(document.getElementById('rt-duration').value, 10) || null,
     yandex_url: document.getElementById('rt-yandex-url').value.trim(),
+    slug: document.getElementById('rt-slug').value.trim() || null,
     description: readDescEditor(),
   }, readCriteria());
 
@@ -2002,6 +2006,7 @@ function openPointForm(id, creating) {
   // сохранение делает parseInt(...) || null и не отличает его от пустой строки.
   document.getElementById('pl-duration').value = v.duration_minutes == null ? '' : (v.duration_minutes || '');
   document.getElementById('pl-yandex-url').value = v.yandex_url || '';
+  document.getElementById('pl-slug').value = v.slug || '';
   document.getElementById('pl-trail').innerHTML =
     `<option value="">— отдельное место —</option>` +
     trails.map(t => `<option value="${t.id}" ${t.id === trailId ? 'selected' : ''}>${escHtml(t.name)}</option>`).join('');
@@ -2136,6 +2141,7 @@ async function savePlace() {
     // parseInt(0) || null не отличает его от пустой строки.
     duration_minutes: parseInt(document.getElementById('pl-duration').value, 10) || null,
     yandex_url: document.getElementById('pl-yandex-url').value.trim(),
+    slug: document.getElementById('pl-slug').value.trim() || null,
     description: readDescEditor(),
   }, readCriteria());
 
@@ -2239,7 +2245,7 @@ function renderPlaces() {
         </div>
       </div>
       <div class="row-actions">
-        <a class="btn btn-ghost btn-sm" href="/mesta/${c.id}" target="_blank" rel="noopener">Открыть</a>
+        <a class="btn btn-ghost btn-sm" href="${escAttr(c.url || `/mesta/${c.id}`)}" target="_blank" rel="noopener">Открыть</a>
         <button class="btn btn-ghost btn-sm" onclick="openPointForm(${c.id})">Редактировать</button>
         <button class="btn btn-ghost btn-sm" onclick="openPhotos('checkpoint', ${c.id})">Фото (${c.photos.length})</button>
         <button class="btn btn-danger btn-sm" onclick="deletePlace(${c.id})">Удалить</button>
