@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Черновики летних статей — АдыГид</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/assets/site.css?v={{ rev }}">
+<link rel="stylesheet" href="/assets/summer-drafts.css?v={{ rev }}">
+</head>
+<body class="sd-page">
+  <header class="sd-top">
+    <a class="sd-brand" href="/">АдыГид</a>
+    <p class="sd-note">Черновики · draft · noindex · сверка {{ checked }}</p>
+  </header>
+  <main class="sd-main">
+    <p class="sd-kicker">Летний кластер</p>
+    <h1>Черновики статей</h1>
+    <p class="sd-lead">Три рабочих заголовка из исследовательского отчёта. Это не раздел <a href="/stati">/stati</a>: страницы скрыты, в меню и sitemap их нет, цифры без официального источника не ставились.</p>
+    <ul class="sd-list">
+      {% for a in articles %}
+      <li>
+        <a href="/chernovik/leto/{{ a.slug }}">{{ a.title }}</a>
+        <p>{{ a.excerpt }}</p>
+        <p class="sd-meta">статус: draft</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </main>
+  <footer class="sd-foot"><a href="/">АдыГид</a></footer>
+</body>
+</html>
