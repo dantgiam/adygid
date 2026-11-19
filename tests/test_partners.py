@@ -142,6 +142,26 @@ def test_admin_requires_auth(client):
     assert client.get("/admin/partners", auth=AUTH).status_code == 200
 
 
+def test_partners_post_rejects_foreign_and_missing_origin(client):
+    import asyncio
+    import httpx
+    from app.main import app
+    foreign = client.post(
+        "/admin/partners/audience", auth=AUTH, follow_redirects=False,
+        headers={"Origin": "https://evil.example"}, data={"users_30d": "10"},
+    )
+    assert foreign.status_code == 403
+
+    async def _missing():
+        # Мимо TestClient: тот подставляет Origin, как браузер на форме админки.
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as raw:
+            return await raw.post("/admin/partners/audience", auth=AUTH, data={"users_30d": "10"})
+
+    missing = asyncio.run(_missing())
+    assert missing.status_code == 403
+
+
 def test_convert_and_leads(client):
     with engine.begin() as conn:
         app_id = conn.execute(text("SELECT id FROM partner_applications ORDER BY id LIMIT 1")).scalar()

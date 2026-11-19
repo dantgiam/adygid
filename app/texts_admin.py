@@ -16,14 +16,14 @@ import json
 import re
 from datetime import date, datetime
 from typing import Optional
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.bot_admin import _page, require_bot_admin
+from app.bot_admin import _page, require_bot_admin, same_origin
 from app.database import get_db
 from app.models import AdminTextHistory, Checkpoint, PlaceTripBlock, SiteNotice, SiteText, Trail
 from site_app import site_texts, travel_notices, trip_facts
@@ -47,18 +47,6 @@ _URL_RE = re.compile(r"^https?://[^\s<>\"']+$")
 
 
 # ───────────────── общее ─────────────────
-
-def same_origin(request: Request) -> None:
-    """Формы шлёт только сама админка: чужой сайт не сможет отправить POST от
-    имени вошедшего админа (браузер подставил бы Basic-пароль сам)."""
-    host = request.headers.get("host", "")
-    for header in ("origin", "referer"):
-        v = request.headers.get(header)
-        if v:
-            if urlparse(v).netloc != host:
-                raise HTTPException(403, "Запрос не из админки")
-            return
-
 
 def _ctx(request: Request, **extra) -> dict:
     base = {"request": request, "section": "texts", "site_url": SITE_URL, "msk": _msk}

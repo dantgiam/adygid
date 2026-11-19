@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.bot_admin import (
     BotApiError, BotNotConfigured, _filter_items, _kind_titles, _load_inbox, _page, require_bot_admin,
+    same_origin,
 )
 from app.database import get_db
 from app.models import Checkpoint, Partner, PartnerApplication, PartnerLead, Trail
@@ -112,6 +113,7 @@ def partners_home(request: Request, tab: str = "applications", status: str = "",
 @router.post("/admin/partners/audience")
 async def audience_save(request: Request, db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
     """Цифры аудитории для /partners — переписать вручную из Метрики."""
+    same_origin(request)
     form = await request.form()
     values = {k: _s(form, k, 300) for k in partners_audience.INT_FIELDS + partners_audience.STR_FIELDS}
     partners_audience.save(db, values)
@@ -147,6 +149,7 @@ async def application_detail(request: Request, app_id: int, saved: str = "",
 @router.post("/admin/partners/applications/{app_id}")
 async def application_save(request: Request, app_id: int,
                            db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
+    same_origin(request)
     row = db.get(PartnerApplication, app_id)
     if not row:
         raise HTTPException(404, "Заявка не найдена")
@@ -161,7 +164,9 @@ async def application_save(request: Request, app_id: int,
 
 
 @router.post("/admin/partners/applications/{app_id}/convert")
-def application_convert(app_id: int, db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
+def application_convert(request: Request, app_id: int, db: Session = Depends(get_db),
+                        _: str = Depends(require_bot_admin)):
+    same_origin(request)
     row = db.get(PartnerApplication, app_id)
     if not row:
         raise HTTPException(404, "Заявка не найдена")
@@ -226,6 +231,7 @@ def partner_card(request: Request, partner_id: int, saved: str = "",
 
 @router.post("/admin/partners/save")
 async def partner_save(request: Request, db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
+    same_origin(request)
     form = await request.form()
     pid = _s(form, "id", 10)
     p = db.get(Partner, int(pid)) if pid and pid.isdigit() else None
@@ -296,6 +302,7 @@ def _apply_lead(lead: PartnerLead, form, partner: Partner):
 
 @router.post("/admin/partners/{partner_id}/leads")
 async def lead_add(request: Request, partner_id: int, db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
+    same_origin(request)
     p = db.get(Partner, partner_id)
     if not p:
         raise HTTPException(404, "Партнёр не найден")
@@ -308,6 +315,7 @@ async def lead_add(request: Request, partner_id: int, db: Session = Depends(get_
 
 @router.post("/admin/partners/leads/{lead_id}")
 async def lead_update(request: Request, lead_id: int, db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
+    same_origin(request)
     lead = db.get(PartnerLead, lead_id)
     if not lead:
         raise HTTPException(404, "Бронь не найдена")
