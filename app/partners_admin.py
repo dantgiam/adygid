@@ -261,6 +261,16 @@ async def partner_save(request: Request, db: Session = Depends(get_db), _: str =
     p.route_ids = _ids(_s(form, "route_ids", 500))
     p.contacts = contacts
     p.is_active = form.get("is_active") == "1"
+    p.stay_registry_number = _s(form, "stay_registry_number", 80)
+    url = _s(form, "stay_registry_url", 500)
+    p.stay_registry_url = url if url and url.startswith("https://") else None
+    listed = (form.get("stay_registry_listed") or "").strip()
+    p.stay_registry_listed = None if listed not in ("0", "1") else listed == "1"
+    checked = _s(form, "stay_registry_checked_on", 20)
+    try:
+        p.stay_registry_checked_on = date.fromisoformat(checked) if checked else None
+    except ValueError:
+        p.stay_registry_checked_on = None
     db.commit()
     return RedirectResponse(f"/admin/partners/{p.id}?saved=1", status_code=303)
 

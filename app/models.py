@@ -447,6 +447,14 @@ class Partner(Base):
     is_active          = Column(Boolean, nullable=False, default=False)
     notes              = Column(Text)
     application_id     = Column(Integer)
+    # Реестр классифицированных средств размещения (ФЗ-127 в ред. ФЗ-557).
+    # С 01.01.2027 для гостевых домов в Адыгее: номер и ссылка на запись.
+    # Поля необязательные, только для админки; на публичные страницы не выводятся.
+    # Юридически, попадает ли витрина Адыгида под «агрегатор», не решаем здесь.
+    stay_registry_number     = Column(String(80))
+    stay_registry_url        = Column(String(500))
+    stay_registry_listed     = Column(Boolean, nullable=True)
+    stay_registry_checked_on = Column(Date)
     created_at         = Column(DateTime, server_default=func.now())
     updated_at         = Column(DateTime, server_default=func.now(), onupdate=func.now())
 

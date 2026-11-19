@@ -61,6 +61,22 @@
           <div class="hint">Телефон и имя — в обращении партнёра в боте (YDB, РФ), на сайте не хранятся.</div>
           {% endif %}
         </div>
+        <div class="pbox" style="background:#FAFCF9" id="stay-registry">
+          <h2>Реестр жилья (к 2027, только админка)</h2>
+          <p class="hint">С 1 января 2027 для гостевых домов в Адыгее: нельзя оказывать услуги вне реестра классифицированных средств размещения и размещать информацию об услугах без идентификационного номера и ссылки на запись (ч. 4 ст. 4 <a href="https://www.kremlin.ru/acts/bank/51996" rel="noopener">ФЗ-127</a> в ред. <a href="https://www.kremlin.ru/acts/bank/52766" rel="noopener">ФЗ-557</a>). Поля на публичные страницы не выводятся. Попадает ли витрина Адыгида под «агрегатор», нужно проверить с юристом — здесь это не решается.</p>
+          <div class="field"><label>Номер в реестре</label><input type="text" name="stay_registry_number" value="{{ p.stay_registry_number or '' }}" maxlength="80" autocomplete="off"></div>
+          <div class="field"><label>Ссылка на запись</label><input type="url" name="stay_registry_url" value="{{ p.stay_registry_url or '' }}" maxlength="500" placeholder="https://…"></div>
+          <div class="field-row">
+            <div class="field"><label>Статус</label>
+              <select name="stay_registry_listed">
+                <option value=""{% if p.stay_registry_listed is none %} selected{% endif %}>не знаем</option>
+                <option value="1"{% if p.stay_registry_listed is true %} selected{% endif %}>есть в реестре</option>
+                <option value="0"{% if p.stay_registry_listed is false %} selected{% endif %}>нет в реестре</option>
+              </select>
+            </div>
+            <div class="field"><label>Дата проверки</label><input type="date" name="stay_registry_checked_on" value="{{ p.stay_registry_checked_on.isoformat() if p.stay_registry_checked_on else '' }}"></div>
+          </div>
+        </div>
         <div class="field"><label>Заметки</label><textarea name="notes" rows="3">{{ p.notes or '' }}</textarea></div>
         <label style="display:flex;gap:8px;align-items:center;margin:6px 0 12px"><input type="checkbox" name="is_active" value="1"{% if p.is_active %} checked{% endif %}> <b>Активен</b> — показывать туристам</label>
         <button class="btn btn-primary" type="submit">Сохранить карточку</button>
