@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Черновик: «Коротко для поездки» — варианты блока</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="/assets/site.css?v={{ rev }}">
+<link rel="stylesheet" href="/assets/trip-brief.css?v={{ rev }}">
+</head>
+<body class="tb-page tb--{{ variant }}">
+  <header class="tb-top">
+    <a class="tb-brand" href="/">АдыГид</a>
+    <p class="tb-note">Черновик · noindex · не страница каталога</p>
+  </header>
+  <main class="tb-main">
+    <p class="tb-kicker">Превью блока</p>
+    <h1>Коротко для поездки</h1>
+    <p class="tb-lead">Три варианта оформления одного и того же набора полей. Новые официальные факты помечены. Пустые поля не показываются.</p>
+    <nav class="tb-switch" aria-label="Варианты вёрстки">
+      <a href="/chernovik/korotko-dlya-poezdki" class="{{ 'is-on' if variant == 'kompakt' else '' }}">A. Компактный{% if variant == 'kompakt' %} <span class="tb-rec">рекомендую</span>{% endif %}</a>
+      <a href="/chernovik/korotko-dlya-poezdki?v=istochniki" class="{{ 'is-on' if variant == 'istochniki' else '' }}">B. С источниками</a>
+      <a href="/chernovik/korotko-dlya-poezdki?v=kartochki" class="{{ 'is-on' if variant == 'kartochki' else '' }}">C. Карточки</a>
+    </nav>
+
+    {% for place in places %}
+    <section class="tb-place" id="m-{{ place.id }}">
+      <h2>{{ place.name }} <span class="tb-id">/mesta/{{ place.id }}</span>{% if place.updated %} <span class="tb-new">обновлено</span>{% endif %}</h2>
+      {% if variant == 'kartochki' %}
+      <div class="tb-grid">
+        {% for row in place.rows %}
+        <article class="tb-card tb-{{ row.key }}">
+          <h3>{{ row.label }}</h3>
+          <p>{{ row.text }}</p>
+          {% if row.source %}<p class="tb-src"><a href="{{ row.source }}" rel="noopener">источник</a></p>{% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <dl class="tb-list">
+        {% for row in place.rows %}
+        <div class="tb-row">
+          <dt>{{ row.label }}</dt>
+          <dd>
+            {{ row.text }}
+            {% if variant == 'istochniki' and row.source %}
+              <a class="tb-src" href="{{ row.source }}" rel="noopener">источник</a>
+            {% elif variant == 'kompakt' and row.source %}
+              <a class="practical-src" href="{{ row.source }}" rel="noopener">источник</a>
+            {% endif %}
+          </dd>
+        </div>
+        {% endfor %}
+      </dl>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </main>
+  <footer class="tb-foot"><a href="/">АдыГид</a></footer>
+</body>
+</html>
