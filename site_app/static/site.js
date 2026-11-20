@@ -1153,9 +1153,11 @@ document.addEventListener("click", (e) => {
 })();
 
 
-// ── Стрелки у коллажа в тексте ───────────────────────────────────────────
-// Кадры в коллаже разной ширины, поэтому листаем не на фиксированный шаг, а
-// к ближайшему кадру за краем видимой области — как в карусели места.
+// ── Галерея в тексте ─────────────────────────────────────────────────────
+// Лента нативная: overflow + scroll-snap, палец листает сам. Скрипт только
+// двигает ленту стрелками и с клавиатуры и гасит кнопку, за которой кадров
+// уже нет. Подпись и счётчик нарисованы внутри слайда, поэтому свайп
+// привозит их вместе с фото и без этого кода.
 document.querySelectorAll("[data-gallery]").forEach((root) => {
   const track = root.querySelector("[data-gal-track]");
   const prev = root.querySelector("[data-gal-prev]");
@@ -1163,41 +1165,49 @@ document.querySelectorAll("[data-gallery]").forEach((root) => {
   if (!track || !prev || !next) return;
 
   const slides = () => Array.from(track.querySelectorAll(".article-gallery-item"));
+  const motion = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+
+  function indexAt() {
+    const list = slides();
+    const edge = track.getBoundingClientRect().left;
+    let idx = 0;
+    let best = Infinity;
+    list.forEach((el, i) => {
+      const d = Math.abs(el.getBoundingClientRect().left - edge);
+      if (d < best) { best = d; idx = i; }
+    });
+    return idx;
+  }
 
   function go(dir) {
     const list = slides();
     if (!list.length) return;
-    // Шагаем по кадрам, а не на фиксированную ширину: кадры разной ширины, и
-    // «пролистать на экран» уводило бы то на полкадра, то на два.
-    let idx = 0;
-    let best = Infinity;
-    list.forEach((el, i) => {
-      const d = Math.abs(el.offsetLeft - track.scrollLeft);
-      if (d < best) { best = d; idx = i; }
-    });
+    const idx = indexAt();
     const nextIdx = Math.max(0, Math.min(list.length - 1, idx + dir));
     if (nextIdx === idx) return;
     const target = list[nextIdx];
-    if (target) track.scrollTo({ left: Math.max(0, target.offsetLeft), behavior: "smooth" });
+    const left = target.getBoundingClientRect().left - track.getBoundingClientRect().left + track.scrollLeft;
+    track.scrollTo({ left: Math.max(0, left), behavior: motion });
     if (typeof window.adygidGoal === "function") {
       window.adygidGoal("gallery_nav", { kind: "article", dir: dir < 0 ? "prev" : "next", index: nextIdx + 1 });
     }
   }
 
   function paint() {
-    prev.disabled = track.scrollLeft < 4;
-    next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+    const list = slides();
+    const idx = indexAt();
+    prev.disabled = idx <= 0;
+    next.disabled = idx >= list.length - 1;
   }
 
   prev.addEventListener("click", () => go(-1));
   next.addEventListener("click", () => go(1));
+  root.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    go(e.key === "ArrowLeft" ? -1 : 1);
+  });
   track.addEventListener("scroll", paint, { passive: true });
   window.addEventListener("resize", paint);
-  // Ширину ленты знаем только после загрузки кадров: до этого scrollWidth
-  // равен видимой части, и «вперёд» выключилась бы, хотя листать есть куда.
-  track.querySelectorAll("img").forEach((img) => {
-    if (img.complete) return;
-    img.addEventListener("load", paint, { once: true });
-  });
   paint();
 });
