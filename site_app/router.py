@@ -34,6 +34,7 @@ from site_app import trip_facts
 from site_app import site_texts
 from site_app import travel_notices
 from site_app.autolink import autolink
+from site_app.galleries import render_article_gallery as _render_article_gallery
 from site_app import urls as site_urls
 from site_app.urls import place_url, route_url
 from app.models import SlugRedirect
@@ -320,73 +321,6 @@ def _add_toc_anchors(html: str) -> tuple[str, list[dict]]:
         return f'<{tag}{attrs} id="{anchor}">{inner}</{tag}>'
 
     return _HEADING_RE.sub(repl, html), toc
-
-
-_GALLERY_PARAGRAPH_RE = re.compile(r"<p>((?:\s*<img\b[^>]*>|\s*&nbsp;)+)\s*</p>", re.IGNORECASE)
-_IMG_TAG_RE = re.compile(r"<img\b([^>]*)>", re.IGNORECASE)
-_IMG_ATTR_RE = re.compile(r'(\w[\w-]*)\s*=\s*"([^"]*)"')
-
-
-def _render_article_gallery(html: str) -> str:
-    """Редактор статей (Quill) вставляет фото как <img> внутри <p>, с подписью
-    в alt каждой картинки. Здесь на рендере страницы несколько картинок подряд
-    группируем в галерею-коллаж со счётчиком "N/M", а одиночное фото с подписью
-    оборачиваем в <figure> с подписью под ним (визуально — как в Т—Ж).
-    Фото без подписи остаётся обычной вставкой на всю ширину."""
-
-    def repl(match: "re.Match[str]") -> str:
-        img_tags = _IMG_TAG_RE.findall(match.group(1))
-        if len(img_tags) < 2:
-            if not img_tags:
-                return match.group(0)
-            attrs = dict(_IMG_ATTR_RE.findall(img_tags[0]))
-            caption = unescape(attrs.get("alt", "")).strip()
-            if not caption:
-                return match.group(0)
-            src = unescape(attrs.get("src", ""))
-            return (
-                '<figure class="article-figure">'
-                f'<img src="{escape(src, quote=True)}" alt="{escape(caption, quote=True)}" loading="lazy">'
-                f'<figcaption>{escape(caption)}</figcaption>'
-                '</figure>'
-            )
-        total = len(img_tags)
-        items = []
-        for i, attrs_str in enumerate(img_tags, start=1):
-            attrs = dict(_IMG_ATTR_RE.findall(attrs_str))
-            src = unescape(attrs.get("src", ""))
-            caption = unescape(attrs.get("alt", "")).strip()
-            caption_html = ""
-            if caption:
-                caption_html = (
-                    '<figcaption class="article-gallery-caption">'
-                    f'<span class="article-gallery-counter">{i}/{total}</span>'
-                    f'<span class="article-gallery-text">{escape(caption)}</span>'
-                    '</figcaption>'
-                )
-            items.append(
-                '<figure class="article-gallery-item">'
-                f'<img src="{escape(src, quote=True)}" alt="{escape(caption, quote=True)}" loading="lazy">'
-                f'{caption_html}'
-                '</figure>'
-            )
-        # Стрелки — только когда листать действительно есть куда. Разметка
-        # такая же, как у карусели места (_cards.html:photo_carousel), поэтому
-        # и стили, и обработчик в site.js общие.
-        nav = (
-            '<button type="button" class="gal-nav gal-prev" data-gal-prev aria-label="Предыдущее фото">'
-            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
-            '<button type="button" class="gal-nav gal-next" data-gal-next aria-label="Следующее фото">'
-            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
-        )
-        return (
-            '<div class="article-gallery" data-gallery>'
-            '<div class="article-gallery-track" data-gal-track>' + "".join(items) + '</div>'
-            + nav +
-            '</div>'
-        )
-
-    return _GALLERY_PARAGRAPH_RE.sub(repl, html)
 
 
 _MAGNET_EMBED_RE = re.compile(r'<div[^>]*data-magnet-id="(\d+)"[^>]*>\s*</div>', re.IGNORECASE)

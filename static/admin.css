@@ -516,47 +516,53 @@ a { color: var(--accent); }
 .ql-editor .consider-embed ul { margin: 8px 0 0; padding-left: 20px; }
 .ql-editor .consider-embed li { margin-bottom: 4px; }
 
-/* Коллаж и одиночное фото с подписью — превью в редакторе повторяет
-   вёрстку сайта (.article-gallery/.article-figure в site.css), чтобы автор
-   видел готовый результат, а не подряд идущие картинки без подписей.
-   Блок нередактируемый (contenteditable=false) — правка через переливку. */
-.ql-editor .gallery-embed { margin: 22px 0; user-select: none; }
-/* width:0 + min-width:100% — лента не участвует в расчёте «сколько места мне
-   нужно», а просто занимает ширину колонки и прокручивается внутри себя.
-   Без этого кадры произвольной ширины растягивали сам редактор: блок коллажа
-   становился шире страницы, и прокрутка не появлялась. */
-.ql-editor .editor-gallery-track {
-  display: flex; gap: 10px; overflow-x: auto; padding-bottom: 2px; margin: 0 -2px;
+/* Галерея в редакторе повторяет сайт (site.css: .article-frame / .article-gallery):
+   рамка 3:2, фото по центру, подпись и счётчик, лента со snap. Блок
+   нередактируемый — правка через переливку. Предпросмотр статьи идёт
+   через /api/preview и настоящий site.css, эти правила нужны самому
+   полотну редактора. */
+.ql-editor .gallery-embed { margin: 22px 0; max-width: 100%; user-select: none; }
+.ql-editor .gallery-embed .article-figure,
+.ql-editor .gallery-embed .article-gallery { margin: 0; max-width: 100%; }
+.ql-editor .article-gallery-stage { position: relative; max-width: 100%; }
+.ql-editor .article-gallery-track {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain; scrollbar-width: none;
   width: 0; min-width: 100%;
 }
-.ql-editor .gallery-embed { max-width: 100%; }
-/* Кадры держат свои пропорции при общей высоте — ровно так же, как на сайте
-   (site.css: .article-gallery-item). Раньше редактор резал всё под 3:4, и
-   автор видел не тот коллаж, который получится у гостя. */
-.ql-editor .editor-gallery-item { flex: 0 0 auto; margin: 0; }
-.ql-editor .editor-gallery-caption {
-  display: flex; gap: 8px; margin-top: 10px; font-family: var(--font); font-size: 13px;
-  line-height: 1.4; color: var(--muted); width: 0; min-width: 100%;
+.ql-editor .article-gallery-track::-webkit-scrollbar { display: none; }
+.ql-editor .article-gallery-item {
+  flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; margin: 0;
 }
-.ql-editor .editor-gallery-counter { flex: none; font-weight: 700; color: var(--text); }
-.ql-editor .editor-gallery-text { flex: 1; min-width: 0; }
-/* Специфичность выше, чем у общего «#article-editor .ql-editor img» и
-   «#desc-editor .ql-editor img» (margin/max-width) — иначе те правила
-   перебивают отступы и рвут сетку коллажа. */
-#article-editor .ql-editor .editor-gallery-item img,
-#desc-editor .ql-editor .editor-gallery-item img {
-  /* Высота меньше сайтовых 440 px: колонка редактора уже, и при 440 в неё
-     помещался бы один кадр. Пропорции при этом те же самые. */
-  height: 300px; width: auto; max-width: 70vw; object-fit: cover; border-radius: 10px;
-  display: block; margin: 0;
+.ql-editor .article-frame {
+  position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: 10px;
+  background: #F2F9F1;
 }
-#article-editor .ql-editor .gallery-embed.single img,
-#desc-editor .ql-editor .gallery-embed.single img {
-  width: 100%; max-width: 100%; border-radius: 10px; display: block; margin: 0;
+#article-editor .ql-editor .article-frame img,
+#desc-editor .ql-editor .article-frame img {
+  position: absolute; inset: 0; width: 100%; height: 100%; max-width: none;
+  object-fit: cover; object-position: center; margin: 0; border-radius: 0; display: block;
 }
-.ql-editor .gallery-embed.single figcaption {
-  margin-top: 10px; font-family: var(--font); font-size: 13px; line-height: 1.4; color: var(--muted);
+.ql-editor .article-gallery-arrows {
+  position: absolute; left: 0; right: 0; top: 0; aspect-ratio: 3 / 2; pointer-events: none;
 }
+.ql-editor .gal-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); pointer-events: auto;
+  width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
+  background: rgba(255,255,255,.92); color: var(--text); display: flex;
+  align-items: center; justify-content: center; cursor: pointer; z-index: 2;
+}
+.ql-editor .gal-nav svg { width: 18px; height: 18px; }
+.ql-editor .gal-prev { left: 8px; }
+.ql-editor .gal-next { right: 8px; }
+.ql-editor .gal-nav[disabled] { opacity: .35; pointer-events: none; }
+@media (hover: none) and (pointer: coarse) { .ql-editor .gal-nav { display: none; } }
+.ql-editor .article-gallery-caption,
+.ql-editor .article-figure figcaption {
+  margin-top: 8px; font-family: var(--font); font-size: 13px; line-height: 1.45; color: var(--muted);
+}
+.ql-editor .article-gallery-counter { font-weight: 700; color: var(--text); margin-right: 8px; }
+.ql-editor .article-gallery-credit { display: block; margin-top: 2px; font-size: 12px; }
 
 /* Живой предпросмотр блока в форме */
 .block-preview { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: var(--bg); }

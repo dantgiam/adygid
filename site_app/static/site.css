@@ -561,21 +561,58 @@ h1.article-title {
 .article-body img { max-width: 100%; border-radius: 10px; display: block; margin: 4px 0 10px; }
 .article-body p img:only-child { width: 100%; margin: 0 0 4px; }
 
-/* ── Фотоколлаж (2-4 фото в ряд, с подписью и счётчиком под каждым — как
-   в галереях Т—Ж). Серверный рендер группирует подряд идущие <img> в один
-   параграф в этот блок — см. _render_article_gallery в site_app/router.py.
-   Прокрутка нативная (overflow-x + scroll-snap) — без JS-карусели. ── */
-.article-gallery { margin: 36px 0; position: relative; }
-/* Стрелки поверх ленты — появляются при наведении на десктопе, на телефоне
-   не нужны: там листают пальцем и стрелки только закрывают кадр. */
+/* ── Галерея в тексте — как в Т—Ж ─────────────────────────────────
+   Один кадр на ширину колонки, общая рамка 3:2. Фото заполняет рамку
+   и стоит по центру (cover): старые снимки 3:2 ложатся как были,
+   портрет больше не уезжает в плакат, панорама не остаётся узкой
+   полоской у левого края. Это не прежняя обрезка под вертикальные 3:4 —
+   рамка горизонтальная, как у карусели места. Высоту держит рамка,
+   загрузка картинки не сдвигает текст. Несколько кадров подряд — лента
+   со scroll-snap: на телефоне её листают пальцем, на десктопе стрелками.
+   Сборка разметки — site_app/galleries.py. */
+.article-figure,
+.article-gallery { margin: 36px 0; max-width: 100%; }
+.article-gallery { position: relative; outline: none; }
+.article-gallery-stage { position: relative; max-width: 100%; }
+/* width:0 + min-width:100% — лента берёт ширину колонки и крутится внутри
+   себя. Иначе кадры на 100% ширины раздвигают колонку и наезжают на
+   оглавление. */
+.article-gallery-track {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+  scroll-padding-inline: 0; overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  width: 0; min-width: 100%;
+}
+.article-gallery-track::-webkit-scrollbar { display: none; }
+.article-gallery-item {
+  flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always;
+  margin: 0;
+}
+.article-frame {
+  position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: 10px;
+  background: var(--bg-elevated);
+}
+.article-body .article-frame img,
+.article-frame img {
+  position: absolute; inset: 0; width: 100%; height: 100%; max-width: none;
+  object-fit: cover; object-position: center; margin: 0; border-radius: 0;
+  display: block;
+}
+/* Стрелки лежат в слое ровно над рамкой (та же 3:2), а не над подписью,
+   поэтому кружок оказывается посередине фото. На тач-экране их нет:
+   там ленту листают пальцем, и кнопка только закрывает кадр. */
+.article-gallery-arrows {
+  position: absolute; left: 0; right: 0; top: 0; aspect-ratio: 3 / 2;
+  pointer-events: none;
+}
 .gal-nav {
-  position: absolute; top: calc(50% - 22px); transform: translateY(-50%);
+  position: absolute; top: 50%; transform: translateY(-50%);
   width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-card) 92%, transparent);
   backdrop-filter: blur(6px); color: var(--text);
   display: flex; align-items: center; justify-content: center; cursor: pointer;
   box-shadow: var(--shadow); opacity: 0; transition: opacity .15s ease, border-color .15s ease;
-  z-index: 2;
+  z-index: 2; pointer-events: auto;
 }
 .gal-nav svg { width: 20px; height: 20px; }
 .gal-prev { left: 10px; }
@@ -583,46 +620,20 @@ h1.article-title {
 .article-gallery:hover .gal-nav, .gal-nav:focus-visible { opacity: 1; }
 .gal-nav:hover { border-color: var(--accent); color: var(--accent); }
 .gal-nav[disabled] { opacity: 0 !important; pointer-events: none; }
-@media (hover: none) { .gal-nav { display: none; } }
-/* width:0 + min-width:100% — лента не участвует в расчёте «сколько места мне
-   нужно», а берёт ширину колонки и прокручивается внутри себя. Без этого
-   кадры произвольной ширины раздвигали саму колонку: на странице места
-   коллаж вылезал поверх боковой панели. */
-.article-gallery-track {
-  display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch; padding-bottom: 2px; margin: 0 -2px;
-  width: 0; min-width: 100%;
-}
-/* Кадры в коллаже сохраняют свои пропорции: высота у всех одна, а ширину
-   задаёт само фото — горизонтальное занимает много места, вертикальное
-   узкую полосу. Раньше всё резалось под 3:4, и панорама с плато выглядела
-   так же, как портретный кадр водопада. */
-.article-gallery-item {
-  flex: 0 0 auto; scroll-snap-align: start; margin: 0;
-}
-.article-gallery-item img {
-  height: 440px; width: auto;
-  /* max-width глобально стоит 100% на всех img — здесь он мешает картинке
-     стать шире колонки, а панораме это как раз нужно. Потолок оставляем,
-     чтобы совсем широкий кадр не уезжал за экран. */
-  max-width: 78vw; object-fit: cover;
-  border-radius: 10px; display: block; margin: 0;
-}
-@media (max-width: 900px) { .article-gallery-item img { height: 340px; max-width: 88vw; } }
-@media (max-width: 640px) { .article-gallery-item img { height: 260px; } }
-.article-gallery-caption {
-  display: flex; gap: 8px; margin-top: 12px; width: 0; min-width: 100%;
-  font-family: var(--font-body); font-size: 14px; line-height: 1.4; color: var(--text-muted);
-}
-.article-gallery-counter { flex: none; font-weight: 700; color: var(--text); }
-.article-gallery-text { flex: 1; min-width: 0; }
-
-/* Одиночное фото с подписью — та же типографика подписи, что в коллаже */
-.article-figure { margin: 36px 0; }
-.article-figure img { width: 100%; border-radius: 10px; display: block; margin: 0; }
+@media (hover: none) and (pointer: coarse) { .gal-nav { display: none; } }
+.article-gallery-caption,
 .article-figure figcaption {
-  margin-top: 12px; font-family: var(--font-body); font-size: 14px; line-height: 1.4; color: var(--text-muted);
+  margin-top: 10px; font-family: var(--font-body); font-size: 14px; line-height: 1.45;
+  color: var(--text-muted);
 }
+.article-gallery-counter {
+  font-weight: 700; color: var(--text); margin-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.article-gallery-credit {
+  display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.4; color: var(--text-muted);
+}
+.article-gallery-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 
 .featured-row { margin: 32px 0; }
 .featured-row h4 { font-family: var(--font-body); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-muted); margin: 0 0 14px; }
