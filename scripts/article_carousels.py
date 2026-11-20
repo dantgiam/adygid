@@ -11,6 +11,7 @@ sql пишет миграцию и откат. preview собирает HTML с�
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -26,6 +27,7 @@ from site_app.galleries import render_article_gallery  # noqa: E402
 MIGRATION = ROOT / "migrations" / "20261120_article_carousels.sql"
 ROLLBACK = ROOT / "migrations" / "20261120_article_carousels_rollback.sql"
 MANIFEST = ROOT / "content" / "carousels_2026_11" / "manifest.json"
+BACKUP_ALL = ROOT / "content" / "carousels_2026_11" / "backup-all.json"
 
 
 def _rows_from_dump(folder: Path) -> list[dict]:
@@ -57,14 +59,21 @@ def _places_from_dump(folder: Path) -> list[dict]:
     for row in raw:
         if row["id"] not in needed:
             continue
-        out.append({
-            "id": row["id"],
-            "name": row["name"],
-            "photos": [
-                {"url": photo.get("url") or "", "caption": photo.get("caption") or ""}
-                for photo in (row.get("photos") or [])
-            ],
-        })
+        photos = [
+            {"url": photo.get("url") or "", "caption": photo.get("caption") or ""}
+            for photo in (row.get("photos") or [])
+        ]
+        seen = {photo["url"] for photo in photos}
+        # В тексте карточки иногда есть второй и третий кадр того же места.
+        # Карточку не меняем, но для ленты маршрута это тоже фото сайта.
+        for img in re.findall(r"<img\b[^>]*>", row.get("description") or ""):
+            src = re.search(r'src="([^"]+)"', img)
+            alt = re.search(r'alt="([^"]*)"', img)
+            if not src or src.group(1) in seen:
+                continue
+            seen.add(src.group(1))
+            photos.append({"url": src.group(1), "caption": alt.group(1) if alt else ""})
+        out.append({"id": row["id"], "name": row["name"], "photos": photos})
     missing = needed - {row["id"] for row in out}
     if missing:
         raise SystemExit(f"в выгрузке нет мест {sorted(missing)}")
@@ -76,7 +85,21 @@ def snapshot(folder: Path) -> None:
     places = _places_from_dump(folder)
     BEFORE.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
     PLACES.write_text(json.dumps(places, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"снимок: {len(rows)} текстов, {len(places)} мест")
+    # Полный снимок всех опубликованных текстов, не только тех, куда ставим ленту.
+    everything = []
+    for kind, filename, text_key, title_key in (
+        ("article", "articles.json", "body", "title"),
+        ("trail", "trails.json", "description", "name"),
+        ("scenario", "scenarios.json", "lead", "title"),
+    ):
+        for src in json.loads((folder / filename).read_text(encoding="utf-8")):
+            body = src.get(text_key) or ""
+            everything.append({
+                "kind": kind, "id": src["id"], "slug": src.get("slug") or "",
+                "title": src.get(title_key) or "", "body": body, "md5": body_md5(body),
+            })
+    BACKUP_ALL.write_text(json.dumps(everything, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"снимок: {len(rows)} текстов к правке, {len(places)} мест, полный бэкап {len(everything)}")
 
 
 def build():

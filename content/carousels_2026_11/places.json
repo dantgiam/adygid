@@ -16,6 +16,18 @@
    {
     "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/448c4b816ebf4e748411e4320a874734.jpeg",
     "caption": ""
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/5a26a853a7f9464c807d2feb10cede13.webp",
+    "caption": "Хаджохская теснина: вид в ущелье"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/5db63d1e5cc248cb9b9f8786b92e4cc8.webp",
+    "caption": "Хаджохская теснина"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/10eb6403fd0d4317b10c52dc5164eb4d.webp",
+    "caption": "Медведь за ограждением"
    }
   ]
  },
@@ -26,6 +38,18 @@
    {
     "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/f6e131d6fccc471c9a4b3da7b9a8f39d.jpg",
     "caption": ""
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/25f118aa760140109eef8ed887cb8288.webp",
+    "caption": "Сталактиты и сталагмиты Большой Азишской пещеры"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/601f54202e4840d4aea94ae6ca01ec33.webp",
+    "caption": "Внутри Большой Азишской пещеры"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/770cd1f274b8441b932055a0da679863.webp",
+    "caption": "Общий вид Азишской пешеры"
    }
   ]
  },
@@ -35,6 +59,16 @@
   "photos": [
    {
     "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/51aae5bd68864956855cd3d14cc25d17.webp",
+    "caption": ""
+   }
+  ]
+ },
+ {
+  "id": 27,
+  "name": "Дольмен у Гузерипля",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/7fae0f85b20e4b8e9b2fb225abfd8d8e.jpg",
     "caption": ""
    }
   ]
@@ -68,12 +102,26 @@
   ]
  },
  {
+  "id": 56,
+  "name": "Каменное море",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/382df1152a7c4668a830d985d8175860.webp",
+    "caption": ""
+   }
+  ]
+ },
+ {
   "id": 55,
   "name": "Плато Лаго-Наки",
   "photos": [
    {
     "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/122d8d600b2444c0951446c8dda2498d.webp",
     "caption": ""
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/c7b98103ab7e4c8b91d7b661d57e1c79.webp",
+    "caption": "Панорама плато Лаго-Наки в июне"
    }
   ]
  },
@@ -108,6 +156,16 @@
   ]
  },
  {
+  "id": 74,
+  "name": "Грот «Крыло Ангела»",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/c98522b3e22a430cbed93a36162dde3a.webp",
+    "caption": "Грот Крыло Ангела, лестница внутри. Фото: Titam.ru (водяной знак)"
+   }
+  ]
+ },
+ {
   "id": 68,
   "name": "«Кедровый бор»: термальный бассейн в Цветочном",
   "photos": [
@@ -128,6 +186,22 @@
    {
     "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/542c3bb3b5e0432b9b225d659648e10d.webp",
     "caption": ""
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/98824ddbd5544116b88781b518a34291.webp",
+    "caption": "Вид на этой смотровой по дороге на Лаго-Наки"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/42433e8dffb4482a9543bc303b4b2f97.webp",
+    "caption": "Беседка на этой смотровой по дороге на Лаго-Наки"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/90a0cff683cf435ba3bc904394a49eb7.webp",
+    "caption": "Вид со смотровой"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/a0fa3d60f26e4e8d8ca7fcfaf1bdc61d.webp",
+    "caption": "Вид с этой смотровой по дороге на Лаго-Наки"
    }
   ]
  },
@@ -138,6 +212,24 @@
    {
     "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/e82354484518437b90d9f59160f1924a.webp",
     "caption": ""
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/2291e07fc4ea4ff19a337f72648caa29.webp",
+    "caption": "Водопад «Девичья коса» на Руфабго"
+   }
+  ]
+ },
+ {
+  "id": 102,
+  "name": "Гора Казачья: смотровая «Язык Тролля»",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/e7f3ea94e86f4ccf97eba9ddb8428bb6.webp",
+    "caption": "Вид на долину Белой со склонов Казачьей. Фото: Titam.ru (водяной знак)"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/db78f836335d4be3b03ec7d50821413c.webp",
+    "caption": "Лесной подъём на гору Казачью. Фото: Titam.ru (водяной знак)"
    }
   ]
  },
@@ -178,6 +270,10 @@
    {
     "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/a686af0b2ed4430ebd74d208fdc39777.webp",
     "caption": ""
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/aabac2cb767f4990a7731db22ae9d787.webp",
+    "caption": "Белая в Гранитном каньоне"
    }
   ]
  },
@@ -322,12 +418,36 @@
   ]
  },
  {
+  "id": 75,
+  "name": "Сахрайские водопады",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/2848aeaea60b49249b4818c808fb8eba.webp",
+    "caption": "Сахрайские водопады. Фото: sherdim, <a href=\"https://ru.wikiloc.com/marshruty-pokhod/sakhrai-bagovskaia-2013170\" target=\"_blank\" rel=\"noopener\">Wikiloc</a>"
+   }
+  ]
+ },
+ {
   "id": 77,
   "name": "Картинная галерея Республики Адыгея",
   "photos": [
    {
     "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/bcf5999346fe4866b7151eeac7d4cc18.webp",
     "caption": "Вход в Картинную галерею Республики Адыгея"
+   }
+  ]
+ },
+ {
+  "id": 79,
+  "name": "Дендропарк имени П. В. Букреева в Гончарке",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/d09b5245d33149de8f76278a33bd884f.webp",
+    "caption": "Вид на озеро с холма. Фото: Стрыгин Михаил Александрович, CC BY-SA 4.0"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/98029a76ec0b4328b3dbf4d1ea3309f3.webp",
+    "caption": "Берёзовая роща в дендропарке. Фото: Стрыгин Михаил Александрович, CC BY-SA 4.0"
    }
   ]
  },
@@ -352,6 +472,50 @@
   ]
  },
  {
+  "id": 84,
+  "name": "Гора Монах над Хамышками",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/37def6611c0447f78800fc382b0989a7.webp",
+    "caption": "Скалы горы Монах (по описанию файла на Commons). Фото: Семенова Марина Анатольевна, CC BY-SA 4.0"
+   },
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/ee57cb4ef3e64cb1a3e06151886f5081.webp",
+    "caption": "Скалы горы Монах (по описанию файла на Commons). Фото: MarOleg, CC BY-SA 4.0"
+   }
+  ]
+ },
+ {
+  "id": 86,
+  "name": "Козья ферма и сыроварня «Мамонтий»",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/57c9f6c208bd468592a2235fb533b5a3.webp",
+    "caption": "Сыры фермы «Мамонтий»"
+   }
+  ]
+ },
+ {
+  "id": 89,
+  "name": "Грот Череп",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/ea229516ce494ac295bf9e5f9ba1cd61.webp",
+    "caption": "Грот Череп, люди в нише. Фото: Titam.ru"
+   }
+  ]
+ },
+ {
+  "id": 90,
+  "name": "Каньон реки Фарс у Победы",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/edfc7f4f20aa4fcebfac857fa8215a4f.webp",
+    "caption": "Грот-навес в каньоне Фарса. Фото: Titam.ru"
+   }
+  ]
+ },
+ {
   "id": 91,
   "name": "Скала Молоток и Окно в Европу",
   "photos": [
@@ -372,6 +536,16 @@
    {
     "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/d349ff3b743241a781e97965afdcc9de.webp",
     "caption": "Чаша водопада на реке Майкопке. Фото: geocaching.su"
+   }
+  ]
+ },
+ {
+  "id": 103,
+  "name": "«Тропическая лагуна» у Хаджохской теснины",
+  "photos": [
+   {
+    "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/de6d7e101a4848d1a02ba07470518cfe.webp",
+    "caption": "Песчаная отмель у Хаджохской теснины. Фото: tic01.ru"
    }
   ]
  }

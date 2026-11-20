@@ -79,6 +79,40 @@ PLAN = [
     ("article", 26, [
         ("Как сочетать еду и смотровые", [24, 42, 49]),
     ]),
+    ("article", 35, [
+        (None, [62, 27, 64]),
+    ]),
+    ("article", 34, [
+        (None, [40, 55, 52, 63]),
+    ]),
+    ("article", 27, [
+        (None, [27, 24, 45, 62]),
+    ]),
+    ("article", 25, [
+        ("Где искать местные блюда зимой", [80, 86]),
+    ]),
+    ("article", 23, [
+        ("Куда поставить термы в маршруте", [72, 67, 68]),
+    ]),
+    ("article", 1, [
+        ("Что взять под конкретный день", [40, 55, 25]),
+    ]),
+    ("scenario", 3, [
+        ("Что реально успеть", [24, 40, 45]),
+    ]),
+    ("trail", 14, [(None, [52, 74])]),
+    ("trail", 17, [(None, [62, 63, 27])]),
+    ("trail", 12, [(None, [24, 40, 42])]),
+    ("trail", 25, [(None, [74, 84])]),
+    ("trail", 26, [(None, [89, 90, 30])]),
+    ("trail", 13, [(None, [49, 48, 50])]),
+    ("trail", 15, [(None, [75])]),
+    ("trail", 16, [(None, [58, 39, 25])]),
+    ("trail", 20, [(None, [79])]),
+    ("trail", 23, [(None, [84])]),
+    ("trail", 31, [(None, [102])]),
+    ("trail", 32, [(None, [103, 24])]),
+    ("trail", 34, [(None, [56, 55])]),
     # Сценарии-подборки.
     ("scenario", 4, [
         ("Без снега: долина Белой", [40, 52, 63]),
@@ -119,3 +153,46 @@ PLAN = [
 
 # Места, чьи снимки не берём: подпись сама говорит, что кадр может быть не о том месте.
 SKIP_PLACE_IDS = {85, 93, 94}
+
+# Дополнительные свободные кадры, когда на карточке места их меньше трёх.
+# Подпись повторяет описание файла, не придумывает место.
+EXTRAS = {
+    ("trail", 15): [
+        {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/6/6b/%D0%90%D0%B4%D1%8B%D0%B3%D0%B5%D1%8F.%D0%9C%D0%B0%D0%B9%D0%BA%D0%BE%D0%BF%D1%81%D0%BA%D0%B8%D0%B9_%D1%80%D0%B0%D0%B9%D0%BE%D0%BD.%D0%9A%D0%B0%D0%BD%D1%8C%D0%BE%D0%BD_%D1%80%D0%B5%D0%BA%D0%B8_%D0%A1%D0%B0%D1%85%D1%80%D0%B0%D0%B9_2016.jpg",
+            "caption": "Каньон реки Сахрай у Усть-Сахрая",
+            "credit": "Фото: Ангелина Нарыжнова, CC BY-SA 4.0, Wikimedia Commons",
+            "place": "Каньон реки Сахрай",
+        },
+        {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/f/f3/%D0%A1%D0%B0%D1%85%D1%80%D0%B0%D0%B9_%281%29.jpg",
+            "caption": "Каньон реки Сахрай",
+            "credit": "Фото: Семенова Марина Анатольевна, CC BY-SA 4.0, Wikimedia Commons",
+            "place": "Каньон реки Сахрай",
+        },
+    ],
+    ("trail", 20): [
+        {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/8/84/%D0%93%D0%BE%D0%BD%D1%87%D0%B0%D1%80%D0%BA%D0%B0%2C%D0%94%D0%B5%D0%BD%D0%B4%D1%80%D0%BE%D0%BF%D0%B0%D1%80%D0%BA_2017.jpg",
+            "caption": "Гончарский дендропарк имени Букреева",
+            "credit": "Фото: Семенова Марина Анатольевна, CC BY-SA 4.0, Wikimedia Commons",
+            "place": "Дендропарк в Гончарке",
+        },
+    ],
+    ("trail", 23): [
+        {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/9/9b/%D0%93%D0%BE%D1%80%D0%B0_%D0%9C%D0%BE%D0%BD%D0%B0%D1%85._%D0%93%D1%80%D0%BE%D1%82.jpg",
+            "caption": "Грот у водопадов Кутанки под горой Монах",
+            "credit": "Фото: MarOleg, CC BY-SA 4.0, Wikimedia Commons",
+            "place": "Гора Монах",
+        },
+    ],
+    ("trail", 31): [
+        {
+            "url": "https://upload.wikimedia.org/wikipedia/commons/1/1c/Guzeripl7.jpg",
+            "caption": "Гузерипль, откуда начинается подъём на Казачью",
+            "credit": "Фото: Arsave, GFDL, Wikimedia Commons",
+            "place": "Гузерипль",
+        },
+    ],
+}

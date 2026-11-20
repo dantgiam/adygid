@@ -15,7 +15,7 @@ import re
 from html import escape
 from pathlib import Path
 
-from content.carousels_2026_11.plan import PLAN, SKIP_PLACE_IDS
+from content.carousels_2026_11.plan import EXTRAS, PLAN, SKIP_PLACE_IDS
 
 ROOT = Path(__file__).resolve().parent
 BEFORE = ROOT / "before.json"
@@ -48,9 +48,16 @@ def _split_caption(raw: str, place_name: str) -> tuple[str, str]:
 
 def _usable(caption: str) -> bool:
     low = caption.lower()
+    # Кадр, про который подпись сама говорит «это может быть не то место», не берём.
     return not any(bad in low for bad in (
-        "не обязательно", "не сама", "путают", "водяной знак", "непропаду",
+        "не обязательно", "не сама", "путают", "непропаду",
     ))
+
+
+def _clean_credit(credit: str) -> str:
+    credit = re.sub(r"\([^)]*водяной знак[^)]*\)", "", credit, flags=re.I)
+    credit = re.sub(r"\(\s*\d+\s*px\s*\)", "", credit, flags=re.I)
+    return " ".join(credit.split())
 
 
 def load_places() -> dict[int, dict]:
@@ -76,7 +83,7 @@ def _figure(url: str, caption: str, credit: str) -> str:
     )
 
 
-def _photos_for(place_ids: list[int], places: dict[int, dict], used: set[str]) -> list[dict]:
+def _photos_for(place_ids: list[int], places: dict[int, dict], used: set[str], extras: list[dict] | None = None) -> list[dict]:
     """По одному кадру с места. Если мест меньше трёх — второй кадр того же места."""
     chosen: list[dict] = []
     pools: list[tuple[dict, list[dict]]] = []
@@ -94,11 +101,24 @@ def _photos_for(place_ids: list[int], places: dict[int, dict], used: set[str]) -
             if not url or key in used:
                 continue
             caption, credit = _split_caption(photo.get("caption") or "", place["name"])
-            if not _usable(caption) or not _usable(credit):
+            if not _usable(caption):
                 continue
-            pool.append({"url": url, "key": key, "caption": caption, "credit": credit, "place": place["name"]})
+            pool.append({
+                "url": url, "key": key, "caption": caption,
+                "credit": _clean_credit(credit), "place": place["name"],
+            })
         if pool:
             pools.append((place, pool))
+    for extra in extras or []:
+        url = extra["url"]
+        upload = _UPLOAD_RE.search(url)
+        key = upload.group(1) if upload else url
+        if key in used or not _usable(extra["caption"]):
+            continue
+        pools.append(({"name": extra.get("place") or extra["caption"]}, [{
+            "url": url, "key": key, "caption": extra["caption"],
+            "credit": _clean_credit(extra["credit"]), "place": extra.get("place") or extra["caption"],
+        }]))
     for _place, pool in pools:
         photo = pool.pop(0)
         chosen.append(photo)
@@ -147,7 +167,7 @@ def apply_html(html: str, kind: str, item_id: int, carousels: list, places: dict
         if marker in updated:
             report.append({"index": index, "heading": heading, "skipped": "already"})
             continue
-        photos = _photos_for(list(place_ids), places, used)
+        photos = _photos_for(list(place_ids), places, used, EXTRAS.get((kind, item_id)))
         if len(photos) < 3:
             raise ValueError(
                 f"{kind} {item_id} лента {index}: набралось {len(photos)} кадров, нужно от 3"

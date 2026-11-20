@@ -384,8 +384,14 @@
    {
     "index": 1,
     "heading": "Три замены в том же районе",
-    "count": 3,
+    "count": 4,
     "photos": [
+     {
+      "place": "Хаджохская теснина",
+      "caption": "Хаджохская теснина: вид в ущелье",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/5a26a853a7f9464c807d2feb10cede13.webp"
+     },
      {
       "place": "Гранитный каньон",
       "caption": "Гранитный каньон",
@@ -450,8 +456,14 @@
    {
     "index": 1,
     "heading": "Три дня по-человечески",
-    "count": 3,
+    "count": 4,
     "photos": [
+     {
+      "place": "Хаджохская теснина",
+      "caption": "Хаджохская теснина: вид в ущелье",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/5a26a853a7f9464c807d2feb10cede13.webp"
+     },
      {
       "place": "Водопады Руфабго",
       "caption": "Водопады Руфабго",
@@ -697,8 +709,14 @@
    {
     "index": 1,
     "heading": "Что выбрать в первую очередь",
-    "count": 3,
+    "count": 4,
     "photos": [
+     {
+      "place": "Хаджохская теснина",
+      "caption": "Хаджохская теснина: вид в ущелье",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/5a26a853a7f9464c807d2feb10cede13.webp"
+     },
      {
       "place": "Казачий камень",
       "caption": "Казачий камень",
@@ -730,7 +748,7 @@
    {
     "index": 1,
     "heading": null,
-    "count": 4,
+    "count": 5,
     "photos": [
      {
       "place": "Хаджохская теснина",
@@ -743,6 +761,12 @@
       "caption": "Водопады Руфабго",
       "credit": "Фото: АдыГид",
       "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/e82354484518437b90d9f59160f1924a.webp"
+     },
+     {
+      "place": "Плато Лаго-Наки",
+      "caption": "Панорама плато Лаго-Наки в июне",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/c7b98103ab7e4c8b91d7b661d57e1c79.webp"
      },
      {
       "place": "Большая Азишская пещера",
@@ -860,6 +884,678 @@
       "caption": "Старый мост в Даховской",
       "credit": "Фото: АдыГид",
       "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/b9b39dc852574f2b8eb49e23568bd0e6.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "article",
+  "id": 35,
+  "slug": "guzeripl-zimoy",
+  "title": "Гузерипль зимой: что посмотреть и как доехать",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Музей природы Кавказского заповедника",
+      "caption": "Музей природы Кавказского заповедника",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/6e222c155e94480496100c3f01fe25b0.webp"
+     },
+     {
+      "place": "Дольмен у Гузерипля",
+      "caption": "Дольмен у Гузерипля",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/7fae0f85b20e4b8e9b2fb225abfd8d8e.jpg"
+     },
+     {
+      "place": "Яворова поляна",
+      "caption": "Яворова поляна",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/69b7caca82fa4b93bcd45ded917fad6f.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "article",
+  "id": 34,
+  "slug": "adygeya-iz-rostova-na-2-3-dnya",
+  "title": "Адыгея из Ростова на 2–3 дня: дорога, маршрут и что посмотреть",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 4,
+    "photos": [
+     {
+      "place": "Водопады Руфабго",
+      "caption": "Водопады Руфабго",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/e82354484518437b90d9f59160f1924a.webp"
+     },
+     {
+      "place": "Плато Лаго-Наки",
+      "caption": "Плато Лаго-Наки",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/122d8d600b2444c0951446c8dda2498d.webp"
+     },
+     {
+      "place": "Гранитный каньон",
+      "caption": "Гранитный каньон",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/a686af0b2ed4430ebd74d208fdc39777.webp"
+     },
+     {
+      "place": "Вольерный комплекс в Гузерипле",
+      "caption": "Вольерный комплекс в Гузерипле",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/9ea554c07beb49c1ab4486b36dae0576.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "article",
+  "id": 27,
+  "slug": "kulturnyy-den-dolmen-muzei",
+  "title": "Культурный день: дольмен и музей без «энергии места»",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 4,
+    "photos": [
+     {
+      "place": "Дольмен у Гузерипля",
+      "caption": "Дольмен у Гузерипля",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/7fae0f85b20e4b8e9b2fb225abfd8d8e.jpg"
+     },
+     {
+      "place": "Хаджохская теснина",
+      "caption": "Хаджохская теснина",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/448c4b816ebf4e748411e4320a874734.jpeg"
+     },
+     {
+      "place": "Музей «Беловодье» в Хаджохе",
+      "caption": "Музей «Беловодье» в Хаджохе",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/360742469873496bb527a77a9e3776c3.webp"
+     },
+     {
+      "place": "Музей природы Кавказского заповедника",
+      "caption": "Музей природы Кавказского заповедника",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/6e222c155e94480496100c3f01fe25b0.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "article",
+  "id": 25,
+  "slug": "adygeyskaya-kuhnya-chto-poprobovat",
+  "title": "Адыгейская кухня: щыпс, пастэ, халюж и что ещё попробовать",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": "Где искать местные блюда зимой",
+    "count": 3,
+    "photos": [
+     {
+      "place": "Музей адыгейского чая и плантация в Цветочном",
+      "caption": "Цветущий чайный куст",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/f33bc0d06a0147c0b9f767fcf4812b6a.webp"
+     },
+     {
+      "place": "Козья ферма и сыроварня «Мамонтий»",
+      "caption": "Сыры фермы «Мамонтий»",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/57c9f6c208bd468592a2235fb533b5a3.webp"
+     },
+     {
+      "place": "Музей адыгейского чая и плантация в Цветочном",
+      "caption": "Чайная плантация в Цветочном",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/cc09238cda124a7a889dc66a60e5addf.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "article",
+  "id": 23,
+  "slug": "chto-vzyat-v-termy-zimoy",
+  "title": "Что взять в термы зимой в Адыгее",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": "Куда поставить термы в маршруте",
+    "count": 3,
+    "photos": [
+     {
+      "place": "Термы Псыгупс",
+      "caption": "Термы «Псыгупс» сверху",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/ef08fb489f5041e9a4c72371f0af7c6d.webp"
+     },
+     {
+      "place": "«АкваТермо»: термальные бассейны в Тульском",
+      "caption": "Термальный бассейн в Тульском",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/d92838921a9740db92fb5f597f25f17c.webp"
+     },
+     {
+      "place": "«Кедровый бор»: термальный бассейн в Цветочном",
+      "caption": "Термальный бассейн в Цветочном",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/350f920435c341ac94739da8982d8a89.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "article",
+  "id": 1,
+  "slug": "chto-vzyat-s-soboy-v-adygeyu",
+  "title": "Что взять с собой в Адыгею",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": "Что взять под конкретный день",
+    "count": 3,
+    "photos": [
+     {
+      "place": "Водопады Руфабго",
+      "caption": "Водопады Руфабго",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/e82354484518437b90d9f59160f1924a.webp"
+     },
+     {
+      "place": "Плато Лаго-Наки",
+      "caption": "Плато Лаго-Наки",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/122d8d600b2444c0951446c8dda2498d.webp"
+     },
+     {
+      "place": "Большая Азишская пещера",
+      "caption": "Большая Азишская пещера",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/f6e131d6fccc471c9a4b3da7b9a8f39d.jpg"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "scenario",
+  "id": 3,
+  "slug": "bez-mashiny",
+  "title": "Адыгея без машины",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": "Что реально успеть",
+    "count": 3,
+    "photos": [
+     {
+      "place": "Хаджохская теснина",
+      "caption": "Хаджохская теснина",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/448c4b816ebf4e748411e4320a874734.jpeg"
+     },
+     {
+      "place": "Водопады Руфабго",
+      "caption": "Водопады Руфабго",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/e82354484518437b90d9f59160f1924a.webp"
+     },
+     {
+      "place": "Музей «Беловодье» в Хаджохе",
+      "caption": "Музей «Беловодье» в Хаджохе",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/360742469873496bb527a77a9e3776c3.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 14,
+  "slug": "granitnyy-kanon-i-ostanovki-u-hamyshek",
+  "title": "Гранитный каньон и остановки у Хамышек",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Гранитный каньон",
+      "caption": "Гранитный каньон",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/a686af0b2ed4430ebd74d208fdc39777.webp"
+     },
+     {
+      "place": "Грот «Крыло Ангела»",
+      "caption": "Грот Крыло Ангела, лестница внутри",
+      "credit": "Фото: Titam.ru",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/c98522b3e22a430cbed93a36162dde3a.webp"
+     },
+     {
+      "place": "Гранитный каньон",
+      "caption": "Белая в Гранитном каньоне",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/aabac2cb767f4990a7731db22ae9d787.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 17,
+  "slug": "guzeripl-s-detmi",
+  "title": "Гузерипль с детьми: музей / вольеры + короткая прогулка",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Музей природы Кавказского заповедника",
+      "caption": "Музей природы Кавказского заповедника",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/6e222c155e94480496100c3f01fe25b0.webp"
+     },
+     {
+      "place": "Вольерный комплекс в Гузерипле",
+      "caption": "Вольерный комплекс в Гузерипле",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/9ea554c07beb49c1ab4486b36dae0576.webp"
+     },
+     {
+      "place": "Дольмен у Гузерипля",
+      "caption": "Дольмен у Гузерипля",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/7fae0f85b20e4b8e9b2fb225abfd8d8e.jpg"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 12,
+  "slug": "hadzhoh-za-poldnya",
+  "title": "Хаджох за полдня: теснина + первые Руфабго",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Хаджохская теснина",
+      "caption": "Хаджохская теснина",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/448c4b816ebf4e748411e4320a874734.jpeg"
+     },
+     {
+      "place": "Водопады Руфабго",
+      "caption": "Водопады Руфабго",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/e82354484518437b90d9f59160f1924a.webp"
+     },
+     {
+      "place": "Казачий камень",
+      "caption": "Казачий камень",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/51aae5bd68864956855cd3d14cc25d17.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 25,
+  "slug": "hamyshki-vodopady-kutanki-i-grot-krylo-angela",
+  "title": "Хамышки: водопады Кутанки и грот «Крыло Ангела»",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Грот «Крыло Ангела»",
+      "caption": "Грот Крыло Ангела, лестница внутри",
+      "credit": "Фото: Titam.ru",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/c98522b3e22a430cbed93a36162dde3a.webp"
+     },
+     {
+      "place": "Гора Монах над Хамышками",
+      "caption": "Скалы горы Монах (по описанию файла на Commons)",
+      "credit": "Фото: Семенова Марина Анатольевна, CC BY-SA 4.0",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/37def6611c0447f78800fc382b0989a7.webp"
+     },
+     {
+      "place": "Гора Монах над Хамышками",
+      "caption": "Скалы горы Монах (по описанию файла на Commons)",
+      "credit": "Фото: MarOleg, CC BY-SA 4.0",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/ee57cb4ef3e64cb1a3e06151886f5081.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 26,
+  "slug": "pobeda-grot-cherep-i-skala-galkina",
+  "title": "Победа: грот Череп и скала Галкина",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Грот Череп",
+      "caption": "Грот Череп, люди в нише",
+      "credit": "Фото: Titam.ru",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/ea229516ce494ac295bf9e5f9ba1cd61.webp"
+     },
+     {
+      "place": "Каньон реки Фарс у Победы",
+      "caption": "Грот-навес в каньоне Фарса",
+      "credit": "Фото: Titam.ru",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/edfc7f4f20aa4fcebfac857fa8215a4f.webp"
+     },
+     {
+      "place": "Михайло-Афонская пустынь",
+      "caption": "Михайло-Афонская пустынь",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/0fa7dbd86dda434aa3b517c881650ee0.jpg"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 13,
+  "slug": "dahovskaya-staryy-most-i-kanatnaya-doroga",
+  "title": "Даховская: старый мост и канатная дорога",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Старый мост в Даховской",
+      "caption": "Старый мост в Даховской",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/b9b39dc852574f2b8eb49e23568bd0e6.webp"
+     },
+     {
+      "place": "Савранская канатная дорога",
+      "caption": "Савранская канатная дорога",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/0eb8390bc33d4bcf933d02ca3e88e9c6.webp"
+     },
+     {
+      "place": "Скала Чёртов палец",
+      "caption": "Скала Чёртов палец",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/d5c6955c4ab1463db693f30972c3c061.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 15,
+  "slug": "sahrayskie-vodopady-tuda-obratno",
+  "title": "Сахрайские водопады туда-обратно",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Сахрайские водопады",
+      "caption": "Сахрайские водопады",
+      "credit": "Фото: sherdim, Wikiloc",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/2848aeaea60b49249b4818c808fb8eba.webp"
+     },
+     {
+      "place": "Каньон реки Сахрай",
+      "caption": "Каньон реки Сахрай у Усть-Сахрая",
+      "credit": "Фото: Ангелина Нарыжнова, CC BY-SA 4.0, Wikimedia Commons",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/6/6b/%D0%90%D0%B4%D1%8B%D0%B3%D0%B5%D1%8F.%D0%9C%D0%B0%D0%B9%D0%BA%D0%BE%D0%BF%D1%81%D0%BA%D0%B8%D0%B9_%D1%80%D0%B0%D0%B9%D0%BE%D0%BD.%D0%9A%D0%B0%D0%BD%D1%8C%D0%BE%D0%BD_%D1%80%D0%B5%D0%BA%D0%B8_%D0%A1%D0%B0%D1%85%D1%80%D0%B0%D0%B9_2016.jpg"
+     },
+     {
+      "place": "Каньон реки Сахрай",
+      "caption": "Каньон реки Сахрай",
+      "credit": "Фото: Семенова Марина Анатольевна, CC BY-SA 4.0, Wikimedia Commons",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/f/f3/%D0%A1%D0%B0%D1%85%D1%80%D0%B0%D0%B9_%281%29.jpg"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 16,
+  "slug": "smotrovye-u-kpp-lagonaki",
+  "title": "Смотровые у КПП Лагонаки",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Скала Утюг",
+      "caption": "Скала Утюг",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/224f4c956bb8465199823ce28a3b47c0.webp"
+     },
+     {
+      "place": "Смотровая с качелями по дороге на Лаго-Наки",
+      "caption": "Смотровая с качелями по дороге на Лаго-Наки",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/542c3bb3b5e0432b9b225d659648e10d.webp"
+     },
+     {
+      "place": "Большая Азишская пещера",
+      "caption": "Большая Азишская пещера",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/f6e131d6fccc471c9a4b3da7b9a8f39d.jpg"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 20,
+  "slug": "ravninnaya-adygeya",
+  "title": "Равнинная Адыгея: дендропарк в Гончарке за полдня",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Дендропарк имени П. В. Букреева в Гончарке",
+      "caption": "Вид на озеро с холма",
+      "credit": "Фото: Стрыгин Михаил Александрович, CC BY-SA 4.0",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/d09b5245d33149de8f76278a33bd884f.webp"
+     },
+     {
+      "place": "Дендропарк в Гончарке",
+      "caption": "Гончарский дендропарк имени Букреева",
+      "credit": "Фото: Семенова Марина Анатольевна, CC BY-SA 4.0, Wikimedia Commons",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/8/84/%D0%93%D0%BE%D0%BD%D1%87%D0%B0%D1%80%D0%BA%D0%B0%2C%D0%94%D0%B5%D0%BD%D0%B4%D1%80%D0%BE%D0%BF%D0%B0%D1%80%D0%BA_2017.jpg"
+     },
+     {
+      "place": "Дендропарк имени П. В. Букреева в Гончарке",
+      "caption": "Берёзовая роща в дендропарке",
+      "credit": "Фото: Стрыгин Михаил Александрович, CC BY-SA 4.0",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/98029a76ec0b4328b3dbf4d1ea3309f3.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 23,
+  "slug": "gora-monah",
+  "title": "Гора Монах: крутой подъём над Хамышками",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Гора Монах над Хамышками",
+      "caption": "Скалы горы Монах (по описанию файла на Commons)",
+      "credit": "Фото: Семенова Марина Анатольевна, CC BY-SA 4.0",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/37def6611c0447f78800fc382b0989a7.webp"
+     },
+     {
+      "place": "Гора Монах",
+      "caption": "Грот у водопадов Кутанки под горой Монах",
+      "credit": "Фото: MarOleg, CC BY-SA 4.0, Wikimedia Commons",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/9/9b/%D0%93%D0%BE%D1%80%D0%B0_%D0%9C%D0%BE%D0%BD%D0%B0%D1%85._%D0%93%D1%80%D0%BE%D1%82.jpg"
+     },
+     {
+      "place": "Гора Монах над Хамышками",
+      "caption": "Скалы горы Монах (по описанию файла на Commons)",
+      "credit": "Фото: MarOleg, CC BY-SA 4.0",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/ee57cb4ef3e64cb1a3e06151886f5081.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 31,
+  "slug": "guzeripl-podem-k-smotrovym-gory-kazachey",
+  "title": "Гузерипль: подъём к смотровым горы Казачьей",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Гора Казачья: смотровая «Язык Тролля»",
+      "caption": "Вид на долину Белой со склонов Казачьей",
+      "credit": "Фото: Titam.ru",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/e7f3ea94e86f4ccf97eba9ddb8428bb6.webp"
+     },
+     {
+      "place": "Гузерипль",
+      "caption": "Гузерипль, откуда начинается подъём на Казачью",
+      "credit": "Фото: Arsave, GFDL, Wikimedia Commons",
+      "url": "https://upload.wikimedia.org/wikipedia/commons/1/1c/Guzeripl7.jpg"
+     },
+     {
+      "place": "Гора Казачья: смотровая «Язык Тролля»",
+      "caption": "Лесной подъём на гору Казачью",
+      "credit": "Фото: Titam.ru",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/db78f836335d4be3b03ec7d50821413c.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 32,
+  "slug": "hadzhoh-korotkiy-vyhod-k-tropicheskoy-lagune",
+  "title": "Хаджох: короткий выход к «Тропической лагуне»",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "«Тропическая лагуна» у Хаджохской теснины",
+      "caption": "Песчаная отмель у Хаджохской теснины",
+      "credit": "Фото: tic01.ru",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/de6d7e101a4848d1a02ba07470518cfe.webp"
+     },
+     {
+      "place": "Хаджохская теснина",
+      "caption": "Хаджохская теснина",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/448c4b816ebf4e748411e4320a874734.jpeg"
+     },
+     {
+      "place": "Хаджохская теснина",
+      "caption": "Хаджохская теснина: вид в ущелье",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/5a26a853a7f9464c807d2feb10cede13.webp"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "kind": "trail",
+  "id": 34,
+  "slug": "lago-naki-letom",
+  "title": "Лаго-Наки летом: прогулка к Каменному морю",
+  "carousels": [
+   {
+    "index": 1,
+    "heading": null,
+    "count": 3,
+    "photos": [
+     {
+      "place": "Каменное море",
+      "caption": "Каменное море",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/382df1152a7c4668a830d985d8175860.webp"
+     },
+     {
+      "place": "Плато Лаго-Наки",
+      "caption": "Плато Лаго-Наки",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/122d8d600b2444c0951446c8dda2498d.webp"
+     },
+     {
+      "place": "Плато Лаго-Наки",
+      "caption": "Панорама плато Лаго-Наки в июне",
+      "credit": "Фото: АдыГид",
+      "url": "https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/c7b98103ab7e4c8b91d7b661d57e1c79.webp"
      }
     ]
    }

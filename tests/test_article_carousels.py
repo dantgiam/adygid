@@ -49,6 +49,13 @@ def test_renderer_groups_each_insertion_into_one_gallery():
         assert f"adygid-carousel:{item['kind']}:{item['id']}:" in row["new_body"]
 
 
+def test_live_apply_stays_off_without_the_flag(monkeypatch):
+    monkeypatch.delenv("APPLY_ARTICLE_CAROUSELS", raising=False)
+    from content.carousels_2026_11.live import apply_if_enabled
+
+    assert apply_if_enabled() == {"ran": False}
+
+
 def test_sql_updates_only_matching_hash_and_rolls_back():
     changed, _report = apply_all(load_before(), load_places())
     forward = sql_forward(changed)
