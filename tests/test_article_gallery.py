@@ -139,8 +139,8 @@ def test_site_and_admin_share_the_frame():
         assert "object-fit: cover" in text
         assert "object-position: center" in text
         assert "scroll-snap-type: x mandatory" in text
-        assert "--gal-slice: 16%" in text
-        assert "--gal-slice: 10%" in text
+        assert "--gal-slice: 32%" in text
+        assert "--gal-slice: 20%" in text
         assert "article-gallery-item:last-child" in text
         assert "#97A498" in text
     assert "data-gallery" in js and "ArrowLeft" in js

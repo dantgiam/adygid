@@ -525,11 +525,11 @@ a { color: var(--accent); }
 .ql-editor .gallery-embed .article-figure,
 .ql-editor .gallery-embed .article-gallery { margin: 0; max-width: 100%; }
 .ql-editor .article-gallery {
-  --gal-slice: 10%;
+  --gal-slice: 20%;
   --gal-gap: 10px;
 }
 @media (max-width: 640px) {
-  .ql-editor .article-gallery { --gal-slice: 16%; --gal-gap: 8px; }
+  .ql-editor .article-gallery { --gal-slice: 32%; --gal-gap: 8px; }
 }
 .ql-editor .article-gallery-stage { position: relative; max-width: 100%; }
 .ql-editor .article-gallery-track {
