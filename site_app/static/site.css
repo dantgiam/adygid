@@ -568,25 +568,43 @@ h1.article-title {
    полоской у левого края. Это не прежняя обрезка под вертикальные 3:4 —
    рамка горизонтальная, как у карусели места. Высоту держит рамка,
    загрузка картинки не сдвигает текст. Несколько кадров подряд — лента
-   со scroll-snap: на телефоне её листают пальцем, на десктопе стрелками.
+   со scroll-snap: текущий кадр прилипает к левому краю, справа виден
+   край следующего (на телефоне около 16% колонки, на широком экране
+   чуть меньше), чтобы было понятно, что ленту можно листать. Последний
+   кадр тоже встаёт к левому краю: запас справа равен как раз этому
+   «заглядыванию». Одиночное фото остаётся на всю ширину колонки.
    Сборка разметки — site_app/galleries.py. */
 .article-figure,
 .article-gallery { margin: 36px 0; max-width: 100%; }
-.article-gallery { position: relative; outline: none; }
+.article-gallery {
+  position: relative; outline: none;
+  /* --gal-slice — видимый край следующего фото, --gal-gap — зазор между кадрами.
+     На десктопе край чуть уже, чем на телефоне. */
+  --gal-slice: 10%;
+  --gal-gap: 10px;
+}
+@media (max-width: 640px) {
+  .article-gallery { --gal-slice: 16%; --gal-gap: 8px; }
+}
 .article-gallery-stage { position: relative; max-width: 100%; }
 /* width:0 + min-width:100% — лента берёт ширину колонки и крутится внутри
-   себя. Иначе кадры на 100% ширины раздвигают колонку и наезжают на
-   оглавление. */
+   себя. Иначе кадры раздвигают колонку и наезжают на оглавление. */
 .article-gallery-track {
-  display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+  display: flex; gap: var(--gal-gap); overflow-x: auto; scroll-snap-type: x mandatory;
   scroll-padding-inline: 0; overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch; scrollbar-width: none;
   width: 0; min-width: 100%;
 }
 .article-gallery-track::-webkit-scrollbar { display: none; }
 .article-gallery-item {
-  flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always;
+  flex: 0 0 calc(100% - var(--gal-slice) - var(--gal-gap));
+  min-width: 0; scroll-snap-align: start; scroll-snap-stop: always;
   margin: 0;
+}
+/* Без этого запаса последний кадр не доезжает до левого края: справа
+   нечему занять место «заглядывания», и snap оставляет его сдвинутым. */
+.article-gallery-item:last-child {
+  margin-inline-end: calc(var(--gal-slice) + var(--gal-gap));
 }
 .article-frame {
   position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: 10px;
@@ -602,7 +620,8 @@ h1.article-title {
    поэтому кружок оказывается посередине фото. На тач-экране их нет:
    там ленту листают пальцем, и кнопка только закрывает кадр. */
 .article-gallery-arrows {
-  position: absolute; left: 0; right: 0; top: 0; aspect-ratio: 3 / 2;
+  position: absolute; left: 0; top: 0; aspect-ratio: 3 / 2;
+  width: calc(100% - var(--gal-slice) - var(--gal-gap));
   pointer-events: none;
 }
 .gal-nav {
@@ -631,7 +650,8 @@ h1.article-title {
   font-variant-numeric: tabular-nums;
 }
 .article-gallery-credit {
-  display: block; margin-top: 2px; font-size: 12.5px; line-height: 1.4; color: var(--text-muted);
+  display: block; margin-top: 3px; font-size: 11.5px; line-height: 1.35;
+  color: #97A498;
 }
 .article-gallery-credit a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 

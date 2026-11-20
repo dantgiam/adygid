@@ -524,15 +524,26 @@ a { color: var(--accent); }
 .ql-editor .gallery-embed { margin: 22px 0; max-width: 100%; user-select: none; }
 .ql-editor .gallery-embed .article-figure,
 .ql-editor .gallery-embed .article-gallery { margin: 0; max-width: 100%; }
+.ql-editor .article-gallery {
+  --gal-slice: 10%;
+  --gal-gap: 10px;
+}
+@media (max-width: 640px) {
+  .ql-editor .article-gallery { --gal-slice: 16%; --gal-gap: 8px; }
+}
 .ql-editor .article-gallery-stage { position: relative; max-width: 100%; }
 .ql-editor .article-gallery-track {
-  display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+  display: flex; gap: var(--gal-gap); overflow-x: auto; scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain; scrollbar-width: none;
   width: 0; min-width: 100%;
 }
 .ql-editor .article-gallery-track::-webkit-scrollbar { display: none; }
 .ql-editor .article-gallery-item {
-  flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; margin: 0;
+  flex: 0 0 calc(100% - var(--gal-slice) - var(--gal-gap));
+  min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; margin: 0;
+}
+.ql-editor .article-gallery-item:last-child {
+  margin-inline-end: calc(var(--gal-slice) + var(--gal-gap));
 }
 .ql-editor .article-frame {
   position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: 10px;
@@ -544,7 +555,8 @@ a { color: var(--accent); }
   object-fit: cover; object-position: center; margin: 0; border-radius: 0; display: block;
 }
 .ql-editor .article-gallery-arrows {
-  position: absolute; left: 0; right: 0; top: 0; aspect-ratio: 3 / 2; pointer-events: none;
+  position: absolute; left: 0; top: 0; aspect-ratio: 3 / 2; pointer-events: none;
+  width: calc(100% - var(--gal-slice) - var(--gal-gap));
 }
 .ql-editor .gal-nav {
   position: absolute; top: 50%; transform: translateY(-50%); pointer-events: auto;
@@ -562,7 +574,9 @@ a { color: var(--accent); }
   margin-top: 8px; font-family: var(--font); font-size: 13px; line-height: 1.45; color: var(--muted);
 }
 .ql-editor .article-gallery-counter { font-weight: 700; color: var(--text); margin-right: 8px; }
-.ql-editor .article-gallery-credit { display: block; margin-top: 2px; font-size: 12px; }
+.ql-editor .article-gallery-credit {
+  display: block; margin-top: 3px; font-size: 11px; line-height: 1.35; color: #97A498;
+}
 
 /* Живой предпросмотр блока в форме */
 .block-preview { border: 1px solid var(--border); border-radius: 10px; padding: 16px; background: var(--bg); }
