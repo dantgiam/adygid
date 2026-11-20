@@ -146,17 +146,33 @@ function paintSeoCounts() {
     const n = seoFlat(el.value).length;
     const title = c.dataset.seoKind === 'title';
     const rec = title ? SEO_TITLE_REC : SEO_DESC_REC;
-    c.textContent = n ? `· ${n} из ~${rec}` : `· около ${rec} знаков`;
+    c.textContent = n ? `· ${n} / ${rec}` : `· рекомендуется ${rec}`;
     const outside = title ? n > SEO_TITLE_REC : (n > 0 && (n < SEO_DESC_MIN || n > SEO_DESC_REC));
     c.classList.toggle('over', outside);
   });
+  const warn = document.getElementById('sc-seo-warn');
+  const desc = document.getElementById('sc-seo');
+  if (warn && desc) {
+    const n = seoFlat(desc.value).length;
+    const changed = seoFlat(desc.value) !== scenarioSeoDescOriginal;
+    const bad = n > 0 && (n < SEO_DESC_MIN || n > SEO_DESC_MAX);
+    warn.hidden = !bad;
+    warn.textContent = !bad ? '' : (changed
+      ? `Сейчас ${n} знаков — нужно от ${SEO_DESC_MIN} до ${SEO_DESC_MAX}, иначе это поле не сохранится.`
+      : `Сейчас ${n} знаков — вне ${SEO_DESC_MIN}–${SEO_DESC_MAX}. Другие правки сохранятся. Если меняете это поле, уложите текст в диапазон.`);
+  }
 }
 
-function seoLengthError(title, desc) {
+let scenarioSeoDescOriginal = '';
+
+function seoLengthError(title, desc, originalDesc) {
   if (title.length > SEO_TITLE_MAX) {
     return `Title для поиска — до ${SEO_TITLE_MAX} знаков (сейчас ${title.length}).`;
   }
-  if (desc && (desc.length < SEO_DESC_MIN || desc.length > SEO_DESC_MAX)) {
+  // Старое описание сценария вне диапазона не блокирует сохранение,
+  // пока его текст не меняли.
+  const unchanged = originalDesc !== undefined && seoFlat(desc) === seoFlat(originalDesc);
+  if (desc && !unchanged && (desc.length < SEO_DESC_MIN || desc.length > SEO_DESC_MAX)) {
     return `Description для поиска — от ${SEO_DESC_MIN} до ${SEO_DESC_MAX} знаков (сейчас ${desc.length}).`;
   }
   return '';
@@ -2550,6 +2566,7 @@ function openScenarioForm(id) {
   document.getElementById('sc-tile-cover-file').value = '';
   document.getElementById('sc-seo').value = v.seo_description || '';
   document.getElementById('sc-seo-title').value = v.seo_title || '';
+  scenarioSeoDescOriginal = seoFlat(v.seo_description || '');
   paintSeoCounts();
   document.getElementById('sc-order').value = v.order_index;
   document.getElementById('sc-published').checked = v.is_published !== false;
@@ -2596,7 +2613,7 @@ async function saveScenario() {
   if (!door || !title) { toast('Заполните подпись и заголовок', true); return; }
   const seoTitle = seoFlat(document.getElementById('sc-seo-title').value);
   const seoDesc = seoFlat(document.getElementById('sc-seo').value);
-  const seoError = seoLengthError(seoTitle, seoDesc);
+  const seoError = seoLengthError(seoTitle, seoDesc, scenarioSeoDescOriginal);
   if (seoError) { toast(seoError, true); return; }
 
   // Та же история, что у статьи: без выбора нового файла миниатюра
@@ -2655,7 +2672,9 @@ async function saveScenario() {
   editingScenarioId = saved.id;
   await loadAll();
   setSaveState('Сохранено на сервере', true, 'sc-save-state');
-  toast('Сценарий сохранён');
+  scenarioSeoDescOriginal = seoFlat(saved.seo_description || '');
+  paintSeoCounts();
+  toast(saved.seo_warning || 'Сценарий сохранён', !!saved.seo_warning);
 }
 
 function scheduleScenarioAutosave() {
@@ -3053,10 +3072,10 @@ function openDistrictForm(id) {
       <textarea id="dist-lead" rows="4" placeholder="Чем этот округ полезен в поездке">${escHtml(d.lead || '')}</textarea></div>
     <div class="field"><label>Title для поиска <span class="seo-count" data-seo-for="dist-seo-title" data-seo-kind="title"></span></label>
       <input id="dist-seo-title" maxlength="80" value="${escAttr(d.seo_title || '')}" placeholder="Пусто — останется текущий заголовок в поиске" oninput="paintSeoCounts()">
-      <div class="hint">Около 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «название — что посмотреть и какие маршруты рядом».</div></div>
+      <div class="hint">Рекомендуем 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «название — что посмотреть и какие маршруты рядом».</div></div>
     <div class="field"><label>Description для поиска <span class="seo-count" data-seo-for="dist-seo-desc" data-seo-kind="desc"></span></label>
       <textarea id="dist-seo-desc" maxlength="230" rows="3" placeholder="Пусто — вступление округа" oninput="paintSeoCounts()">${escHtml(d.seo_description || '')}</textarea>
-      <div class="hint">От 60 до 230 знаков, лучше около 160. Пусто — текст вступления.</div></div>
+      <div class="hint">Рекомендуем 160 знаков, допустимо от 60 до 230. Пусто — текст вступления.</div></div>
     <div class="field"><label>Факты</label>
       <div id="dist-facts">${((d.facts && d.facts.length) ? d.facts : ['']).map(districtFactRow).join('')}</div>
       <button type="button" class="btn btn-ghost btn-sm" onclick="addDistrictFact()">+ Факт</button>

@@ -1485,11 +1485,36 @@ def _tri_to_season(value: str) -> Optional[str]:
     return value if value in ("year_round", "summer_only") else None
 
 
-def _apply_scenario(sc: Scenario, body: ScenarioIn):
-    # Форма присылает сценарий целиком, поэтому description по-прежнему
-    # перезаписывается всегда. Title — только если ключ реально прислали:
-    # старый скрипт публикации его не знает и не должен стирать правку.
-    seo_description = _stored_seo(seo.normalize_seo_description, body.seo_description)
+def _scenario_seo_description(sc: Scenario, body: ScenarioIn):
+    """Новый текст проверяем. Прежний вне 60–230 не блокирует остальные правки.
+
+    Ключ, которого в теле нет, поле не затирает: скрипт публикации может
+    прислать сценарий без seo_description, если в админке оно уже задано.
+    """
+    if "seo_description" not in body.model_fields_set:
+        return sc.seo_description, _seo_length_warning(sc.seo_description)
+    if seo.same_seo_text(sc.seo_description, body.seo_description):
+        kept = sc.seo_description if (sc.seo_description or "").strip() else None
+        return kept, _seo_length_warning(kept)
+    return _stored_seo(seo.normalize_seo_description, body.seo_description), None
+
+
+def _seo_length_warning(value: Optional[str]) -> Optional[str]:
+    text = seo._seo_flat(value)
+    if not text or seo.SEO_DESC_MIN <= len(text) <= seo.SEO_DESC_MAX:
+        return None
+    return (
+        f"Description для поиска сейчас {len(text)} знаков — вне "
+        f"{seo.SEO_DESC_MIN}–{seo.SEO_DESC_MAX}. Остальные правки сохранены. "
+        "Если меняете это поле, уложите текст в диапазон."
+    )
+
+
+def _apply_scenario(sc: Scenario, body: ScenarioIn) -> Optional[str]:
+    # Title — только если ключ реально прислали. Description — тоже,
+    # кроме случая, когда форму прислали целиком со старым текстом вне диапазона:
+    # тогда текст остаётся, а в ответе будет предупреждение.
+    seo_description, warning = _scenario_seo_description(sc, body)
     seo_title = _stored_seo(seo.normalize_seo_title, body.seo_title) if "seo_title" in body.model_fields_set else sc.seo_title
     if body.door is not None: sc.door = body.door
     if body.title is not None: sc.title = body.title
@@ -1512,6 +1537,7 @@ def _apply_scenario(sc: Scenario, body: ScenarioIn):
     sc.filter_access = body.filter_access or []
     sc.order_index = body.order_index
     sc.is_published = body.is_published
+    return warning
 
 
 @app.get("/api/scenarios")
@@ -1525,9 +1551,12 @@ def list_scenarios(db: Session = Depends(get_db), admin: bool = Depends(viewer_i
 def create_scenario(body: ScenarioIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     slug = _unique_slug(db, _slugify(body.slug or body.door), model=Scenario)
     sc = Scenario(slug=slug)
-    _apply_scenario(sc, body)
+    warning = _apply_scenario(sc, body)
     db.add(sc); db.commit(); db.refresh(sc)
-    return _scenario_out(sc)
+    out = _scenario_out(sc)
+    if warning:
+        out["seo_warning"] = warning
+    return out
 
 
 @app.patch("/api/scenarios/{scenario_id}")
@@ -1535,9 +1564,12 @@ def update_scenario(scenario_id: int, body: ScenarioUpdate, db: Session = Depend
     sc = _get_or_404(db, Scenario, scenario_id)
     if body.slug is not None:
         sc.slug = _unique_slug(db, _slugify(body.slug), exclude_id=scenario_id, model=Scenario)
-    _apply_scenario(sc, body)
+    warning = _apply_scenario(sc, body)
     db.commit(); db.refresh(sc)
-    return _scenario_out(sc)
+    out = _scenario_out(sc)
+    if warning:
+        out["seo_warning"] = warning
+    return out
 
 
 @app.delete("/api/scenarios/{scenario_id}")

@@ -112,12 +112,12 @@
         <div class="field">
           <label>Title для поиска <span class="seo-count" data-seo-for="a-seo-title" data-seo-kind="title"></span></label>
           <input type="text" id="a-seo-title" maxlength="80" placeholder="Пусто — останется текущий заголовок в поиске" oninput="scheduleAutosave(); paintSeoCounts()">
-          <div class="hint">Около 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «заголовок — АдыГид».</div>
+          <div class="hint">Рекомендуем 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «заголовок — АдыГид».</div>
         </div>
         <div class="field">
           <label>Description для поиска <span class="seo-count" data-seo-for="a-seo-desc" data-seo-kind="desc"></span></label>
           <textarea id="a-seo-desc" maxlength="230" rows="3" placeholder="Пусто — короткий анонс" oninput="scheduleAutosave(); paintSeoCounts()"></textarea>
-          <div class="hint">От 60 до 230 знаков, лучше около 160. Пусто — короткий анонс статьи.</div>
+          <div class="hint">Рекомендуем 160 знаков, допустимо от 60 до 230. Пусто — короткий анонс статьи.</div>
         </div>
         <div class="field">
           <label>Обложка</label>
@@ -214,12 +214,12 @@
         <div class="field">
           <label>Title для поиска <span class="seo-count" data-seo-for="rt-seo-title" data-seo-kind="title"></span></label>
           <input type="text" id="rt-seo-title" maxlength="80" placeholder="Пусто — название и длительность, как сейчас" oninput="scheduleRouteAutosave(); paintSeoCounts()">
-          <div class="hint">Около 60 знаков, не длиннее 80. Пусто — «название — длительность, маршрут по Адыгее».</div>
+          <div class="hint">Рекомендуем 60 знаков, не длиннее 80. Пусто — «название — длительность, маршрут по Адыгее».</div>
         </div>
         <div class="field">
           <label>Description для поиска <span class="seo-count" data-seo-for="rt-seo-desc" data-seo-kind="desc"></span></label>
           <textarea id="rt-seo-desc" maxlength="230" rows="3" placeholder="Пусто — начало описания" oninput="scheduleRouteAutosave(); paintSeoCounts()"></textarea>
-          <div class="hint">От 60 до 230 знаков, лучше около 160. Пусто — начало описания маршрута.</div>
+          <div class="hint">Рекомендуем 160 знаков, допустимо от 60 до 230. Пусто — начало описания маршрута.</div>
         </div>
         <div id="rt-criteria-slot"></div>
         <div class="hint" id="rt-map-hint" style="margin-top:4px">Тропу и точки по пути редактируйте кнопкой «Карта и точки» в списке маршрутов.</div>
@@ -442,11 +442,12 @@
         <div class="field">
           <label>Title для поиска <span class="seo-count" data-seo-for="sc-seo-title" data-seo-kind="title"></span></label>
           <input type="text" id="sc-seo-title" maxlength="80" placeholder="Пусто — останется текущий заголовок в поиске" oninput="scheduleScenarioAutosave(); paintSeoCounts()">
-          <div class="hint">Около 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «заголовок — АдыГид».</div>
+          <div class="hint">Рекомендуем 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «заголовок — АдыГид».</div>
         </div>
         <div class="field"><label>Описание для поиска (SEO) <span class="seo-count" data-seo-for="sc-seo" data-seo-kind="desc"></span></label>
           <textarea id="sc-seo" maxlength="230" oninput="scheduleScenarioAutosave(); paintSeoCounts()"></textarea>
-          <div class="hint">От 60 до 230 знаков, лучше около 160. Пусто — начало текста сценария.</div>
+          <div class="hint">Рекомендуем 160 знаков, допустимо от 60 до 230. Пусто — начало текста сценария.</div>
+          <div class="hint seo-warn" id="sc-seo-warn" hidden></div>
         </div>
         <div class="field"><label>Статьи по теме</label><div id="sc-articles"></div></div>
 

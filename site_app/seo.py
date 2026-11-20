@@ -25,6 +25,11 @@ def _seo_flat(value: Optional[str]) -> str:
     return " ".join((value or "").split())
 
 
+def same_seo_text(left: Optional[str], right: Optional[str]) -> bool:
+    """Одинаковый текст после схлопывания пробелов: поле не меняли."""
+    return _seo_flat(left) == _seo_flat(right)
+
+
 def normalize_seo_title(value: Optional[str]) -> Optional[str]:
     """Пусто → None. Длиннее потолка — ValueError, вызывающий отдаёт 400."""
     text = _seo_flat(value)

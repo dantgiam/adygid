@@ -405,3 +405,90 @@ def test_route_priority_admin_then_template(client):
     xml = client.get("/sitemap.xml").text
     assert f"{SITE_URL}{path}" in xml
     assert custom_title not in xml
+
+
+def test_publish_script_does_not_overwrite_manual_seo():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("seo_publish_manual", "scripts/seo_content_publish.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    manual_title = "Ручной title сценария"
+    manual_desc = "О" * 90
+    current = {
+        "slug": "zimoy", "icon": "❄️", "door": "Зимой", "title": "Зимой", "lead": "старый",
+        "seo_title": manual_title, "seo_description": manual_desc, "is_published": True,
+    }
+    payload = mod.scenario_payload(
+        current, lead="новый", seo_title="Черновик скрипта", seo_description="Ч" * 90,
+    )
+    assert payload["lead"] == "новый"
+    assert payload["seo_title"] == manual_title
+    assert payload["seo_description"] == manual_desc
+    # Пустое поле скрипт заполняет.
+    empty = dict(current, seo_title="", seo_description=None)
+    filled = mod.scenario_payload(empty, seo_title="Новый title", seo_description="Н" * 70)
+    assert filled["seo_title"] == "Новый title"
+    assert filled["seo_description"] == "Н" * 70
+    # Статья: ключ в черновике заменяется ручным, отсутствующий ключ не появляется.
+    article = mod.respect_manual_seo(
+        {"title": "Черновик", "seo_description": "Д" * 80},
+        {"seo_title": "Ручной title статьи", "seo_description": "Р" * 80},
+    )
+    assert article["seo_description"] == "Р" * 80
+    assert "seo_title" not in article
+    assert mod.keep_manual_seo("  уже в админке  ", "из черновика") == "  уже в админке  "
+    assert mod.keep_manual_seo("   ", "из черновика") == "из черновика"
+
+
+def test_legacy_scenario_description_warns_without_blocking_other_edits(client):
+    created, _, _, body = _create(client, "scenario", seo_description=_desc(90))
+    assert created.status_code == 201, created.text
+    sid = created.json()["id"]
+    legacy = "Коротко"
+    from sqlalchemy import text
+    from app.database import engine
+    with engine.begin() as conn:
+        conn.execute(text("UPDATE scenarios SET seo_description = :d WHERE id = :id"), {"d": legacy, "id": sid})
+
+    kept = client.patch(f"/api/scenarios/{sid}", json={
+        "door": "Новая дверь", "title": body["title"], "lead": body["lead"],
+        "seo_description": "  Коротко  ",
+    }, auth=AUTH)
+    assert kept.status_code == 200, kept.text
+    assert kept.json()["door"] == "Новая дверь"
+    assert kept.json()["seo_description"] == legacy
+    assert "60" in kept.json()["seo_warning"] and "230" in kept.json()["seo_warning"]
+
+    omitted = client.patch(f"/api/scenarios/{sid}", json={
+        "door": "Ещё дверь", "title": body["title"], "lead": body["lead"],
+    }, auth=AUTH)
+    assert omitted.status_code == 200, omitted.text
+    assert omitted.json()["seo_description"] == legacy
+    assert omitted.json()["seo_warning"]
+
+    changed = client.patch(f"/api/scenarios/{sid}", json={
+        "door": "Ещё дверь", "title": body["title"], "lead": body["lead"],
+        "seo_description": "Другой короткий текст",
+    }, auth=AUTH)
+    assert changed.status_code == 400, changed.text
+    still = client.get("/api/scenarios", auth=AUTH).json()
+    row = next(s for s in still if s["id"] == sid)
+    assert row["seo_description"] == legacy
+
+    ok = client.patch(f"/api/scenarios/{sid}", json={
+        "door": "Ещё дверь", "title": body["title"], "lead": body["lead"],
+        "seo_description": _desc(80),
+    }, auth=AUTH)
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["seo_description"] == _desc(80)
+    assert "seo_warning" not in ok.json()
+
+
+def test_admin_form_shows_live_counter_and_60_160_hint():
+    html = open("static/admin.html", encoding="utf-8").read()
+    js = open("static/admin.js", encoding="utf-8").read()
+    assert html.count("Рекомендуем 60 знаков") >= 3
+    assert html.count("Рекомендуем 160 знаков") >= 3
+    assert "paintSeoCounts" in js and "SEO_TITLE_REC = 60" in js and "SEO_DESC_REC = 160" in js
+    assert "n / ${rec}" in js or "`· ${n} / ${rec}`" in js
+    assert 'id="sc-seo-warn"' in html
