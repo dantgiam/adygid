@@ -42,8 +42,9 @@ _CODE_RE = re.compile(r"^[a-f0-9]{16}$")
 
 
 class FormError(Exception):
-    def __init__(self, message: str):
+    def __init__(self, message: str, field: str = ""):
         self.message = message
+        self.field = field
 
 
 CSRF_COOKIE = "lz_csrf"
@@ -161,9 +162,9 @@ def _posted(form) -> dict:
     return data
 
 
-def _need(value: str, label: str, min_len: int = 2) -> str:
+def _need(value: str, label: str, min_len: int = 2, field: str = "") -> str:
     if len(value.strip()) < min_len:
-        raise FormError(f"Заполните поле «{label}»")
+        raise FormError(f"Заполните поле «{label}»", field)
     return value.strip()
 
 
@@ -204,27 +205,27 @@ def _coord(value: str, label: str, lo: Decimal, hi: Decimal) -> Decimal | None:
 
 def validate_provider(data: dict) -> dict:
     out = {
-        "display_name": _need(data.get("display_name", ""), "Название организатора", 2)[:200],
+        "display_name": _need(data.get("display_name", ""), "Название организатора", 2, "display_name")[:200],
         "legal_status": data.get("legal_status") or "",
         "legal_details": (data.get("legal_details") or "")[:300] or None,
-        "licenses_note": _need(data.get("licenses_note", ""), "Лицензии и допуски", 2),
-        "insurance_note": _need(data.get("insurance_note", ""), "Страховка", 2),
+        "licenses_note": _need(data.get("licenses_note", ""), "Лицензии и допуски", 2, "licenses_note"),
+        "insurance_note": _need(data.get("insurance_note", ""), "Страховка", 2, "insurance_note"),
         "has_instructor": data.get("has_instructor") == "1",
         "instructor_note": (data.get("instructor_note") or "")[:2000] or None,
         "website": (data.get("website") or "")[:500] or None,
         "socials": (data.get("socials") or "")[:500] or None,
-        "contact_name": _need(data.get("contact_name", ""), "Имя контакта", 2)[:120],
+        "contact_name": _need(data.get("contact_name", ""), "Имя контакта", 2, "contact_name")[:120],
         "contact_phone": (data.get("contact_phone") or "")[:40] or None,
         "contact_messenger": (data.get("contact_messenger") or "")[:160] or None,
     }
     if out["legal_status"] not in cat.LEGAL_BY_CODE:
-        raise FormError("Выберите юридический статус")
+        raise FormError("Выберите юридический статус", "legal_status")
     if data.get("has_instructor") not in ("0", "1"):
         raise FormError("Укажите, есть ли инструктор")
     if out["website"] and not _URL_RE.match(out["website"]):
         raise FormError("Сайт должен начинаться с https://")
     if not out["contact_phone"] and not out["contact_messenger"]:
-        raise FormError("Оставьте телефон или мессенджер")
+        raise FormError("Оставьте телефон или мессенджер", "contact_phone")
     if out["contact_phone"] and not _PHONE_RE.match(out["contact_phone"]):
         raise FormError("Проверьте номер телефона")
     return out
@@ -233,7 +234,7 @@ def validate_provider(data: dict) -> dict:
 def validate_offer(data: dict) -> dict:
     activity = data.get("activity_type") or ""
     if activity not in cat.ACTIVITY_BY_CODE:
-        raise FormError("Выберите тип активности")
+        raise FormError("Выберите тип активности", "activity_type")
     seasons = [s for s in data.get("seasons") or [] if s in cat.SEASON_BY_CODE]
     languages = [s for s in data.get("languages") or [] if s in cat.LANGUAGE_BY_CODE]
     if not seasons:
@@ -253,7 +254,7 @@ def validate_offer(data: dict) -> dict:
     group_min = _whole(data.get("group_min") or "", "Группа, минимум", 1, 500)
     group_max = _whole(data.get("group_max") or "", "Группа, максимум", 1, 500)
     if not group_min or not group_max:
-        raise FormError("Укажите минимум и максимум группы")
+        raise FormError("Укажите минимум и максимум группы", "group_min")
     if group_min > group_max:
         raise FormError("Минимум группы больше максимума")
     lat = _coord(data.get("lat") or "", "широту", Decimal("-90"), Decimal("90"))
@@ -270,53 +271,53 @@ def validate_offer(data: dict) -> dict:
     if briefing not in dict(cat.BRIEFING_ANSWER):
         raise FormError("Укажите, проводите ли инструктаж")
     if activity in cat.WATER_TYPES and vest != "yes":
-        raise FormError("Для сплава жилет обязателен")
+        raise FormError("Для сплава жилет обязателен", "vest")
     if activity in cat.WATER_TYPES and briefing != "yes":
-        raise FormError("Для сплава нужен инструктаж")
+        raise FormError("Для сплава нужен инструктаж", "briefing")
     state = (data.get("equipment_state") or "").strip()
     if cat.needs_state(activity):
-        state = _need(state, "Состояние снаряжения или техники", 2)
+        state = _need(state, "Состояние снаряжения или техники", 2, "equipment_state")
     if not data.get("consent_own_service"):
-        raise FormError("Нужно подтверждение, что услугу и оплату принимаете вы")
+        raise FormError("Нужно подтверждение, что услугу и оплату принимаете вы", "consent_own_service")
     if not data.get("consent_docs"):
         raise FormError("Нужно подтверждение, что документы и страховку можете показать по запросу")
     extra = _category_extra(activity, data)
     out = {
-        "title": _need(data.get("title", ""), "Название", 3)[:200],
+        "title": _need(data.get("title", ""), "Название", 3, "title")[:200],
         "activity_type": activity,
-        "description": _need(data.get("description", ""), "Описание", 20)[:5000],
-        "meeting_address": _need(data.get("meeting_address", ""), "Точка сбора", 3)[:300],
-        "finish_address": _need(data.get("finish_address", ""), "Точка финиша", 3)[:300],
+        "description": _need(data.get("description", ""), "Описание", 20, "description")[:5000],
+        "meeting_address": _need(data.get("meeting_address", ""), "Точка сбора", 3, "meeting_address")[:300],
+        "finish_address": _need(data.get("finish_address", ""), "Точка финиша", 3, "finish_address")[:300],
         "lat": lat,
         "lon": lon,
         "district": district or None,
-        "duration_text": _need(data.get("duration_text", ""), "Длительность", 1)[:200],
+        "duration_text": _need(data.get("duration_text", ""), "Длительность", 1, "duration_text")[:200],
         "seasons": ",".join(seasons),
-        "schedule_text": _need(data.get("schedule_text", ""), "Расписание", 2)[:3000],
-        "weather_terms": _need(data.get("weather_terms", ""), "Сезон и погода", 2)[:3000],
+        "schedule_text": _need(data.get("schedule_text", ""), "Расписание", 2, "schedule_text")[:3000],
+        "weather_terms": _need(data.get("weather_terms", ""), "Сезон и погода", 2, "weather_terms")[:3000],
         "price_amount": _money(data.get("price_amount") or "", "Цена числом"),
         "price_unit": price_unit,
-        "price_text": _need(data.get("price_text", ""), "Цена", 2)[:2000],
-        "included": _need(data.get("included", ""), "Что включено", 2)[:3000],
-        "excluded": _need(data.get("excluded", ""), "Что не включено", 2)[:3000],
+        "price_text": _need(data.get("price_text", ""), "Цена", 2, "price_text")[:2000],
+        "included": _need(data.get("included", ""), "Что включено", 2, "included")[:3000],
+        "excluded": _need(data.get("excluded", ""), "Что не включено", 2, "excluded")[:3000],
         "group_min": group_min,
         "group_max": group_max,
-        "age_text": _need(data.get("age_text", ""), "Возраст", 1)[:200],
-        "weight_limit": _need(data.get("weight_limit", ""), "Ограничение по весу", 2)[:500],
-        "health_limits": _need(data.get("health_limits", ""), "Ограничения по здоровью", 2)[:3000],
+        "age_text": _need(data.get("age_text", ""), "Возраст", 1, "age_text")[:200],
+        "weight_limit": _need(data.get("weight_limit", ""), "Ограничение по весу", 2, "weight_limit")[:500],
+        "health_limits": _need(data.get("health_limits", ""), "Ограничения по здоровью", 2, "health_limits")[:3000],
         "difficulty": data["difficulty"],
-        "what_to_bring": _need(data.get("what_to_bring", ""), "Что взять с собой", 2)[:3000],
-        "provided_gear": _need(data.get("provided_gear", ""), "Что выдают", 2)[:3000],
+        "what_to_bring": _need(data.get("what_to_bring", ""), "Что взять с собой", 2, "what_to_bring")[:3000],
+        "provided_gear": _need(data.get("provided_gear", ""), "Что выдают", 2, "provided_gear")[:3000],
         "transfer": data["transfer"],
         "transfer_note": (data.get("transfer_note") or "").strip()[:2000] or None,
         "languages": ",".join(languages),
         "language_note": (data.get("language_note") or "").strip()[:200] or None,
-        "conditions": _need(data.get("conditions", ""), "Условия", 10)[:5000],
-        "cancellation_terms": _need(data.get("cancellation_terms", ""), "Условия отмены", 2)[:3000],
+        "conditions": _need(data.get("conditions", ""), "Условия", 10, "conditions")[:5000],
+        "cancellation_terms": _need(data.get("cancellation_terms", ""), "Условия отмены", 2, "cancellation_terms")[:3000],
         "equipment_state": state[:5000] or None,
         "vest": vest,
         "helmet": helmet,
-        "gear_check": _need(data.get("gear_check", ""), "Кто и когда проверяет снаряжение", 2)[:2000],
+        "gear_check": _need(data.get("gear_check", ""), "Кто и когда проверяет снаряжение", 2, "gear_check")[:2000],
         "briefing": briefing,
         "briefing_note": (data.get("briefing_note") or "").strip()[:2000] or None,
         "category_extra": extra,
@@ -339,7 +340,7 @@ def _category_extra(activity: str, data: dict) -> dict:
             field.get("required_if") and out.get(field["required_if"][0]) == field["required_if"][1]
         )
         if needed and len(raw) < 2:
-            raise FormError(f"Заполните «{field['label']}»")
+            raise FormError(f"Заполните «{field['label']}»", f"extra_{activity}_{field['key']}")
         if raw:
             out[field["key"]] = raw[:2000]
     return out
@@ -374,7 +375,7 @@ async def _take_photos(form) -> list[dict]:
             continue
         alt = _text(form, f"alt_{index}", 300)
         if len(alt) < 3:
-            raise FormError(f"У фото {index} нужна подпись: что на снимке")
+            raise FormError(f"У фото {index} нужна подпись: что на снимке", f"alt_{index}")
         chosen.append((item, alt))
     if len(chosen) > photos.MAX_FILES:
         raise FormError(f"Можно приложить не больше {photos.MAX_FILES} фото")
@@ -388,7 +389,7 @@ async def _take_photos(form) -> list[dict]:
         for row in saved:
             photos.forget(row.get("url"))
             photos.forget(row.get("thumb_url"))
-        raise FormError(exc.message) from exc
+        raise FormError(exc.message, "photo_1") from exc
     return saved
 
 
@@ -455,7 +456,7 @@ def _from_provider(row: LeisureProvider) -> dict:
     return data
 
 
-def _form_page(request, db, data, error="", provider=None, target=None, status_code=200, notice=""):
+def _form_page(request, db, data, error="", error_field="", provider=None, target=None, status_code=200, notice=""):
     for activity, fields in cat.CATEGORY_FIELDS.items():
         for field in fields:
             data.setdefault(f"extra_{activity}_{field['key']}", "")
@@ -464,7 +465,7 @@ def _form_page(request, db, data, error="", provider=None, target=None, status_c
         "leisure_apply.html",
         _ctx(
             request, db, active_nav="leisure",
-            values=data, error=error, provider=provider, target=target, notice=notice, csrf=token,
+            values=data, error=error, error_field=error_field, provider=provider, target=target, notice=notice, csrf=token,
             mode="item" if target is not None else "offer",
             activities=cat.ACTIVITIES, legal_statuses=cat.LEGAL_STATUSES, seasons=cat.SEASONS,
             difficulties=cat.DIFFICULTIES, transfers=cat.TRANSFERS, languages=cat.LANGUAGES,
@@ -729,19 +730,19 @@ async def leisure_apply_post(request: Request, db: Session = Depends(get_db)):
             provider_clean = validate_provider(data)
             offer_clean = validate_offer(data)
             if provider is None and not data["consent"]:
-                raise FormError("Нужно согласие на обработку данных")
+                raise FormError("Нужно согласие на обработку данных", "consent")
     except FormError as exc:
-        return _form_page(request, db, data, exc.message, provider=provider, target=target, status_code=400)
+        return _form_page(request, db, data, exc.message, exc.field, provider=provider, target=target, status_code=400)
     saved: list[dict] = []
     try:
         saved = await _take_photos(form)
         if target is None and saved and not data.get("photos_honest"):
-            raise FormError("Подтвердите, что на фото нет логотипов и сгенерированных ИИ изображений")
+            raise FormError("Подтвердите, что на фото нет логотипов и сгенерированных ИИ изображений", "photos_honest")
         if target is None and saved and data.get("activity_type") in cat.WATER_TYPES and not data.get("photos_vests"):
-            raise FormError("Для сплава подтвердите, что на фото все участники в жилетах")
+            raise FormError("Для сплава подтвердите, что на фото все участники в жилетах", "photos_vests")
     except FormError as exc:
         _drop_photos(saved)
-        return _form_page(request, db, data, exc.message, provider=provider, target=target, status_code=400)
+        return _form_page(request, db, data, exc.message, exc.field, provider=provider, target=target, status_code=400)
     known_provider = provider if provider is not None and provider.id else None
     try:
         if target is None:

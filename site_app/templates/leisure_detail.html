@@ -80,7 +80,7 @@
             <p><b>{{ offer.provider_name }}</b>{% if offer.legal_status %} · {{ offer.legal_status }}{% endif %}</p>
             <p>{% if offer.has_instructor %}Инструктор есть.{% else %}Инструктора нет.{% endif %}</p>
             {% if offer.docs_on_request %}<p>Аттестат, лицензию на перевозку и страховку можно запросить. Номера документов на сайте не публикуются.</p>{% endif %}
-            <p class="lz-hint">Услугу и оплату принимает организатор. АдыГид не агент и не продаёт эту услугу.</p>
+            <p class="lz-hint">{{ t('dosug.card.note', 'Услугу и оплату принимает организатор. АдыГид не агент и не продаёт эту услугу.') }}</p>
             {% if offer.website %}<p><a href="{{ offer.website }}">Сайт организатора</a></p>{% endif %}
             {% if offer.socials %}<p class="lz-pre">Соцсети: {{ offer.socials }}</p>{% endif %}
             <p class="lz-hint">Телефон организатора на сайте не публикуется.</p>
@@ -93,8 +93,10 @@
           {% if offer.seasons %}<dt>Сезон</dt><dd>{{ offer.seasons }}</dd>{% endif %}
           {% if offer.schedule %}<dt>Расписание</dt><dd class="lz-pre">{{ offer.schedule }}</dd>{% endif %}
           <dt>Цена организатора</dt><dd class="lz-pre">{{ offer.price_text }}{% if offer.price_unit %} ({{ offer.price_unit }}){% endif %}</dd>
-          <dt>Сбор АдыГида</dt>
-          <dd>{% if offer.fee %}{{ offer.fee_pct }}% — {{ rub(offer.fee.fee) }}. Это плата за сервис АдыГида, не оплата активности. Организатору из указанной цены остаётся {{ rub(offer.fee.pay_provider) }}.{% else %}{{ offer.fee_pct }}% от цены организатора. Сумму посчитаем, когда цена будет указана числом.{% endif %}</dd>
+          {% if offer.fee and offer.fee.public %}
+          <dt>{{ t('dosug.card.fee_label', 'Сбор АдыГида') }}</dt>
+          <dd>{{ offer.fee_pct }}% — {{ rub(offer.fee.fee) }}. {{ t('dosug.card.fee_note', 'Это плата за сервис АдыГида, не оплата активности.') }}</dd>
+          {% endif %}
           {% if offer.weather %}<dt>Погода</dt><dd class="lz-pre">{{ offer.weather }}</dd>{% endif %}
           {% if offer.weight %}<dt>Вес</dt><dd>{{ offer.weight }}</dd>{% endif %}
           {% if offer.group %}<dt>Группа</dt><dd>{{ offer.group }}</dd>{% endif %}

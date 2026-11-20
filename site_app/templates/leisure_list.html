@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 {% import "_cards.html" as cards %}
-{% block title %}Досуг в Адыгее — экскурсии, прогулки, прокат — АдыГид{% endblock %}
-{% block meta_description %}Экскурсии, конные прогулки, джиппинг, рафтинг, прокат и мастер-классы. Карточки присылают организаторы, на сайте они после проверки.{% endblock %}
+{% block title %}{{ tp('dosug.list.meta.title', 'Досуг в Адыгее — экскурсии, прогулки, прокат — АдыГид') }}{% endblock %}
+{% block meta_description %}{{ tp('dosug.list.meta.desc', 'Экскурсии, конные прогулки, джиппинг, рафтинг, прокат и мастер-классы. Карточки присылают организаторы, на сайте они после проверки.') }}{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="/assets/leisure.css?v={{ asset_version }}">{% endblock %}
 {% block content %}
 <section class="section" style="padding-top:40px">
   <div class="wrap">
     <p class="eyebrow">Каталог</p>
     <h1 class="page-title">Досуг</h1>
-    <p class="lz-lead">Экскурсии, прогулки, прокат и мастер-классы. Здесь только карточки, которые организатор прислал сам и которые уже проверены. Сервисный сбор АдыГида — {{ fee_pct }}% от цены организатора. Активность и оплату принимает организатор.</p>
+    <p class="lz-lead">{{ t('dosug.list.lead', 'Экскурсии, прогулки, прокат и мастер-классы. Здесь только карточки, которые организатор прислал сам и которые уже проверены. Активность и оплату принимает организатор.') }}</p>
     <form class="filters" method="get" action="/dosug">
       <select name="type">
         <option value="">Любой тип</option>
@@ -24,7 +24,7 @@
       </select>
       <a class="reset" href="/dosug">Сбросить</a>
     </form>
-    <p class="result-count">{{ offers|length }} в каталоге · <a href="/dosug/zayavka">предложить свою активность</a></p>
+    <p class="result-count">{{ offers|length }} в каталоге · <a href="/dosug/zayavka">{{ t('dosug.list.cta', 'Предложить свою активность') }}</a></p>
     {% if offers %}
     <div class="grid">
       {% for c in offers %}
@@ -46,7 +46,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <div class="empty-state">Пока нет проверенных предложений{% if selected_type or selected_district %} с этими фильтрами{% endif %}. Организатор может <a href="/dosug/zayavka">оставить заявку</a> — на сайте она появится после проверки.</div>
+    <div class="empty-state">{{ t('dosug.list.empty', 'Пока нет проверенных предложений. Организатор может оставить заявку — на сайте она появится после проверки.') }} <a href="/dosug/zayavka">{{ t('dosug.list.cta', 'Предложить свою активность') }}</a></div>
     {% endif %}
   </div>
 </section>

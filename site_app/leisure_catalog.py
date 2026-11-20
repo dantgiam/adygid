@@ -1,13 +1,27 @@
 """Справочник досуга и расчёт сервисного сбора.
 
-Сбор гостя за досуг — 5%. Это отдельная константа: процент жилья и остальных
-партнёров живёт в partners.service_fee_pct и здесь не читается и не пишется.
-Формула суммы совпадает с бронью партнёра: сбор = цена × процент, округление
-до рубля; скидка гостю по умолчанию равна сбору, остаток — организатору на месте.
+Сбор гостя за досуг — 5%. Процент жилья (partners.service_fee_pct) здесь не читается
+и не пишется. Как считать и показывать сбор, задаёт одна строка LEISURE_FEE_SCHEME.
+Пока владелец не выбрал схему, стоит from_price: 5% вычитаются из указанной цены,
+а сумма на публичной карточке не пишется.
 """
 from decimal import Decimal
 
 LEISURE_SERVICE_FEE_PCT = Decimal("5")
+# Одна настройка сбора досуга. Меняется в этом файле.
+#   from_price         — 5% из указанной цены, на карточке сумму не показываем (сейчас)
+#   from_price_public  — то же, сумму на карточке показываем
+#   on_top             — 5% сверху к цене, сумму не показываем
+#   on_top_public      — 5% сверху, сумму показываем
+#   hidden             — для гостя сбор не считаем и не показываем
+LEISURE_FEE_SCHEME = "from_price"
+_FEE_SCHEMES = {
+    "from_price": {"deduct": True, "public": False},
+    "from_price_public": {"deduct": True, "public": True},
+    "on_top": {"deduct": False, "public": False},
+    "on_top_public": {"deduct": False, "public": True},
+    "hidden": {"deduct": False, "public": False, "skip": True},
+}
 CONSENT_VERSION = "1.1"
 
 # code, подпись, нужно ли отдельное поле «состояние» (прокат, техника, суда)
@@ -135,19 +149,29 @@ STATUSES = [
 STATUS_BY_CODE = dict(STATUSES)
 
 
-def fee_parts(price, pct=None) -> dict | None:
-    """Сбор, скидка гостю и сумма организатору. None, если цены числом нет."""
+def fee_parts(price, pct=None, scheme: str | None = None) -> dict | None:
+    """Сбор по LEISURE_FEE_SCHEME. None, если цены числом нет.
+
+    discount заполняется только для схемы «из цены» и нужен внутреннему расчёту.
+    На публичной карточке это слово не выводится.
+    """
     if price is None or price == "":
         return None
+    chosen = scheme or LEISURE_FEE_SCHEME
+    spec = _FEE_SCHEMES.get(chosen) or _FEE_SCHEMES["from_price"]
     amount = Decimal(price)
     rate = Decimal(pct if pct is not None else LEISURE_SERVICE_FEE_PCT)
-    fee = (amount * rate / Decimal(100)).quantize(Decimal("1"))
+    fee = Decimal("0") if spec.get("skip") else (amount * rate / Decimal(100)).quantize(Decimal("1"))
+    pay_provider = amount - fee if spec["deduct"] else amount
     return {
         "price": amount,
         "pct": rate,
         "fee": fee,
-        "discount": fee,
-        "pay_provider": amount - fee,
+        "discount": fee if spec["deduct"] else Decimal("0"),
+        "pay_provider": pay_provider,
+        "guest_total": amount if spec["deduct"] or spec.get("skip") else amount + fee,
+        "public": bool(spec["public"]),
+        "scheme": chosen if chosen in _FEE_SCHEMES else "from_price",
     }
 
 

@@ -126,10 +126,34 @@ def _png(width, height=800, color=(39, 140, 62)):
 
 def test_fee_is_five_percent_and_lodging_fee_stays():
     assert cat.LEISURE_SERVICE_FEE_PCT == Decimal("5")
-    assert cat.fee_parts(Decimal("2500"))["fee"] == Decimal("125")
-    assert cat.fee_parts(Decimal("2500"))["pay_provider"] == Decimal("2375")
+    parts = cat.fee_parts(Decimal("2500"))
+    assert parts["fee"] == Decimal("125") and parts["pay_provider"] == Decimal("2375")
+    assert parts["discount"] == parts["fee"] and parts["scheme"] == "from_price" and parts["public"] is False
+    on_top = cat.fee_parts(Decimal("2500"), scheme="on_top")
+    assert on_top["pay_provider"] == Decimal("2500") and on_top["guest_total"] == Decimal("2625") and on_top["public"] is False
+    assert cat.fee_parts(Decimal("2500"), scheme="hidden")["fee"] == Decimal("0")
     assert Partner.service_fee_pct.default.arg == 5
     assert LeisureOffer.service_fee_pct.default.arg == 5
+
+
+def test_leisure_copy_is_edited_in_admin_and_shown_on_the_page(client):
+    from site_app import site_texts
+    site_texts._REGISTRY.clear()
+    info = site_texts.registry()["dosug.form.lead"]
+    assert info["page"] == "dosug" and "Карточка для гостей" in info["default"]
+    key = "dosug.form.lead"
+    try:
+        saved = client.post(
+            "/admin/texts/pages/edit",
+            data={"key": key, "value": "Текст досуга из админки"},
+            auth=AUTH, follow_redirects=False,
+        )
+        assert saved.status_code == 303, saved.text
+        assert "Текст досуга из админки" in client.get("/dosug/zayavka").text
+    finally:
+        client.post("/admin/texts/pages/edit", data={"key": key, "value": "", "action": "reset"}, auth=AUTH)
+    assert "Текст досуга из админки" not in client.get("/dosug/zayavka").text
+    assert "Карточка для гостей" in client.get("/dosug/zayavka").text
 
 
 def test_form_lists_research_fields_and_does_not_sell(client):
@@ -244,12 +268,14 @@ def test_honeypot_and_missing_field_do_not_publish(client):
     assert trapped.status_code == 303 and "sent=bot" in trapped.headers["location"]
     missing = _submit(client, _base(title="без отмены", cancellation_terms=""))
     assert missing.status_code == 400 and "Отмена" in missing.text
+    assert 'id="lz-error"' in missing.text and 'href="#lz-error"' in missing.text
+    assert missing.text.find('name="cancellation_terms"') < missing.text.find('id="lz-error"') < missing.text.find('name="equipment_state"')
     after = engine.connect().execute(text("SELECT count(*) FROM leisure_offers WHERE title LIKE 'без отмены%' OR title LIKE 'бот заполнил%'")).scalar()
     assert after == 0
     assert engine.connect().execute(text("SELECT count(*) FROM leisure_offers")).scalar() >= before
 
 
-def test_submit_moderate_slug_fee_and_hide_documents(client):
+def test_submit_moderate_slug_fee_and_hide_documents(client, monkeypatch):
     uid = uuid.uuid4().hex[:6]
     title = f"ДЕМО прогулка {uid}"
     sent = _submit(client, _base(title=title))
@@ -284,7 +310,9 @@ def test_submit_moderate_slug_fee_and_hide_documents(client):
     assert f'<link rel="canonical" href="{SITE_URL}/dosug/{published.slug}">' in html
     assert "УСЛОВИЯ-ДЕМО" in html.split('id="usloviya"')[1].split('id="snaryazhenie"')[0]
     assert "УСЛОВИЯ-ДЕМО" not in html.split('id="opisanie"')[1].split('id="usloviya"')[0]
-    assert "125 ₽" in html and "2 375 ₽" in html
+    assert "125 ₽" not in html and "2 375" not in html and "скидк" not in html.lower()
+    admin_html = client.get(f"/admin/dosug/{row.id}", auth=AUTH).text
+    assert "from_price" in admin_html and "125 ₽" in admin_html and "скидк" not in admin_html.lower()
     assert SECRET_PHONE not in html and SECRET_NAME not in html and SECRET_DOC not in html
     assert "не агент и не продаёт" in html
     by_id = client.get(f"/dosug/{row.id}", follow_redirects=False)
@@ -304,6 +332,24 @@ def test_submit_moderate_slug_fee_and_hide_documents(client):
     old = client.get(f"/dosug/{published.slug}", follow_redirects=False)
     assert old.status_code == 301 and old.headers["location"] == f"/dosug/{renamed}"
     assert client.get(f"/dosug/{row.id}", follow_redirects=False).headers["location"] == f"/dosug/{renamed}"
+    with engine.connect() as conn:
+        stored = conn.execute(text(
+            "SELECT old_slug, entity_id FROM slug_redirects WHERE kind='leisure' AND old_slug=:s"
+        ), {"s": published.slug}).one()
+    assert stored.entity_id == row.id
+    monkeypatch.setattr(cat, "LEISURE_FEE_SCHEME", "from_price_public")
+    shown = client.get(f"/dosug/{renamed}").text
+    assert "125 ₽" in shown and "скидк" not in shown.lower()
+    monkeypatch.setattr(cat, "LEISURE_FEE_SCHEME", "from_price")
+    rejected = client.post(
+        f"/admin/dosug/{row.id}",
+        data={**_base(title=title + " правка"), "csrf": _token(client.get(f"/admin/dosug/{row.id}", auth=AUTH).text),
+              "action": "reject", "slug": renamed, "service_fee_pct": "5"},
+        headers=ORIGIN, auth=AUTH, follow_redirects=False,
+    )
+    assert rejected.status_code == 303, rejected.text
+    assert client.get(f"/dosug/{row.id}", follow_redirects=False).status_code == 404
+    assert client.get(f"/dosug/{renamed}", follow_redirects=False).status_code == 404
 
 
 def test_photo_alt_and_repeat_supply_stay_hidden_until_approved(client):
