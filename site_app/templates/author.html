@@ -5,19 +5,17 @@
 {% block meta_description %}{{ tp('avtor.meta.desc', 'Данила (Даня), автор АдыГид: студент МГТУ в Адыгее. Каналы в Telegram и MAX.') }}{% endblock %}
 
 {% block extra_ld %}
+{# Person — только имя со страницы и те же ссылки, что на кнопках.
+   Вуз в разметку не кладём: отдельной организации с адресом и телефоном нет. #}
+{% set tg = tp('avtor.telegram_url', 'https://t.me/adygid') %}
+{% set mx = tp('avtor.max_url', 'https://max.ru/join/0qCTe9sSqljJIWYNI5hWBecoM1rr3B_proAXGK5O0tE') %}
 <script type="application/ld+json">
 {{ {
   "@context": "https://schema.org",
-  "@type": "ProfilePage",
-  "url": canonical_url,
-  "mainEntity": {
-    "@type": "Person",
-    "name": tp('avtor.schema_name', 'Данила'),
-    "alternateName": tp('avtor.schema_aka', 'Даня'),
-    "url": site_url ~ "/avtor",
-    "description": tp('avtor.schema_desc', 'Автор АдыГид, студент МГТУ в Адыгее'),
-    "sameAs": [tp('avtor.telegram_url', 'https://t.me/adygid'), tp('avtor.max_url', 'https://max.ru/join/0qCTe9sSqljJIWYNI5hWBecoM1rr3B_proAXGK5O0tE')]
-  }
+  "@type": "Person",
+  "name": tp('avtor.schema_name', 'Данила'),
+  "url": site_url ~ "/avtor",
+  "sameAs": ([tg] if tg.startswith('https://') else []) + ([mx] if mx.startswith('https://') else [])
 } | tojson }}
 </script>
 {{ faqui.ld(breadcrumbs_ld) }}

@@ -93,9 +93,15 @@ def test_author_page_footer_and_article_person(client):
     assert 'href="https://t.me/adygid"' in page.text
     assert "https://max.ru/join/0qCTe9sSqljJIWYNI5hWBecoM1rr3B_proAXGK5O0tE" in page.text
     assert 'href="/poezdki"' in page.text
-    person = next(b["mainEntity"] for b in _ld(page.text) if b.get("@type") == "ProfilePage")
-    assert person["@type"] == "Person" and person["name"] == "Данила"
+    person = next(b for b in _ld(page.text) if b.get("@type") == "Person")
+    assert person["name"] == "Данила"
     assert person["url"] == SITE_URL + "/avtor"
+    assert person["sameAs"] == [
+        "https://t.me/adygid",
+        "https://max.ru/join/0qCTe9sSqljJIWYNI5hWBecoM1rr3B_proAXGK5O0tE",
+    ]
+    assert "affiliation" not in person and "alumniOf" not in person and "worksFor" not in person
+    assert not any(b.get("@type") in ("CollegeOrUniversity", "EducationalOrganization", "Organization") for b in _ld(page.text))
 
     home = client.get("/")
     assert 'href="/avtor"' in home.text
@@ -116,6 +122,91 @@ def test_author_page_footer_and_article_person(client):
     assert admin.status_code == 200
     assert "avtor.schema_name" in admin.text and "avtor.telegram_url" in admin.text
     assert client.get("/admin/poezdki").status_code == 401
+
+
+# Тексты, которые гость видит на /avtor, в подвале, в статьях и на пустом /poezdki.
+_EDITABLE_COPY = (
+    "avtor.meta.title", "avtor.meta.desc", "avtor.eyebrow", "avtor.schema_name",
+    "avtor.aka_line", "avtor.lead", "avtor.bio",
+    "avtor.telegram_label", "avtor.telegram_url", "avtor.max_label", "avtor.max_url",
+    "avtor.trips_link",
+    "footer.author",
+    "articles.author_note", "articles.author_link", "articles.byline_prefix", "articles.byline_name",
+    "poezdki.meta.title", "poezdki.meta.desc", "poezdki.eyebrow", "poezdki.title",
+    "poezdki.lead", "poezdki.author_link", "poezdki.empty",
+    "poezdki.eyebrow_link", "poezdki.by_author", "poezdki.changes_title",
+    "poezdki.spent_title", "poezdki.video_link", "poezdki.places_title", "poezdki.source",
+)
+
+
+def _save_text(client, key, value, action="save"):
+    r = client.post(
+        "/admin/texts/pages/edit",
+        data={"key": key, "value": value, "action": action},
+        auth=AUTH, follow_redirects=False,
+    )
+    assert r.status_code == 303, (key, r.status_code, r.text)
+
+
+def test_author_and_trip_copy_is_edited_in_admin_texts(client):
+    listing = client.get("/admin/texts/pages", auth=AUTH).text
+    missing = [key for key in _EDITABLE_COPY if key not in listing]
+    assert missing == []
+
+    mark = "PRAVKA" + _uid()[:6]
+    edited = {
+        "avtor.telegram_label": f"Телеграм {mark}",
+        "avtor.max_label": f"Макс {mark}",
+        "avtor.trips_link": f"К поездкам {mark}",
+        "footer.author": f"Подвал автора {mark}",
+        "articles.author_note": f"Заметка статей {mark}",
+        "articles.author_link": f"Ссылка статей {mark}",
+        "articles.byline_prefix": f"Кто {mark}",
+        "articles.byline_name": f"Имя {mark}",
+        "poezdki.empty": f"Пустой раздел {mark}",
+        "poezdki.title": f"Заголовок поездок {mark}",
+        "poezdki.author_link": f"Автор поездок {mark}",
+    }
+    published = []
+    try:
+        for key, value in edited.items():
+            _save_text(client, key, value)
+        avtor = client.get("/avtor").text
+        assert edited["avtor.telegram_label"] in avtor
+        assert edited["avtor.max_label"] in avtor
+        assert edited["avtor.trips_link"] in avtor
+        assert edited["footer.author"] in avtor
+        stati = client.get("/stati").text
+        assert edited["articles.author_note"] in stati
+        assert edited["articles.author_link"] in stati
+        assert edited["footer.author"] in stati
+        slug = "tekst-avtora-" + _uid()
+        made = client.post("/api/articles", json={
+            "title": "Текст автора", "slug": slug, "body": "<p>абзац</p>", "is_published": True,
+        }, auth=AUTH)
+        assert made.status_code in (200, 201), made.text
+        article = client.get(f"/stati/{slug}").text
+        assert edited["articles.byline_prefix"] in article
+        assert edited["articles.byline_name"] in article
+        with engine.begin() as conn:
+            published = conn.execute(text(
+                "SELECT id FROM author_trips WHERE is_published"
+            )).scalars().all()
+            conn.execute(text("UPDATE author_trips SET is_published = false"))
+        trips = client.get("/poezdki").text
+        assert edited["poezdki.empty"] in trips
+        assert edited["poezdki.title"] in trips
+        assert edited["poezdki.author_link"] in trips
+        assert edited["footer.author"] in trips
+    finally:
+        for key in edited:
+            _save_text(client, key, "вернуть", action="reset")
+        if published:
+            with engine.begin() as conn:
+                for trip_id in published:
+                    conn.execute(text(
+                        "UPDATE author_trips SET is_published = true WHERE id = :i"
+                    ), {"i": trip_id})
 
 
 # ── поездки: слаг, черновик, sitemap ────────────────────────────
@@ -197,6 +288,49 @@ def test_trip_slug_redirect_draft_and_sitemap(client):
     assert bad.status_code == 400
 
 
+def test_admin_slug_change_redirects_old_trip_slug(client):
+    token = _uid()
+    loc = _save(client, title=f"Слаг {token}", is_published="1")
+    trip_id = int(re.search(r"/admin/poezdki/(\d+)", loc).group(1))
+    with SessionLocal() as db:
+        first = db.execute(text("SELECT slug FROM author_trips WHERE id=:i"), {"i": trip_id}).scalar()
+
+    def rename(slug):
+        r = client.post("/admin/poezdki/save", data={
+            "id": str(trip_id), "title": f"Слаг {token}", "trip_date": "2026-04-02",
+            "slug": slug, "body": "Текст для проверки слага.", "is_published": "1",
+            "photo_url": "", "photo_alt": "",
+        }, auth=AUTH, follow_redirects=False)
+        assert r.status_code == 303, r.text
+
+    second = f"slag-dva-{token}"
+    third = f"slag-tri-{token}"
+    rename(second)
+    with SessionLocal() as db:
+        stored = db.execute(text(
+            "SELECT entity_id FROM slug_redirects WHERE kind = 'trip' AND old_slug = :s"
+        ), {"s": first}).scalar()
+    assert stored == trip_id
+    old = client.get(f"/poezdki/{first}", follow_redirects=False)
+    assert old.status_code == 301 and old.headers["location"] == f"/poezdki/{second}"
+
+    rename(third)
+    for previous in (first, second):
+        again = client.get(f"/poezdki/{previous}", follow_redirects=False)
+        assert again.status_code == 301 and again.headers["location"] == f"/poezdki/{third}"
+        with SessionLocal() as db:
+            assert db.execute(text(
+                "SELECT entity_id FROM slug_redirects WHERE kind = 'trip' AND old_slug = :s"
+            ), {"s": previous}).scalar() == trip_id
+    page = client.get(f"/poezdki/{third}", follow_redirects=False)
+    assert page.status_code == 200
+    assert f'<link rel="canonical" href="{SITE_URL}/poezdki/{third}">' in page.text
+    locs = _locs(client.get("/sitemap.xml").text)
+    assert SITE_URL + f"/poezdki/{third}" in locs
+    assert SITE_URL + f"/poezdki/{first}" not in locs
+    assert SITE_URL + f"/poezdki/{second}" not in locs
+
+
 def test_empty_state_when_nothing_published(client):
     with engine.begin() as conn:
         conn.execute(text("UPDATE author_trips SET is_published = false"))
@@ -248,9 +382,16 @@ def test_waterfall_is_draft_and_not_in_sitemap(client):
         assert "kubnews.ru" in desc
         assert "База Эльна" in desc and "Тополиной" in desc
         assert "глинист" in desc and "обув" in desc
-        assert "₽" not in desc and "км" not in desc and "3,4" not in desc
-        assert client.get(f"/mesta/{row.slug}", follow_redirects=False).status_code == 404
-        assert client.get(f"/mesta/{row.id}", follow_redirects=False).status_code == 404
+        lowered = desc.lower()
+        # Цифры экскурсии из «Кубанских новостей» на карточку не переносим —
+        # это вопрос владельцу, не факт карточки.
+        for banned in ("3,4", "3.4", "три часа", "3 часа", "апрел", "октябр", "километр", "км"):
+            assert banned not in lowered
+        assert "₽" not in desc
+        direct = client.get(f"/mesta/{row.slug}", follow_redirects=False)
+        by_id = client.get(f"/mesta/{row.id}", follow_redirects=False)
+        assert direct.status_code == 404 and by_id.status_code == 404
+        assert "База Эльна" not in direct.text and "3,4" not in direct.text
         assert WATERFALL_SLUG not in client.get("/sitemap.xml").text
         with SessionLocal() as db:
             assert seed_waterfall(db) is False
