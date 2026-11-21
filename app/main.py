@@ -2011,6 +2011,16 @@ from content.district_look_2026_11.apply import run_on_startup as apply_district
 
 apply_district_look_titles()
 
+# Источники «Коротко для поездки» из #39. Сид 19.11 копирует блок в
+# place_trip_blocks один раз, поэтому семнадцать новых ссылок из кода
+# на уже залитые карточки сами не попадают. Один раз переписываем rows
+# ровно у 52, 45, 29, 50, 61, 66 и 75, и только если строку не правили
+# в админке (updated_by = «перенос из кода»). Идёт после сида.
+# Выключатель: APPLY_TRIP_SOURCES_39=0. Откат: ROLLBACK_TRIP_SOURCES_39=1.
+from content.trip_sources_39.apply import run_on_startup as apply_trip_sources_39
+
+apply_trip_sources_39()
+
 
 @app.get("/api/podbor/stats")
 def get_podbor_stats(db: Session = Depends(get_db), _: bool = Depends(require_admin)):
