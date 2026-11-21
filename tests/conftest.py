@@ -9,12 +9,55 @@ os.environ["DATABASE_URL"] = (
 )
 os.environ["ADMIN_USER"] = "admin"
 os.environ["ADMIN_PASSWORD"] = "adygid-test"
+# Запись SEO-текстов 2026-11 при старте не трогает тестовую базу: её проверяют
+# отдельные тесты на временных таблицах.
+os.environ["APPLY_SEO_TEXTS_2026_11"] = "0"
+os.environ.pop("ROLLBACK_SEO_TEXTS_2026_11", None)
 
 if "localhost" not in os.environ["DATABASE_URL"] and "127.0.0.1" not in os.environ["DATABASE_URL"]:
     raise RuntimeError("cost-status tests refuse a non-local DATABASE_URL")
 
 
 import pytest
+
+
+def _install_admin_form_origin():
+    """Браузер на POST из формы админки сам шлёт Origin. TestClient — нет.
+
+    Подставляем Origin тестового хоста, только если тест не задал ни Origin,
+    ни Referer. Явный чужой заголовок не затираем: проверки CSRF на нём
+    остаются. Запрос совсем без обоих заголовков собирается мимо TestClient.
+    """
+    from fastapi.testclient import TestClient
+
+    original = TestClient.request
+
+    def request(self, method, url, **kwargs):
+        headers = kwargs.get("headers")
+        if headers is None:
+            pairs = []
+        elif hasattr(headers, "multi_items"):
+            pairs = list(headers.multi_items())
+        elif hasattr(headers, "items"):
+            pairs = list(headers.items())
+        else:
+            pairs = list(headers)
+        keys = {str(key).lower() for key, _ in pairs}
+        path = url if isinstance(url, str) else str(getattr(url, "path", url))
+        if (
+            str(method).upper() == "POST"
+            and path.startswith("/admin")
+            and "origin" not in keys
+            and "referer" not in keys
+        ):
+            base = str(getattr(self, "base_url", "http://testserver")).rstrip("/")
+            kwargs["headers"] = dict(pairs) | {"Origin": base}
+        return original(self, method, url, **kwargs)
+
+    TestClient.request = request
+
+
+_install_admin_form_origin()
 
 
 @pytest.fixture(scope="session", autouse=True)

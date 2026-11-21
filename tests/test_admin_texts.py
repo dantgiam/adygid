@@ -175,6 +175,34 @@ def test_text_in_row_is_escaped(client):
     assert "<img src=x onerror" not in html and "&lt;img src=x onerror=alert(1)&gt;" in html
 
 
+def _request(headers: dict):
+    from starlette.requests import Request
+    raw = [(k.lower().encode(), v.encode()) for k, v in headers.items()]
+    return Request({
+        "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+        "method": "POST", "scheme": "http", "path": "/admin/texts/places/1",
+        "raw_path": b"/admin/texts/places/1", "query_string": b"", "headers": raw,
+        "client": ("127.0.0.1", 1234), "server": ("testserver", 80),
+    })
+
+
+def test_same_origin_rejects_missing_and_foreign_headers():
+    from fastapi import HTTPException
+    from app.bot_admin import same_origin
+    same_origin(_request({"host": "testserver", "origin": "http://testserver"}))
+    same_origin(_request({"host": "testserver", "referer": "http://testserver/admin/texts/places/1"}))
+    for headers in (
+        {"host": "testserver"},
+        {"host": "testserver", "origin": ""},
+        {"host": "www.adygid.ru", "origin": "https://evil.example"},
+        {"host": "www.adygid.ru", "referer": "https://evil.example/page"},
+        {"host": "www.adygid.ru", "origin": "https://www.adygid.ru", "referer": "https://evil.example/page"},
+    ):
+        with pytest.raises(HTTPException) as err:
+            same_origin(_request(headers))
+        assert err.value.status_code == 403
+
+
 def test_admin_requires_login_and_same_origin(client):
     assert client.get("/admin/texts/places").status_code == 401
     assert client.get("/admin/texts/pages", auth=("admin", "wrong")).status_code == 401

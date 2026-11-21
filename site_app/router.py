@@ -36,6 +36,7 @@ from site_app import trip_facts
 from site_app import site_texts
 from site_app import travel_notices
 from site_app.autolink import autolink
+from site_app.galleries import render_article_gallery as _render_article_gallery
 from site_app import urls as site_urls
 from site_app.urls import place_url, route_url
 from app.models import SlugRedirect
@@ -195,6 +196,12 @@ def _with_route_relations(stmt):
 #  Мелкие помощники форматирования
 # ─────────────────────────────────────────────
 
+def _manual_seo(value: Optional[str]) -> Optional[str]:
+    """Непустое SEO-поле из админки. Пустая строка — как будто поля нет."""
+    text = " ".join((value or "").split())
+    return text or None
+
+
 def _excerpt(text: Optional[str], length: int = 140) -> str:
     if not text:
         return ""
@@ -322,73 +329,6 @@ def _add_toc_anchors(html: str) -> tuple[str, list[dict]]:
         return f'<{tag}{attrs} id="{anchor}">{inner}</{tag}>'
 
     return _HEADING_RE.sub(repl, html), toc
-
-
-_GALLERY_PARAGRAPH_RE = re.compile(r"<p>((?:\s*<img\b[^>]*>|\s*&nbsp;)+)\s*</p>", re.IGNORECASE)
-_IMG_TAG_RE = re.compile(r"<img\b([^>]*)>", re.IGNORECASE)
-_IMG_ATTR_RE = re.compile(r'(\w[\w-]*)\s*=\s*"([^"]*)"')
-
-
-def _render_article_gallery(html: str) -> str:
-    """Редактор статей (Quill) вставляет фото как <img> внутри <p>, с подписью
-    в alt каждой картинки. Здесь на рендере страницы несколько картинок подряд
-    группируем в галерею-коллаж со счётчиком "N/M", а одиночное фото с подписью
-    оборачиваем в <figure> с подписью под ним (визуально — как в Т—Ж).
-    Фото без подписи остаётся обычной вставкой на всю ширину."""
-
-    def repl(match: "re.Match[str]") -> str:
-        img_tags = _IMG_TAG_RE.findall(match.group(1))
-        if len(img_tags) < 2:
-            if not img_tags:
-                return match.group(0)
-            attrs = dict(_IMG_ATTR_RE.findall(img_tags[0]))
-            caption = unescape(attrs.get("alt", "")).strip()
-            if not caption:
-                return match.group(0)
-            src = unescape(attrs.get("src", ""))
-            return (
-                '<figure class="article-figure">'
-                f'<img src="{escape(src, quote=True)}" alt="{escape(caption, quote=True)}" loading="lazy">'
-                f'<figcaption>{escape(caption)}</figcaption>'
-                '</figure>'
-            )
-        total = len(img_tags)
-        items = []
-        for i, attrs_str in enumerate(img_tags, start=1):
-            attrs = dict(_IMG_ATTR_RE.findall(attrs_str))
-            src = unescape(attrs.get("src", ""))
-            caption = unescape(attrs.get("alt", "")).strip()
-            caption_html = ""
-            if caption:
-                caption_html = (
-                    '<figcaption class="article-gallery-caption">'
-                    f'<span class="article-gallery-counter">{i}/{total}</span>'
-                    f'<span class="article-gallery-text">{escape(caption)}</span>'
-                    '</figcaption>'
-                )
-            items.append(
-                '<figure class="article-gallery-item">'
-                f'<img src="{escape(src, quote=True)}" alt="{escape(caption, quote=True)}" loading="lazy">'
-                f'{caption_html}'
-                '</figure>'
-            )
-        # Стрелки — только когда листать действительно есть куда. Разметка
-        # такая же, как у карусели места (_cards.html:photo_carousel), поэтому
-        # и стили, и обработчик в site.js общие.
-        nav = (
-            '<button type="button" class="gal-nav gal-prev" data-gal-prev aria-label="Предыдущее фото">'
-            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
-            '<button type="button" class="gal-nav gal-next" data-gal-next aria-label="Следующее фото">'
-            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'
-        )
-        return (
-            '<div class="article-gallery" data-gallery>'
-            '<div class="article-gallery-track" data-gal-track>' + "".join(items) + '</div>'
-            + nav +
-            '</div>'
-        )
-
-    return _GALLERY_PARAGRAPH_RE.sub(repl, html)
 
 
 _MAGNET_EMBED_RE = re.compile(r'<div[^>]*data-magnet-id="(\d+)"[^>]*>\s*</div>', re.IGNORECASE)
@@ -705,8 +645,19 @@ def _gallery_of(photos) -> list:
     Первое фото пропускаем: оно уже показано крупной обложкой сверху, и в
     карусели шло вторым экземпляром той же картинки. У места с единственным
     фото (сейчас это почти все) карусели теперь просто нет — вместо
-    бессмысленного повтора одного кадра."""
-    return [{"url": p.url, "caption": p.caption or ""} for p in photos[1:]]
+    бессмысленного повтора одного кадра.
+
+    alt, если он есть у кадра отдельно от подписи, уходит в карусель как есть.
+    У Photo такого поля нет: подпись (caption) и есть заданный alt, а пустую
+    подпись шаблон заменяет на «название, фото N»."""
+    out = []
+    for p in photos[1:]:
+        item = {"url": p.url, "caption": p.caption or ""}
+        alt = (getattr(p, "alt", None) or "").strip()
+        if alt:
+            item["alt"] = alt
+        out.append(item)
+    return out
 
 
 def _category_lite(cat) -> Optional[dict]:
@@ -1135,6 +1086,10 @@ def _route_detail_dict(db: Session, t: Trail) -> dict:
         "gpx_url": f"{route_url(t)}/track.gpx" if t.segments else None,
         "district_url": f"/okrugi/{t.district}" if t.district in _DISTRICT_LABELS else None,
         "updated_label": _updated_label(t.checked_at),
+        # Пусто — заголовок и description собирает шаблон, как раньше.
+        # Словаря title для маршрутов в seo.py нет.
+        "seo_title": _manual_seo(t.seo_title),
+        "seo_description": _manual_seo(t.seo_description),
         "checkpoints": [
             {
                 "name": cp.name,
@@ -1212,6 +1167,9 @@ def _districts(db: Session) -> list:
             "cover": d.cover_url, "cover_thumb": d.cover_thumb_url or d.cover_url,
             "cover_style": _crop_style(d.cover_focus),
             "published": d.is_published,
+            # Title: поле админки, затем словарь. Description: поле, затем вступление в шаблоне.
+            "seo_title": _manual_seo(d.seo_title) or seo.DISTRICT_TITLES.get(d.slug),
+            "seo_description": _manual_seo(d.seo_description),
         }
         for d in rows
     ]
@@ -1929,7 +1887,7 @@ def scenario_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "faq": auto_faq,
         "faq_items": _faq_items_html(auto_faq["items"]),
         "curated": bool(curated),
-        "seo_title": seo.SCENARIO_TITLES.get(sc.slug),
+        "seo_title": _manual_seo(sc.seo_title) or seo.SCENARIO_TITLES.get(sc.slug),
         "updated_iso": (getattr(sc, "updated_at", None) or sc.created_at).date().isoformat() if (getattr(sc, "updated_at", None) or sc.created_at) else None,
         "breadcrumbs_ld": seo.breadcrumbs_ld(SITE_URL, [("Куда поехать", "/kuda"), (sc.title, f"/kuda/{sc.slug}")]),
         "seo_description": sc.seo_description or _excerpt(sc.lead, 200) or sc.title,
@@ -2036,7 +1994,10 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "places": places,
         "routes": routes,
         "articles": articles,
-        "seo_title": seo.DISTRICT_TITLES.get(slug),
+        # Поле админки, затем словарь — уже собрано в _districts. Шаблон
+        # подставляет формулу, если и то и другое пусто.
+        "seo_title": page.get("seo_title"),
+        "seo_description": page.get("seo_description"),
         "faq": faq,
         "faq_items": _faq_items_html(faq["items"]),
         "faq_ld": _faq_ld(faq["items"]),
@@ -2134,7 +2095,8 @@ def article_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "faq_title": faq_title,
         "faq_items": _faq_items_html(faq),
         "faq_ld": faq_ld,
-        "seo_title": seo.ARTICLE_TITLES.get(a.slug),
+        "seo_title": _manual_seo(a.seo_title) or seo.ARTICLE_TITLES.get(a.slug),
+        "seo_description": _manual_seo(a.seo_description),
         "published_iso": a.created_at.date().isoformat() if a.created_at else None,
         "modified_iso": modified.date().isoformat() if modified else None,
         "next_hub": _next_hub(db, a.slug),

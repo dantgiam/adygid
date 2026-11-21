@@ -94,13 +94,16 @@
 
 {% macro arrow_icon() %}<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>{% endmacro %}
 
-{% macro photo_carousel(gallery) %}
+{% macro photo_carousel(gallery, name='') %}
 {% if gallery %}
 <div class="pcar" data-pcar tabindex="0" aria-roledescription="карусель" aria-label="Фотографии">
   <div class="pcar-track" data-pcar-track>
     {% for ph in gallery %}
+    {# Подпись из админки (photos.caption) — это и есть alt, если её задали.
+       Пустую подпись не оставляем пустым alt: название и номер кадра. #}
+    {% set alt = (ph.alt or '')|trim or (ph.caption or '')|trim or ((name ~ ', фото ' ~ loop.index) if name else ('Фото ' ~ loop.index)) %}
     <div class="pcar-slide" data-pcar-slide>
-      {{ rimg(ph.url, alt=ph.caption or '', sizes=img_sizes.hero, width=1600, height=1000, loading=('eager' if loop.first else 'lazy'), src_width=800) }}
+      {{ rimg(ph.url, alt=alt, sizes=img_sizes.hero, width=1600, height=1000, loading=('eager' if loop.first else 'lazy'), src_width=800) }}
     </div>
     {% endfor %}
   </div>
