@@ -480,15 +480,15 @@ h1.article-title {
    здесь фото рассказывают само место, а не иллюстрируют абзац текста.
    Слайды — фиксированное соотношение сторон с object-fit:cover, поэтому
    горизонтальный и вертикальный кадр в ленте не прыгают по высоте. ── */
-.pcar { position: relative; margin: 28px 0; outline: none; }
+.pcar { position: relative; margin: 28px 0; outline: none; max-width: 100%; }
 .pcar-track {
   display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch; border-radius: var(--radius);
-  scrollbar-width: none;
+  scrollbar-width: none; max-width: 100%;
 }
 .pcar-track::-webkit-scrollbar { display: none; }
 .pcar-slide {
-  flex: 0 0 100%; scroll-snap-align: start; aspect-ratio: 16 / 10;
+  flex: 0 0 100%; min-width: 0; scroll-snap-align: start; aspect-ratio: 16 / 10;
   background: var(--bg-elevated);
 }
 .pcar-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -538,7 +538,7 @@ h1.article-title {
    заголовках места/маршрута — просто здесь текст, а не только h1). ── */
 .article-body {
   font-family: var(--font-display); font-size: 20px; line-height: 1.55;
-  max-width: 68ch; color: var(--text);
+  max-width: 68ch; color: var(--text); overflow-wrap: break-word;
 }
 .article-body p { margin: 0 0 22px; }
 .article-body h2 {
@@ -1288,3 +1288,19 @@ h1.article-title {
 .seasonal-places a { color: #1d3b4f; font-weight: 650; text-decoration: underline; text-decoration-color: rgba(29, 59, 79, .3); text-underline-offset: 3px; }
 .district-start { margin: 0 0 18px; font-size: 16px; max-width: 68ch; }
 .district-start a { color: var(--accent-dark); font-weight: 650; }
+
+.article-byline { margin: -6px 0 18px; color: var(--text-muted); font-size: 15px; }
+.article-byline a { color: var(--accent-dark); font-weight: 650; }
+.trip-meta { margin: -4px 0 18px; color: var(--text-muted); font-size: 15px; }
+.trip-meta a, .trip-source a { color: var(--accent-dark); font-weight: 650; }
+.trip-body { max-width: min(68ch, 100%); }
+.trip-video {
+  position: relative; width: 100%; max-width: 800px; margin: 22px 0;
+  aspect-ratio: 16 / 9; overflow: hidden;
+}
+.trip-video iframe {
+  position: absolute; inset: 0; width: 100%; height: 100%; max-width: 100%;
+  border: 0; border-radius: var(--radius); background: #111;
+}
+.trip-source { margin-top: 22px; }
+

@@ -17,7 +17,8 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.database import SessionLocal, get_db
 from app.models import (
-    Article, Category, Checkpoint, DifficultyLevel, District, FaqSet, LeisureOffer, Like, Magnet, Scenario, SitePage, Trail,
+    Article, AuthorTrip, Category, Checkpoint, DifficultyLevel, District, FaqSet, LeisureOffer, Like, Magnet,
+    Scenario, SitePage, Trail,
 )
 from site_app.content import (
     ACCESS_LABELS,
@@ -37,6 +38,7 @@ from site_app import site_texts
 from site_app import travel_notices
 from site_app.autolink import autolink
 from site_app.galleries import render_article_gallery as _render_article_gallery
+from site_app.video import video_embed_src
 from site_app import urls as site_urls
 from site_app.urls import place_url, route_url
 from app.models import SlugRedirect
@@ -1482,8 +1484,8 @@ def podbor_page(request: Request, db: Session = Depends(get_db), src: str = "", 
 #  Адреса страниц: слаг канонический, id и прежние слаги — 301
 # ─────────────────────────────────────────────
 
-_KIND_MODEL = {"place": Checkpoint, "route": Trail, "article": Article}
-_KIND_PREFIX = {"place": "/mesta", "route": "/marshruty", "article": "/stati"}
+_KIND_MODEL = {"place": Checkpoint, "route": Trail, "article": Article, "trip": AuthorTrip}
+_KIND_PREFIX = {"place": "/mesta", "route": "/marshruty", "article": "/stati", "trip": "/poezdki"}
 
 
 def _visible(kind: str, obj) -> bool:
@@ -2167,6 +2169,127 @@ def club(request: Request, db: Session = Depends(get_db)):
 
 
 # ─────────────────────────────────────────────
+#  Автор и поездки автора
+# ─────────────────────────────────────────────
+
+_RU_MONTHS = (
+    "января", "февраля", "марта", "апреля", "мая", "июня",
+    "июля", "августа", "сентября", "октября", "ноября", "декабря",
+)
+
+
+def _ru_date(value) -> str:
+    if not value:
+        return ""
+    return f"{value.day} {_RU_MONTHS[value.month - 1]} {value.year}"
+
+
+def _https(url: Optional[str]) -> str:
+    raw = (url or "").strip()
+    if raw.startswith("https://") and not any(ch in raw for ch in " \t\r\n\"<>"):
+        return raw
+    return ""
+
+
+def _trip_places(db: Session, ids) -> list:
+    if not ids:
+        return []
+    by_id = {
+        cp.id: cp
+        for cp in db.execute(
+            _with_place_relations(select(Checkpoint)).where(
+                Checkpoint.id.in_(list(ids)),
+                Checkpoint.show_as_place == True,
+                Checkpoint.is_published == True,
+            )
+        ).scalars().all()
+    }
+    return [_place_card_dict(by_id[i]) for i in ids if i in by_id]
+
+
+def _trip_photos(trip: AuthorTrip) -> list:
+    out = []
+    for item in trip.photos or []:
+        url = _https((item or {}).get("url"))
+        alt = ((item or {}).get("alt") or "").strip()
+        if url and alt:
+            out.append({"url": url, "alt": alt})
+    return out
+
+
+def _trip_public(db: Session, trip: AuthorTrip) -> dict:
+    photos = _trip_photos(trip)
+    video = _https(trip.video_url)
+    return {
+        "id": trip.id,
+        "title": trip.title,
+        "slug": trip.slug,
+        "url": f"/poezdki/{trip.slug}",
+        "date_label": _ru_date(trip.trip_date),
+        "date_iso": trip.trip_date.isoformat() if trip.trip_date else "",
+        "excerpt": site_texts.render_plain(trip.body or "")[:200],
+        "body_html": site_texts.render_inline(trip.body or ""),
+        "changes_html": site_texts.render_inline(trip.changes_note or "") if trip.changes_note else "",
+        "spent": (trip.spent_note or "").strip(),
+        "photos": photos,
+        "gallery": [{"url": p["url"], "caption": p["alt"]} for p in photos],
+        "cover": photos[0]["url"] if photos else None,
+        "cover_alt": photos[0]["alt"] if photos else "",
+        "video_src": video_embed_src(video),
+        "video_url": video,
+        "source_url": _https(trip.source_url),
+        "places": _trip_places(db, trip.place_ids or []),
+    }
+
+
+@router.get("/avtor")
+def author_page(request: Request, db: Session = Depends(get_db)):
+    return templates.TemplateResponse(
+        "author.html",
+        _ctx(
+            request, db, active_nav=None,
+            breadcrumbs_ld=seo.breadcrumbs_ld(SITE_URL, [("Об авторе", "/avtor")]),
+        ),
+    )
+
+
+@router.get("/poezdki")
+def trips_list(request: Request, db: Session = Depends(get_db)):
+    rows = db.execute(
+        select(AuthorTrip).where(AuthorTrip.is_published == True)
+        .order_by(AuthorTrip.trip_date.desc(), AuthorTrip.id.desc())
+    ).scalars().all()
+    return templates.TemplateResponse(
+        "trips_list.html",
+        _ctx(
+            request, db, active_nav=None,
+            trips=[_trip_public(db, t) for t in rows],
+            breadcrumbs_ld=seo.breadcrumbs_ld(SITE_URL, [("Поездки автора", "/poezdki")]),
+        ),
+    )
+
+
+@router.get("/poezdki/{key}")
+def trip_detail(request: Request, key: str, db: Session = Depends(get_db)):
+    trip_id, redirect = _resolve_page(db, request, "trip", key)
+    if redirect:
+        return redirect
+    trip = db.get(AuthorTrip, trip_id)
+    if not trip or not trip.is_published:
+        raise HTTPException(404, "Поездка не найдена")
+    public = _trip_public(db, trip)
+    return templates.TemplateResponse(
+        "trip_detail.html",
+        _ctx(
+            request, db, active_nav=None, trip=public,
+            breadcrumbs_ld=seo.breadcrumbs_ld(
+                SITE_URL, [("Поездки автора", "/poezdki"), (trip.title, public["url"])]
+            ),
+        ),
+    )
+
+
+# ─────────────────────────────────────────────
 #  Политика и согласие. В sitemap их нет, в шаблонах стоит noindex:
 #  страницы должны открываться (в том числе по ссылке из бота), но не
 #  попадать в поиск. Подвал и базовый шаблон здесь не меняются.
@@ -2281,11 +2404,17 @@ def sitemap_xml(db: Session = Depends(get_db)):
     scenarios = db.execute(
         select(Scenario.slug, Scenario.updated_at, Scenario.created_at).where(Scenario.is_published == True)
     ).all()
+    trips = db.execute(
+        select(AuthorTrip.slug, AuthorTrip.updated_at, AuthorTrip.created_at).where(
+            AuthorTrip.is_published == True, AuthorTrip.slug.isnot(None)
+        )
+    ).all()
 
     place_urls = [(place_url(r), day(r.updated_at or r.created_at), "monthly") for r in places]
     trail_urls = [(route_url(r), day(r.updated_at or r.created_at), "monthly") for r in trails]
     article_urls = [(f"/stati/{r.slug}", day(r.updated_at or r.created_at), "monthly") for r in articles]
     scenario_urls = [(f"/kuda/{r.slug}", day(r.updated_at or r.created_at), "weekly") for r in scenarios]
+    trip_urls = [(f"/poezdki/{r.slug}", day(r.updated_at or r.created_at), "monthly") for r in trips]
     leisure = db.execute(
         select(LeisureOffer.slug, LeisureOffer.updated_at, LeisureOffer.created_at).where(
             LeisureOffer.is_published == True,
@@ -2302,6 +2431,7 @@ def sitemap_xml(db: Session = Depends(get_db)):
     last_trails = latest(*[u[1] for u in trail_urls])
     last_articles = latest(*[u[1] for u in article_urls])
     last_scenarios = latest(*[u[1] for u in scenario_urls])
+    last_trips = latest(*[u[1] for u in trip_urls])
     last_leisure = latest(*[u[1] for u in leisure_urls])
 
     district_urls = []
@@ -2316,10 +2446,12 @@ def sitemap_xml(db: Session = Depends(get_db)):
         district_urls.append((f"/okrugi/{d['slug']}", mod, "monthly"))
 
     urls: list[tuple[str, Optional[str], str]] = [
-        ("/", latest(last_places, last_trails, last_articles, last_scenarios), "daily"),
+        ("/", latest(last_places, last_trails, last_articles, last_scenarios, last_trips), "daily"),
         ("/mesta", last_places, "weekly"),
         ("/marshruty", last_trails, "weekly"),
         ("/stati", last_articles, "weekly"),
+        ("/poezdki", last_trips, "weekly"),
+        ("/avtor", None, "monthly"),
         ("/kuda", last_scenarios, "monthly"),
         ("/okrugi", latest(*[u[1] for u in district_urls]), "monthly"),
         ("/voprosy", None, "monthly"),
@@ -2327,7 +2459,7 @@ def sitemap_xml(db: Session = Depends(get_db)):
         ("/podbor", latest(last_places, last_trails), "weekly"),
         ("/dosug", last_leisure, "weekly"),
     ]
-    urls += scenario_urls + district_urls + place_urls + trail_urls + article_urls + leisure_urls
+    urls += scenario_urls + district_urls + place_urls + trail_urls + article_urls + trip_urls + leisure_urls
 
     body = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for path, lastmod, changefreq in urls:
