@@ -1166,7 +1166,9 @@ def _districts(db: Session) -> list:
     rows = db.execute(select(District).order_by(District.order_index, District.id)).scalars().all()
     _DISTRICT_CACHE["value"] = [
         {
-            "slug": d.slug, "label": seo.district_display(d.slug, d.name), "lead": d.lead or "", "facts": d.facts or [],
+            "slug": d.slug, "label": (label := seo.district_display(d.slug, d.name)),
+            "heading": seo.district_look(label),
+            "lead": d.lead or "", "facts": d.facts or [],
             "cover": d.cover_url, "cover_thumb": d.cover_thumb_url or d.cover_url,
             "cover_style": _crop_style(d.cover_focus),
             "published": d.is_published,
@@ -1935,6 +1937,7 @@ def districts_index(request: Request, db: Session = Depends(get_db)):
         items.append({
             "slug": d["slug"],
             "label": d["label"],
+            "heading": d["heading"],
             "url": f"/okrugi/{d['slug']}",
             "lead": d["lead"],
             "cover": d["cover_thumb"],
@@ -1988,6 +1991,7 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
     district = {
         "slug": slug,
         "label": page["label"],
+        "heading": page["heading"],
         "lead": page["lead"],
         # Первое упоминание места этого района в тексте — ссылка на карточку.
         "lead_html": Markup(autolink(str(escape(page["lead"])), place_ids, max_links=4)[0]),
@@ -1998,7 +2002,7 @@ def district_detail(request: Request, slug: str, db: Session = Depends(get_db)):
         "routes": routes,
         "articles": articles,
         # Поле админки, затем словарь — уже собрано в _districts. Шаблон
-        # подставляет формулу, если и то и другое пусто.
+        # подставляет heading («{район}: что посмотреть»), если и то и другое пусто.
         "seo_title": page.get("seo_title"),
         "seo_description": page.get("seo_description"),
         "faq": faq,

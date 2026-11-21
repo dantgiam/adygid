@@ -800,7 +800,15 @@ h1.article-title {
 
 /* ── Округа ───────────────────────────────────────*/
 .district-card .body { padding: 20px; }
-.district-card h3 { font-size: 20px; }
+.district-card h3 { font-size: 20px; line-height: 1.25; text-wrap: balance; }
+/* На телефоне фраза «Хаджох (Каменномостский): что посмотреть» в двух
+   колонках ломается на четыре строки. Районов пять, поэтому здесь одна
+   колонка: заголовок читается целиком, а сетка мест остаётся двухколоночной. */
+@media (max-width: 640px) {
+  .districts-grid { grid-template-columns: 1fr; }
+  .district-card .body { padding: 14px 14px 16px; }
+  .district-card h3 { font-size: 18px; }
+}
 .district-lead { max-width: 68ch; margin-bottom: 24px; }
 .facts {
   background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius);

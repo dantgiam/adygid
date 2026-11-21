@@ -108,11 +108,14 @@ def test_nav_and_lists_say_rayon_not_okrug(client):
         assert "Округа<" not in visible and "Любой округ" not in visible, url
 
 
-def test_district_titles_are_not_one_template():
-    titles = list(seo.DISTRICT_TITLES.values())
-    heads = {t.split(":")[1].split("—")[0].strip() for t in titles}
-    assert len(heads) >= 4, heads
-    assert not any("| АдыГид" in t and "Адыгея" in t for t in titles)
+def test_district_titles_use_look_phrase():
+    assert set(seo.DISTRICT_TITLES) == set(seo.DISTRICT_DISPLAY)
+    for slug, name in seo.DISTRICT_DISPLAY.items():
+        title = seo.DISTRICT_TITLES[slug]
+        assert title == seo.district_look(name) == f"{name}: что посмотреть"
+        assert "— АдыГид" not in title
+        assert len(title) <= 60
+    assert len(set(seo.DISTRICT_TITLES.values())) == len(seo.DISTRICT_TITLES)
 
 
 def test_key_place_titles_varied_and_without_prices():

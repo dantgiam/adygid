@@ -276,7 +276,7 @@ def test_district_priority_admin_then_dictionary_then_template(client, monkeypat
     meta = _assert_og_and_canonical(client.get(path).text, path)
     assert meta["title"] == dict_title
     assert meta["description"] == lead
-    assert f'<h1 class="page-title">{name}</h1>' in client.get(path).text
+    assert f'<h1 class="page-title">{seo.district_look(name)}</h1>' in client.get(path).text
 
     custom_title = _title(45)
     custom_desc = _desc(90)
@@ -285,9 +285,11 @@ def test_district_priority_admin_then_dictionary_then_template(client, monkeypat
     }, auth=AUTH)
     assert saved.status_code == 200, saved.text
     _DISTRICT_CACHE["value"] = None
-    meta = _assert_og_and_canonical(client.get(path).text, path)
+    html = client.get(path).text
+    meta = _assert_og_and_canonical(html, path)
     assert meta["title"] == custom_title
     assert meta["description"] == custom_desc
+    assert f'<h1 class="page-title">{seo.district_look(name)}</h1>' in html
 
     client.patch(f"/api/districts/{did}", json={"seo_title": "", "seo_description": None}, auth=AUTH)
     _DISTRICT_CACHE["value"] = None
@@ -302,8 +304,11 @@ def test_district_priority_admin_then_dictionary_then_template(client, monkeypat
     }, auth=AUTH)
     assert r.status_code == 201, r.text
     _DISTRICT_CACHE["value"] = None
-    meta = _assert_og_and_canonical(client.get(f"/okrugi/{plain}").text, f"/okrugi/{plain}")
-    assert meta["title"] == f"{plain_name} — что посмотреть и какие маршруты рядом"
+    plain_html = client.get(f"/okrugi/{plain}").text
+    meta = _assert_og_and_canonical(plain_html, f"/okrugi/{plain}")
+    assert meta["title"] == seo.district_look(plain_name)
+    assert meta["og_title"] == seo.district_look(plain_name)
+    assert f'<h1 class="page-title">{seo.district_look(plain_name)}</h1>' in plain_html
     assert meta["description"] == lead
 
     # Уже засеянный округ без поля в админке остаётся на словаре.
