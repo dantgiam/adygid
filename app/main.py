@@ -1978,6 +1978,12 @@ from content.carousels_2026_11.live import apply_if_enabled
 
 apply_if_enabled()
 
+# SEO title/description статей, маршрутов, округов и сценариев (21.11.2026).
+# Один раз, по метке; поля, правленные в админке, не трогает. Ошибка не роняет сайт.
+from content.seo_texts_2026_11.apply import run_on_startup as apply_seo_texts
+
+apply_seo_texts()
+
 
 @app.get("/api/podbor/stats")
 def get_podbor_stats(db: Session = Depends(get_db), _: bool = Depends(require_admin)):

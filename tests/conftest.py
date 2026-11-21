@@ -9,6 +9,10 @@ os.environ["DATABASE_URL"] = (
 )
 os.environ["ADMIN_USER"] = "admin"
 os.environ["ADMIN_PASSWORD"] = "adygid-test"
+# Запись SEO-текстов 2026-11 при старте не трогает тестовую базу: её проверяют
+# отдельные тесты на временных таблицах.
+os.environ["APPLY_SEO_TEXTS_2026_11"] = "0"
+os.environ.pop("ROLLBACK_SEO_TEXTS_2026_11", None)
 
 if "localhost" not in os.environ["DATABASE_URL"] and "127.0.0.1" not in os.environ["DATABASE_URL"]:
     raise RuntimeError("cost-status tests refuse a non-local DATABASE_URL")
