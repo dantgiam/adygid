@@ -64,7 +64,7 @@
           {% endif %}
           {% if place.description_html %}{{ place.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
-          {{ cards.photo_carousel(place.gallery) }}
+          {{ cards.photo_carousel(place.gallery, place.name) }}
 
           {{ faqui.faq_block(faq_items, faq.title) }}
 

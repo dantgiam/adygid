@@ -637,8 +637,19 @@ def _gallery_of(photos) -> list:
     Первое фото пропускаем: оно уже показано крупной обложкой сверху, и в
     карусели шло вторым экземпляром той же картинки. У места с единственным
     фото (сейчас это почти все) карусели теперь просто нет — вместо
-    бессмысленного повтора одного кадра."""
-    return [{"url": p.url, "caption": p.caption or ""} for p in photos[1:]]
+    бессмысленного повтора одного кадра.
+
+    alt, если он есть у кадра отдельно от подписи, уходит в карусель как есть.
+    У Photo такого поля нет: подпись (caption) и есть заданный alt, а пустую
+    подпись шаблон заменяет на «название, фото N»."""
+    out = []
+    for p in photos[1:]:
+        item = {"url": p.url, "caption": p.caption or ""}
+        alt = (getattr(p, "alt", None) or "").strip()
+        if alt:
+            item["alt"] = alt
+        out.append(item)
+    return out
 
 
 def _category_lite(cat) -> Optional[dict]:

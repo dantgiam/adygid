@@ -136,22 +136,34 @@ def test_card_renders_table_high_with_heading_and_ld(client, monkeypatch):
     assert "<dt>Стоимость</dt><dd>500 ₽, дети и пенсионеры бесплатно</dd>" in html
 
 
-# Все опубликованные карточки мест сайта, кроме отложенных (мост 49 и пустынь 30).
+# Все опубликованные карточки мест сайта, включая раньше отложенные 30 и 49.
 _ALL_CARDS = [
-    24, 25, 27, 29, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 48, 50, 51, 52,
+    24, 25, 27, 29, 30, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52,
     53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
     72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90,
     91, 92, 93, 94, 99, 102, 103, 105,
 ]
-_POSTPONED = {30, 49}
 
 
-def test_practical_block_on_all_cards_except_postponed():
+def test_practical_block_on_all_cards():
     for pid in _ALL_CARDS:
         cfg = seo.PLACE_PRACTICAL[pid]
         assert any(cfg.get(k) for k, _ in seo.PRACTICAL_LABELS), pid
-    for pid in _POSTPONED:
-        assert pid not in seo.PLACE_PRACTICAL
+
+
+def test_monastery_and_bridge_briefs_stay_within_sources():
+    desert = seo.PLACE_PRACTICAL[30]
+    assert desert["how"]["source"] == "https://mihailov-monastir.narod.ru/"
+    assert "Родниковая, 5" in desert["how"]["text"]
+    assert "facts" not in desert
+    for key in ("hours", "tickets", "cash", "pets", "winter", "kids", "visit"):
+        assert key not in desert
+    assert seo.place_facts(30) is None
+    bridge = seo.PLACE_PRACTICAL[49]
+    assert bridge["facts"]["price"] == 0 and bridge["facts"]["hours"] == "круглосуточно"
+    assert "1906" in bridge["how"] and "яйц" not in bridge["how"].lower()
+    assert "₽" not in bridge["how"] and "км" not in bridge["how"].lower()
+    assert seo.fact_title(49, "Старый мост в Даховской") == "Старый мост в Даховской: вход свободный, как добраться"
 
 
 def test_new_official_facts_and_varied_titles():
