@@ -1,0 +1,80 @@
+{% extends "bot_base.html" %}
+{% block title %}{% if trip and trip.id %}Поездка · {{ trip.title }}{% else %}Новая поездка{% endif %}{% endblock %}
+{% block content %}
+{% include "_partners_admin_css.html" %}
+<style>
+.field input[type=date]{border:1px solid var(--border);border-radius:8px;padding:7px 9px;font:inherit}
+.tx-hint{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.45}
+.tx-badge{display:inline-block;font-size:11.5px;border-radius:20px;padding:2px 8px;background:#eef2ec;color:#46604b}
+.tx-badge.off{background:#f1f1f1;color:#888}
+</style>
+<div class="page">
+  <div class="page-head"><div>
+    <a class="muted" href="/admin/poezdki">← Поездки</a>
+    <h1>{% if trip and trip.id %}{{ trip.title }}{% else %}Новая поездка{% endif %}</h1>
+    {% if trip and trip.slug and trip.is_published %}<div class="sub"><a href="/poezdki/{{ trip.slug }}" target="_blank" rel="noopener">открыть на сайте ↗</a></div>{% endif %}
+  </div></div>
+  {% if saved == '1' %}<div class="psaved">Сохранено.</div>{% endif %}
+  <form class="pbox" method="post" action="/admin/poezdki/save">
+    <input type="hidden" name="id" value="{{ trip.id or '' }}">
+    <div class="field"><label>Дата</label>
+      <input type="date" name="trip_date" required value="{{ date_value }}">
+    </div>
+    <div class="field"><label>Заголовок</label>
+      <input type="text" name="title" required maxlength="255" value="{{ trip.title }}">
+    </div>
+    <div class="field"><label>Слаг</label>
+      <input type="text" name="slug" maxlength="120" value="{{ trip.slug or '' }}" placeholder="если пусто — соберётся из заголовка">
+      <div class="tx-hint">Латиница и дефисы. Числовой адрес /poezdki/{{ trip.id or 'id' }} всегда перенаправляет на слаг. Старый слаг тоже остаётся редиректом.</div>
+    </div>
+    <div class="field"><label>Текст</label>
+      <textarea name="body" rows="8">{{ trip.body or '' }}</textarea>
+      <div class="tx-hint">Обычный текст. Можно **жирный** и [ссылку](https://…). Готовых поездок нет — текст пишет автор.</div>
+    </div>
+    <div class="field"><label>Что изменилось с прошлого раза</label>
+      <textarea name="changes_note" rows="3">{{ trip.changes_note or '' }}</textarea>
+    </div>
+    <div class="field"><label>Сколько потратил</label>
+      <input type="text" name="spent_note" maxlength="255" value="{{ trip.spent_note or '' }}">
+    </div>
+    <div class="field"><label>Видео (необязательно)</label>
+      <input type="url" name="video_url" value="{{ trip.video_url or '' }}" placeholder="https://www.youtube.com/watch?v=…">
+      <div class="tx-hint">Ролик на странице — только YouTube, Rutube или VK. Другая https-ссылка останется обычной ссылкой.</div>
+    </div>
+    <div class="field"><label>Пост в MAX или Telegram</label>
+      <input type="url" name="source_url" value="{{ trip.source_url or '' }}" placeholder="https://t.me/… или https://max.ru/…">
+    </div>
+    <div class="field"><label>Фото и alt</label>
+      {% for ph in photos %}
+      <div class="tx-row" style="display:grid;grid-template-columns:1.4fr 1fr;gap:8px">
+        <input type="url" name="photo_url" value="{{ ph.url }}" placeholder="https://…">
+        <input type="text" name="photo_alt" value="{{ ph.alt }}" maxlength="180" placeholder="alt: что на кадре">
+      </div>
+      {% endfor %}
+      <div class="tx-hint">Пустые строки не сохраняются. Если указан адрес, alt обязателен. До 12 фото.</div>
+    </div>
+    <div class="field"><label>Места из карточек</label>
+      <div style="max-height:240px;overflow:auto;border:1px solid var(--border);border-radius:10px;padding:8px 12px">
+        {% for p in places %}
+        <label style="display:flex;gap:8px;align-items:center;margin:4px 0">
+          <input type="checkbox" name="place_ids" value="{{ p.id }}" {% if p.id in selected %}checked{% endif %}>
+          <span>{{ p.name }}{% if not p.published %} <span class="tx-badge off">черновик</span>{% endif %}</span>
+        </label>
+        {% else %}
+        <p class="muted">Карточек мест пока нет.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center;margin:12px 0">
+      <input type="checkbox" name="is_published" value="1" {% if trip.is_published %}checked{% endif %}>
+      Опубликовать. Снятая галка — черновик: страницы нет, в списке и в sitemap её нет.
+    </label>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" name="action" value="save">Сохранить</button>
+      {% if trip and trip.id %}
+      <button class="btn btn-ghost" name="action" value="delete" onclick="return confirm('Удалить поездку?')">Удалить</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

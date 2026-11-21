@@ -25,7 +25,7 @@ from typing import Optional
 from sqlalchemy import event, select, text
 from sqlalchemy.orm import Session, object_session
 
-from app.models import Article, Checkpoint, SlugRedirect, Trail
+from app.models import Article, AuthorTrip, Checkpoint, SlugRedirect, Trail
 
 _TRANSLIT = {
     "а":"a","б":"b","в":"v","г":"g","д":"d","е":"e","ё":"e","ж":"zh","з":"z","и":"i",
@@ -40,8 +40,9 @@ KINDS = {
     "place": (Checkpoint, "/mesta", "mesto"),
     "route": (Trail, "/marshruty", "marshrut"),
     "article": (Article, "/stati", "statya"),
+    "trip": (AuthorTrip, "/poezdki", "poezdka"),
 }
-_MODEL_KIND = {Checkpoint: "place", Trail: "route", Article: "article"}
+_MODEL_KIND = {Checkpoint: "place", Trail: "route", Article: "article", AuthorTrip: "trip"}
 
 SLUG_MAX = 50
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -182,6 +183,20 @@ def _auto_slug(mapper, connection, target):
 
 for _m in (Checkpoint, Trail):
     event.listen(_m, "before_insert", _auto_slug)
+
+
+def _auto_trip_slug(mapper, connection, target):
+    """Поездка называется title, не name — слаг из заголовка."""
+    if getattr(target, "slug", None):
+        return
+    sess = object_session(target)
+    reserved = sess.info.setdefault("_slugs_in_flush", set()) if sess is not None else set()
+    slug = unique_slug(connection, entity_slug_base(target.title, "trip"), model=AuthorTrip, reserved=reserved)
+    reserved.add(slug)
+    target.slug = slug
+
+
+event.listen(AuthorTrip, "before_insert", _auto_trip_slug)
 
 
 @event.listens_for(Session, "after_flush_postexec")

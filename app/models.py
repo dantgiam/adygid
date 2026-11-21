@@ -158,7 +158,7 @@ class SlugRedirect(Base):
     """Прежние слаги страниц. Когда слаг меняют в админке, старый адрес
     записывается сюда и навсегда отвечает 301 на текущий — ссылки из
     поиска, ботов и чужих постов не ломаются.
-    kind: place | route | article."""
+    kind: place | route | article | trip."""
     __tablename__ = "slug_redirects"
     __table_args__ = (UniqueConstraint("kind", "old_slug", name="uq_slug_redirects_kind_old"),)
 
@@ -583,3 +583,27 @@ class AdminTextHistory(Base):
     new_value      = Column(JSONB)
     author         = Column(String(120))
     created_at     = Column(DateTime, server_default=func.now())
+
+
+class AuthorTrip(Base):
+    """Поездка автора (/poezdki/<slug>). Черновик (is_published=False)
+    не попадает в список, на прямой адрес и в sitemap. Числовой
+    /poezdki/<id> навсегда отвечает 301 на слаг — как у мест."""
+    __tablename__ = "author_trips"
+
+    id            = Column(Integer, primary_key=True, index=True)
+    trip_date     = Column(Date, nullable=False)
+    title         = Column(String(255), nullable=False)
+    slug          = Column(String(120), nullable=True, unique=True, index=True)
+    body          = Column(Text, nullable=False, default="")
+    # [{url, alt}] — alt обязателен, если есть url. Не таблица photos:
+    # у мест своя схема, её не расширяем.
+    photos        = Column(JSONB, nullable=False, default=list)
+    video_url     = Column(String(500), nullable=True)
+    changes_note  = Column(Text, nullable=True)
+    spent_note    = Column(String(255), nullable=True)
+    place_ids     = Column(ARRAY(Integer), nullable=False, default=list)
+    source_url    = Column(String(500), nullable=True)
+    is_published  = Column(Boolean, nullable=False, default=False)
+    created_at    = Column(DateTime, server_default=func.now())
+    updated_at    = Column(DateTime, server_default=func.now(), onupdate=func.now())

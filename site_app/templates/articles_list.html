@@ -9,6 +9,7 @@
   <div class="wrap">
     <p class="eyebrow">Статьи</p>
     <h1 class="page-title">{{ t('articles.title', 'С чего начать поездку в Адыгею') }}</h1>
+    <p class="section-note">{{ t('articles.author_note', 'Тексты пишет Данила, автор АдыГид.') }} <a href="/avtor">{{ t('articles.author_link', 'Об авторе') }}</a></p>
     {% if articles %}
     <div class="grid">
       {% for a in articles %}{{ cards.article_card(a) }}{% endfor %}
