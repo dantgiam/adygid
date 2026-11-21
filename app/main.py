@@ -2003,6 +2003,14 @@ from content.seo_texts_2026_11.apply import run_on_startup as apply_seo_texts
 
 apply_seo_texts()
 
+# Title районов «{район}: что посмотреть». Поле seo_title в базе перекрывает
+# словарь, поэтому та же формулировка пишется один раз, по метке. Пустое поле
+# и старый автоматический title меняются, правка из админки — нет.
+# Идёт после SEO-текстов 21.11: на чистой базе те сначала кладут длинный title.
+from content.district_look_2026_11.apply import run_on_startup as apply_district_look_titles
+
+apply_district_look_titles()
+
 
 @app.get("/api/podbor/stats")
 def get_podbor_stats(db: Session = Depends(get_db), _: bool = Depends(require_admin)):
