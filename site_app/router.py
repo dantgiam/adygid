@@ -2247,13 +2247,50 @@ def _trip_public(db: Session, trip: AuthorTrip) -> dict:
     }
 
 
+# На /avtor карточек меньше, чем на главной: два ряда поездок и по три
+# последних статьи и маршрута. Остальное — ссылкой «все» и плиткой «ещё N».
+_AUTHOR_TRIPS_LIMIT = 6
+_AUTHOR_MATERIAL_LIMIT = 3
+
+
 @router.get("/avtor")
 def author_page(request: Request, db: Session = Depends(get_db)):
+    trip_rows = db.execute(
+        select(AuthorTrip).where(AuthorTrip.is_published == True)
+        .order_by(AuthorTrip.trip_date.desc(), AuthorTrip.id.desc())
+    ).scalars().all()
+    shown_trips = trip_rows[:_AUTHOR_TRIPS_LIMIT]
+    trips_remaining = max(len(trip_rows) - len(shown_trips), 0)
+
+    article_rows = db.execute(
+        select(Article).where(Article.is_published == True)
+        .order_by(Article.created_at.desc().nulls_last(), Article.id.desc())
+        .limit(_AUTHOR_MATERIAL_LIMIT)
+    ).scalars().all()
+    route_rows = db.execute(
+        _with_route_relations(select(Trail))
+        .order_by(Trail.created_at.desc().nulls_last(), Trail.id.desc())
+        .limit(_AUTHOR_MATERIAL_LIMIT)
+    ).scalars().all()
+    routes = [_route_card_dict(trail) for trail in route_rows]
+    route_likes = _like_counts_map(db, "trail", [trail.id for trail in route_rows])
+    for route in routes:
+        if route_likes.get(route["id"]):
+            route["likes_label"] = _likes_label(route_likes[route["id"]])
+
     return templates.TemplateResponse(
         "author.html",
         _ctx(
             request, db, active_nav=None,
             breadcrumbs_ld=seo.breadcrumbs_ld(SITE_URL, [("Об авторе", "/avtor")]),
+            # Фото автора уже лежит на главной (SitePage «home»). Страницу
+            # автора им не дублируем в админке: то же кадрирование, тот же файл.
+            portrait=_site_page(db, "home"),
+            trips=[_trip_public(db, trip) for trip in shown_trips],
+            trips_remaining=trips_remaining,
+            trips_remaining_word=_ru_plural(trips_remaining, "поездку", "поездки", "поездок"),
+            articles=[_article_card_dict(article) for article in article_rows],
+            routes=routes,
         ),
     )
 
