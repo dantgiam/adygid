@@ -45,7 +45,7 @@
         <div class="detail-text">
         {% if route.description_html %}{{ route.description_html | safe }}{% else %}<p class="lede">Описание скоро появится.</p>{% endif %}
 
-        {{ cards.photo_carousel(route.gallery) }}
+        {{ cards.photo_carousel(route.gallery, route.name) }}
 
         {% if route.checkpoints %}
         <div class="featured-row">

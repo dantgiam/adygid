@@ -1972,6 +1972,12 @@ from app.texts_admin import router as texts_admin_router
 ensure_admin_text_tables()
 app.include_router(texts_admin_router)
 
+# Ленты фото в статьях, маршрутах и сценариях. Выключено, пока на сервисе
+# нет APPLY_ARTICLE_CAROUSELS=1. Ошибка записи не роняет сайт.
+from content.carousels_2026_11.live import apply_if_enabled
+
+apply_if_enabled()
+
 
 @app.get("/api/podbor/stats")
 def get_podbor_stats(db: Session = Depends(get_db), _: bool = Depends(require_admin)):

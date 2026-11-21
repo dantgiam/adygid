@@ -12,7 +12,7 @@ import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -238,6 +238,27 @@ def require_bot_admin(credentials: HTTPBasicCredentials = Depends(_security)) ->
             headers={"WWW-Authenticate": "Basic"},
         )
     return credentials.username
+
+
+def same_origin(request: Request) -> None:
+    """HTML-формы админки принимаем только со своего сайта.
+
+    Вошедшему админу браузер сам подставит Basic-пароль и на чужой странице.
+    У такого POST Origin или Referer указывают на чужой сайт — их и сверяем
+    с Host. Запрос без обоих заголовков тоже отклоняем: иначе проверка
+    пропускает всё, что их не прислало.
+    """
+    host = (request.headers.get("host") or "").strip()
+    seen = False
+    for header in ("origin", "referer"):
+        value = (request.headers.get(header) or "").strip()
+        if not value:
+            continue
+        seen = True
+        if urlparse(value).netloc != host:
+            raise HTTPException(403, "Запрос не из админки")
+    if not seen:
+        raise HTTPException(403, "Запрос не из админки")
 
 
 def format_msk(value) -> str:
@@ -717,6 +738,7 @@ async def inbox_status(
     username: str = Depends(require_bot_admin),
 ):
     del username  # статус меняет сам факт входа, имя в API статуса не передаётся
+    same_origin(request)
     form = await request.form()
     status_filter = _clean_status(_form_str(form, "back_status"))
     kind_filter = _clean_kind(_form_str(form, "back_kind"))
@@ -788,6 +810,7 @@ async def template_list(request: Request, _: str = Depends(require_bot_admin)):
 
 @router.post("/admin/templates/{key}")
 async def template_save(request: Request, key: str, username: str = Depends(require_bot_admin)):
+    same_origin(request)
     if not _valid_key(key):
         return _problem(request, "templates", "error", status_code=404)
     form = await request.form()
@@ -851,6 +874,7 @@ async def template_save(request: Request, key: str, username: str = Depends(requ
 
 @router.post("/admin/templates/{key}/reset")
 async def template_reset(request: Request, key: str, username: str = Depends(require_bot_admin)):
+    same_origin(request)
     if not _valid_key(key):
         return _problem(request, "templates", "error", status_code=404)
     try:
