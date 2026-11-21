@@ -225,6 +225,13 @@ h1.article-title {
 }
 .hero-stats-note { font-style: italic; }
 .hero-ctas { display: flex; gap: 10px; flex-wrap: wrap; }
+/* На главной зазор перед кнопками даёт нижнее поле .hero-stats (22px).
+   На /avtor кнопки идут сразу после биографии, а у последнего .about-text
+   нижнее поле обнулено (:last-of-type) — на ширине 1366 они прилипали к тексту. */
+.author-hero .hero-ctas { margin-top: 22px; }
+/* Счётчик на /avtor стоит под заголовком раздела, а не под абзацем:
+   верхнее поле .hero-stats здесь лишнее, черту оставляет padding и border. */
+.hero-stats.author-stats { margin-top: 0; }
 
 /* Квадрат, а не портрет: фото стоит рядом с колонкой текста и вертикальным
    кадром вылезало за неё почти на треть. */
@@ -288,7 +295,9 @@ h1.article-title {
      float уже кончился, и clear ничего не двигает. */
   .hero-stats { clear: right; margin: 16px 0 18px; padding-top: 14px; font-size: 12.5px; gap: 6px 16px; }
   .hero-stats b { font-size: 20px; }
+  .hero-stats.author-stats { margin-top: 0; }
   .hero-ctas { clear: right; }
+  .author-hero .hero-ctas { margin-top: 18px; }
   .hero-ctas .btn { flex: 1 1 auto; justify-content: center; }
 }
 

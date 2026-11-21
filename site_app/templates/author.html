@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_cards.html" as cards %}
 {% import "_faq.html" as faqui %}
 
 {% block title %}{{ tp('avtor.meta.title', 'Данила — автор АдыГид') }}{% endblock %}
@@ -24,28 +25,100 @@
 {% endblock %}
 
 {% block content %}
-<section class="section" style="padding-top:40px">
-  <div class="wrap" style="max-width:760px">
-    <p class="eyebrow">{{ t('avtor.eyebrow', 'Автор') }}</p>
-    <h1 class="page-title">{{ tp('avtor.schema_name', 'Данила') }}</h1>
-    <p class="section-note">{{ t('avtor.aka_line', 'Для своих — Даня.') }}</p>
-    <p class="about-text">{{ t('avtor.lead', 'Автор АдыГид. Студент Майкопского государственного технологического университета (МГТУ) в Адыгее.') }}</p>
-    <p class="about-text">{{ t('avtor.bio', 'Пишет о местах и маршрутах, которые смотрит сам.') }}</p>
-    <div class="hero-ctas">
-      {% set tg = tp('avtor.telegram_url', 'https://t.me/adygid') %}
-      {% set mx = tp('avtor.max_url', 'https://max.ru/join/0qCTe9sSqljJIWYNI5hWBecoM1rr3B_proAXGK5O0tE') %}
-      {% if tg.startswith('https://') %}
-      <a class="btn btn-messenger btn-tg" href="{{ tg }}" target="_blank" rel="noopener">
-        <img src="/assets/magnet-tg.png?v={{ asset_version }}" alt="" width="26" height="26">{{ t('avtor.telegram_label', 'Telegram') }}
-      </a>
-      {% endif %}
-      {% if mx.startswith('https://') %}
-      <a class="btn btn-messenger btn-max" href="{{ mx }}" target="_blank" rel="noopener">
-        <img src="/assets/magnet-max.png?v={{ asset_version }}" alt="" width="26" height="26">{{ t('avtor.max_label', 'Канал в MAX') }}
-      </a>
-      {% endif %}
-      <a class="btn btn-gold" href="/poezdki">{{ t('avtor.trips_link', 'Поездки автора') }}</a>
+{# Шапка как на главной: тот же блок .hero, те же классы текста и кнопок.
+   Фото — то же, что справа на главной: на широком экране колонка, на телефоне
+   квадрат, который текст обтекает. Если фото в админке главной нет, текст
+   идёт на всю ширину, без пустой правой колонки. #}
+<section class="hero author-hero">
+  <div class="wrap{% if portrait.cover %} hero-grid{% endif %}">
+    {% if portrait.cover %}
+    <figure class="hero-photo">
+      {{ cards.rimg(portrait.cover, alt=tp('avtor.photo_alt', 'Данила, автор АдыГид'), sizes=img_sizes.home_photo, width=800, height=800, loading='', fetchpriority='high', style=portrait.cover_style, src_width=800) }}
+      <figcaption class="hero-photo-badge">
+        {{ t('avtor.photo_caption', 'Автор АдыГид') }}
+        <img class="hero-photo-mark" src="/assets/favicon-32x32.png" alt="" width="22" height="22">
+      </figcaption>
+    </figure>
+    {% endif %}
+
+    <div class="hero-col">
+      <p class="eyebrow">{{ t('avtor.eyebrow', 'Автор') }}</p>
+      <h1 class="page-title">{{ tp('avtor.schema_name', 'Данила') }}</h1>
+      <p class="about-text">{{ t('avtor.aka_line', 'Для своих — Даня.') }}</p>
+      <p class="about-text">{{ t('avtor.lead', 'Автор АдыГид. Студент Майкопского государственного технологического университета (МГТУ) в Адыгее.') }}</p>
+      <p class="about-text">{{ t('avtor.bio', 'Пишет о местах и маршрутах, которые смотрит сам.') }}</p>
+      <div class="hero-ctas">
+        {% set tg = tp('avtor.telegram_url', 'https://t.me/adygid') %}
+        {% set mx = tp('avtor.max_url', 'https://max.ru/join/0qCTe9sSqljJIWYNI5hWBecoM1rr3B_proAXGK5O0tE') %}
+        {% if tg.startswith('https://') %}
+        <a class="btn btn-messenger btn-tg" href="{{ tg }}" target="_blank" rel="noopener">
+          <img src="/assets/magnet-tg.png?v={{ asset_version }}" alt="" width="26" height="26">{{ t('avtor.telegram_label', 'Telegram') }}
+        </a>
+        {% endif %}
+        {% if mx.startswith('https://') %}
+        <a class="btn btn-messenger btn-max" href="{{ mx }}" target="_blank" rel="noopener">
+          <img src="/assets/magnet-max.png?v={{ asset_version }}" alt="" width="26" height="26">{{ t('avtor.max_label', 'Канал в MAX') }}
+        </a>
+        {% endif %}
+      </div>
     </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="author-trips-title">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="author-trips-title">{{ t('avtor.trips_title', 'Мои поездки') }}</h2>
+      <a class="see-all" href="/poezdki">{{ t('avtor.trips_link', 'Все поездки →') }}</a>
+    </div>
+    <p class="section-note">{{ t('avtor.trips_note', 'Куда ездил сам. Дата, что изменилось и сколько вышло.') }}</p>
+    {% if trips %}
+    <div class="grid">
+      {% for trip in trips %}
+      <a class="card" href="{{ trip.url }}">
+        <div class="cover">{{ cards.rimg(trip.cover, alt=trip.cover_alt, class='cover-img', sizes=img_sizes.card, width=900, height=600) }}</div>
+        <div class="body">
+          {% if trip.date_label %}<span class="kicker"><time datetime="{{ trip.date_iso }}">{{ trip.date_label }}</time></span>{% endif %}
+          <h3>{{ trip.title }}</h3>
+          {% if trip.excerpt %}<p class="excerpt">{{ trip.excerpt }}</p>{% endif %}
+        </div>
+      </a>
+      {% endfor %}
+      {% if trips_remaining %}{{ cards.more_tile(trips_remaining, trips_remaining_word, '/poezdki') }}{% endif %}
+    </div>
+    {% else %}
+    <div class="empty-state">{{ t('avtor.trips_empty', 'Поездок пока нет. Данила добавит их после следующих выездов.') }}</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section" aria-labelledby="author-materials-title">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="author-materials-title">{{ t('avtor.materials_title', 'Мои материалы') }}</h2>
+    </div>
+    <p class="section-note">{{ t('avtor.materials_note', 'Последние статьи и маршруты.') }} <a href="/stati">{{ t('avtor.materials_articles', 'Все статьи →') }}</a> · <a href="/marshruty">{{ t('avtor.materials_routes', 'Все маршруты →') }}</a></p>
+    {% if articles or routes %}
+    <div class="grid">
+      {% for article in articles %}{{ cards.article_card(article) }}{% endfor %}
+      {% for route in routes %}{{ cards.route_card(route) }}{% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">{{ t('avtor.materials_empty', 'Статей и маршрутов пока нет.') }}</div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="section" aria-labelledby="author-stats-title">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="author-stats-title">{{ t('avtor.stats_title', 'Пройдено лично') }}</h2>
+    </div>
+    <p class="hero-stats author-stats">
+      <span><b>{{ footer_stats.places }}</b> {{ places_word(footer_stats.places) }}</span>
+      <span><b>{{ footer_stats.trails }}</b> {{ routes_word(footer_stats.trails) }}</span>
+      <span class="hero-stats-note">{{ t('avtor.stats_note', 'пройдены лично') }}</span>
+    </p>
   </div>
 </section>
 {% endblock %}

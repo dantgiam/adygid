@@ -129,7 +129,11 @@ _EDITABLE_COPY = (
     "avtor.meta.title", "avtor.meta.desc", "avtor.eyebrow", "avtor.schema_name",
     "avtor.aka_line", "avtor.lead", "avtor.bio",
     "avtor.telegram_label", "avtor.telegram_url", "avtor.max_label", "avtor.max_url",
-    "avtor.trips_link",
+    "avtor.photo_alt", "avtor.photo_caption",
+    "avtor.trips_link", "avtor.trips_title", "avtor.trips_note", "avtor.trips_empty",
+    "avtor.materials_title", "avtor.materials_note", "avtor.materials_articles",
+    "avtor.materials_routes", "avtor.materials_empty",
+    "avtor.stats_title", "avtor.stats_note",
     "footer.author",
     "articles.author_note", "articles.author_link", "articles.byline_prefix", "articles.byline_name",
     "poezdki.meta.title", "poezdki.meta.desc", "poezdki.eyebrow", "poezdki.title",
@@ -158,6 +162,11 @@ def test_author_and_trip_copy_is_edited_in_admin_texts(client):
         "avtor.telegram_label": f"Телеграм {mark}",
         "avtor.max_label": f"Макс {mark}",
         "avtor.trips_link": f"К поездкам {mark}",
+        "avtor.trips_title": f"Поездки раздела {mark}",
+        "avtor.materials_title": f"Материалы раздела {mark}",
+        "avtor.stats_title": f"Счётчик раздела {mark}",
+        "avtor.stats_note": f"Пометка счётчика {mark}",
+        "avtor.trips_empty": f"Пустые поездки автора {mark}",
         "footer.author": f"Подвал автора {mark}",
         "articles.author_note": f"Заметка статей {mark}",
         "articles.author_link": f"Ссылка статей {mark}",
@@ -175,6 +184,10 @@ def test_author_and_trip_copy_is_edited_in_admin_texts(client):
         assert edited["avtor.telegram_label"] in avtor
         assert edited["avtor.max_label"] in avtor
         assert edited["avtor.trips_link"] in avtor
+        assert edited["avtor.trips_title"] in avtor
+        assert edited["avtor.materials_title"] in avtor
+        assert edited["avtor.stats_title"] in avtor
+        assert edited["avtor.stats_note"] in avtor
         assert edited["footer.author"] in avtor
         stati = client.get("/stati").text
         assert edited["articles.author_note"] in stati
@@ -198,12 +211,131 @@ def test_author_and_trip_copy_is_edited_in_admin_texts(client):
         assert edited["poezdki.title"] in trips
         assert edited["poezdki.author_link"] in trips
         assert edited["footer.author"] in trips
+        avtor_empty = client.get("/avtor").text
+        assert edited["avtor.trips_empty"] in avtor_empty
+        assert 'class="empty-state"' in avtor_empty
     finally:
         for key in edited:
             _save_text(client, key, "вернуть", action="reset")
         if published:
             with engine.begin() as conn:
                 for trip_id in published:
+                    conn.execute(text(
+                        "UPDATE author_trips SET is_published = true WHERE id = :i"
+                    ), {"i": trip_id})
+
+
+def test_author_page_cards_keep_home_and_trips_pages(client):
+    """/avtor берёт карточки статей, маршрутов и поездок. Главная и /poezdki не меняются."""
+    home = client.get("/").text
+    assert "author-hero" not in home
+    assert "Мои поездки" not in home
+    assert "Мои материалы" not in home
+    poezdki = client.get("/poezdki").text
+    assert "author-hero" not in poezdki
+    assert 'class="hero"' not in poezdki
+    css = client.get("/assets/site.css").text
+    assert ".author-hero .hero-ctas { margin-top: 22px; }" in css
+    assert ".author-hero .hero-ctas { margin-top: 18px; }" in css
+
+    token = _uid()
+    hidden = _save(client, title=f"Черновик выезда {token}", slug=f"chernovik-vyezda-{token}")
+    assert f"Черновик выезда {token}" not in client.get("/avtor").text
+    trip_id = int(re.search(r"/admin/poezdki/(\d+)", hidden).group(1))
+    published = client.post("/admin/poezdki/save", data={
+        "id": str(trip_id), "title": f"Живой выезд {token}", "trip_date": "2099-01-02",
+        "slug": f"zhivoj-vyezd-{token}", "body": "Текст живой поездки автора.",
+        "is_published": "1", "photo_url": "", "photo_alt": "",
+    }, auth=AUTH, follow_redirects=False)
+    assert published.status_code == 303, published.text
+
+    article = client.post("/api/articles", json={
+        "title": f"Материал автора {token}", "slug": f"material-avtora-{token}",
+        "body": "<p>абзац</p>", "excerpt": f"Анонс материала {token}", "is_published": True,
+    }, auth=AUTH)
+    assert article.status_code == 201, article.text
+    hidden_article = client.post("/api/articles", json={
+        "title": f"Скрытая статья {token}", "slug": f"skrytaya-statya-{token}",
+        "body": "<p>нет</p>", "is_published": False,
+    }, auth=AUTH)
+    assert hidden_article.status_code == 201, hidden_article.text
+    route = client.post("/api/trails", json={
+        "name": f"Маршрут автора {token}",
+        "description": f"Описание маршрута автора {token}.",
+        "slug": f"marshrut-avtora-{token}", "is_published": True, "is_paid": False,
+    }, auth=AUTH)
+    assert route.status_code == 201, route.text
+    hidden_route = client.post("/api/trails", json={
+        "name": f"Скрытый маршрут {token}", "slug": f"skrytyj-marshrut-{token}",
+        "is_published": False, "is_paid": False,
+    }, auth=AUTH)
+    assert hidden_route.status_code == 201, hidden_route.text
+
+    page = client.get("/avtor").text
+    assert f"Живой выезд {token}" in page
+    assert f'href="/poezdki/zhivoj-vyezd-{token}"' in page
+    assert f"Черновик выезда {token}" not in page
+    assert f"Материал автора {token}" in page
+    assert f"Анонс материала {token}" in page
+    assert f'/stati/{article.json()["slug"]}' in page
+    assert f"Скрытая статья {token}" not in page
+    assert f"Маршрут автора {token}" in page
+    assert f"Описание маршрута автора {token}" in page
+    assert route.json()["url"] in page
+    assert f"Скрытый маршрут {token}" not in page
+    assert "Пройдено лично" in page
+    assert "пройдены лично" in page
+    assert 'class="hero author-hero"' in page
+    assert 'class="section-head"' in page
+    assert 'class="grid"' in page
+
+    # Список поездок остаётся своей страницей и по-прежнему показывает карточку.
+    listing = client.get("/poezdki").text
+    assert f"Живой выезд {token}" in listing
+    assert "author-hero" not in listing
+    assert 'class="hero"' not in listing
+
+
+def test_author_trips_empty_and_capped_without_changing_list(client):
+    with engine.begin() as conn:
+        published_ids = conn.execute(text(
+            "SELECT id FROM author_trips WHERE is_published"
+        )).scalars().all()
+        conn.execute(text("UPDATE author_trips SET is_published = false"))
+    try:
+        empty = client.get("/avtor").text
+        assert "Мои поездки" in empty
+        assert "empty-state" in empty
+        assert "Поездок пока нет. Данила добавит их после следующих выездов." in empty
+        bare = client.get("/poezdki").text
+        assert "Поездок пока нет" in bare
+        assert "author-hero" not in bare
+        assert 'class="hero"' not in bare
+
+        token = _uid()
+        for i in range(7):
+            _save(
+                client,
+                title=f"Пачка {token} {i}",
+                trip_date=f"2026-06-{i + 1:02d}",
+                slug=f"pachka-{token}-{i}",
+                body=f"Текст пачки {i}.",
+                is_published="1",
+            )
+        page = client.get("/avtor").text
+        assert f"Пачка {token} 6" in page
+        assert f"Пачка {token} 1" in page
+        assert f"Пачка {token} 0" not in page
+        assert "поездку ещё не увидели" in page
+        assert f'href="/poezdki/pachka-{token}-6"' in page
+        full = client.get("/poezdki").text
+        assert f"Пачка {token} 0" in full
+        assert f"Пачка {token} 6" in full
+        assert "author-hero" not in full
+    finally:
+        if published_ids:
+            with engine.begin() as conn:
+                for trip_id in published_ids:
                     conn.execute(text(
                         "UPDATE author_trips SET is_published = true WHERE id = :i"
                     ), {"i": trip_id})
