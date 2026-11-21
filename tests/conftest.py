@@ -16,6 +16,9 @@ os.environ.pop("ROLLBACK_SEO_TEXTS_2026_11", None)
 # Заголовки районов «что посмотреть» тоже не пишем в тестовую базу при старте.
 os.environ["APPLY_DISTRICT_LOOK_TITLES"] = "0"
 os.environ.pop("ROLLBACK_DISTRICT_LOOK_TITLES", None)
+# Источники #39 в «Коротко для поездки» проверяют отдельные тесты на временных таблицах.
+os.environ["APPLY_TRIP_SOURCES_39"] = "0"
+os.environ.pop("ROLLBACK_TRIP_SOURCES_39", None)
 
 if "localhost" not in os.environ["DATABASE_URL"] and "127.0.0.1" not in os.environ["DATABASE_URL"]:
     raise RuntimeError("cost-status tests refuse a non-local DATABASE_URL")
