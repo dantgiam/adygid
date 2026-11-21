@@ -49,6 +49,7 @@
   "inLanguage": "ru-RU"
 } | tojson }}
 </script>
+{% block organization_ld %}
 <script type="application/ld+json">
 {{ {
   "@context": "https://schema.org",
@@ -58,6 +59,7 @@
   "logo": site_url ~ "/assets/logo-cat.png"
 } | tojson }}
 </script>
+{% endblock %}
 {% block extra_ld %}{% endblock %}
 
 {% if yandex_metrika_id %}
