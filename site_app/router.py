@@ -80,7 +80,8 @@ def _asset_version() -> str:
     stamp = 0
     names = [
         "site.css", "site.js", "metrica-core.js", "podbor.css", "podbor.js", "podbor-core.js",
-        "magnet-gift.png", "magnet-tg.png", "magnet-max.png",
+        "magnet-gift.png", "magnet-tg.png", "magnet-max.png", "logo-cat.png",
+        "favicon.ico", "favicon-32x32.png", "apple-touch-icon.png",
     ]
     for name in names:
         try:

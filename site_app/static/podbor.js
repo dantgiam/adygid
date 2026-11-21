@@ -694,7 +694,7 @@
   }
   function stepChrome(pos, total, count) {
     const pct = Math.round(((pos + 1) / total) * 100);
-    return '<header class="a2-bar"><span class="a2-brand"><span class="a2-mark" aria-hidden="true">▲</span>АдыГид</span><span class="a2-count">' + esc(count || ((pos + 1) + " / " + total)) + '</span></header><div class="a2-prog" aria-hidden="true"><i style="width:' + pct + '%"></i></div>';
+    return '<header class="a2-bar"><span class="a2-brand"><img class="a2-mark" src="/assets/logo-cat.png" alt="" width="22" height="22">АдыГид</span><span class="a2-count">' + esc(count || ((pos + 1) + " / " + total)) + '</span></header><div class="a2-prog" aria-hidden="true"><i style="width:' + pct + '%"></i></div>';
   }
   function navHtml(atStart) {
     return '<nav class="a2-nav"><button type="button" class="a2-btn-ghost" data-act="back"' + (atStart ? " disabled" : "") + '>← Назад</button><button type="button" class="a2-skip" data-act="skip">Пропустить</button></nav>';
@@ -887,7 +887,7 @@
       ? '<div class="a2-params">' + QUESTIONS.map((q, i) => '<button type="button" class="a2-param" data-act="edit" data-i="' + i + '"><span class="a2-p-ic">' + tileIcon(q) + '</span><span class="a2-p-t"><small>' + esc((VISUAL[q.key] && VISUAL[q.key].tile) || q.copy) + "</small><b>" + esc(tileValue(q)) + '</b></span><span class="a2-p-ed" aria-hidden="true">✎</span></button>').join("") + "</div>"
       : "";
     const toggle = detailsOpen ? "Скрыть детали ▴" : "Изменить детали";
-    return '<section class="a2-fin"><div class="a2-hero"><img src="' + esc(pimg("hero")) + '" alt="" decoding="async" loading="lazy"><span class="a2-hero-shade"></span><header class="a2-bar a2-bar-light"><span class="a2-brand"><span class="a2-mark" aria-hidden="true">▲</span>АдыГид</span></header><div class="a2-fin-copy"><span class="a2-kick">Всё готово</span><h1>План по Адыгее<br>почти собран</h1><p>' + esc(flowSummary()) + '</p></div></div><div class="a2-sheet"><div class="a2-pv-head"><h2>Например, вас ждут:</h2><small>подберём ещё и разложим по дням</small></div><div class="a2-pv-row">' + cards + '</div><div class="a2-final-btns"><button type="button" class="a2-btn" data-act="confirm">Сформировать план →</button><button type="button" class="a2-btn-ghost' + (detailsOpen ? " is-on" : "") + '" data-act="details">' + toggle + "</button></div>" + tiles + "</div></section>";
+    return '<section class="a2-fin"><div class="a2-hero"><img src="' + esc(pimg("hero")) + '" alt="" decoding="async" loading="lazy"><span class="a2-hero-shade"></span><header class="a2-bar a2-bar-light"><span class="a2-brand"><img class="a2-mark" src="/assets/logo-cat.png" alt="" width="22" height="22">АдыГид</span></header><div class="a2-fin-copy"><span class="a2-kick">Всё готово</span><h1>План по Адыгее<br>почти собран</h1><p>' + esc(flowSummary()) + '</p></div></div><div class="a2-sheet"><div class="a2-pv-head"><h2>Например, вас ждут:</h2><small>подберём ещё и разложим по дням</small></div><div class="a2-pv-row">' + cards + '</div><div class="a2-final-btns"><button type="button" class="a2-btn" data-act="confirm">Сформировать план →</button><button type="button" class="a2-btn-ghost' + (detailsOpen ? " is-on" : "") + '" data-act="details">' + toggle + "</button></div>" + tiles + "</div></section>";
   }
   function wizard() {
     if (reviewOpen && !state.final) return renderPreview();

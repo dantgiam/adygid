@@ -100,7 +100,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   box-shadow: 0 10px 30px -16px rgba(30, 110, 48, .35), 0 1px 2px rgba(20, 30, 15, .04);
 }
 .brand { display: flex; align-items: center; gap: 9px; text-decoration: none; flex: none; }
-.brand-mark { flex: none; }
+.brand-mark { flex: none; width: 32px; height: 32px; display: block; }
 .brand-word { font-family: var(--font-display); font-size: 18px; color: var(--text); white-space: nowrap; }
 nav.main-nav { display: flex; gap: 2px; flex: 1; justify-content: center; padding: 0 8px; }
 nav.main-nav a {
@@ -820,6 +820,8 @@ h1.article-title {
 /* ── Footer ────────────────────────────────────────*/
 .site-footer { border-top: 1px solid var(--border); margin-top: 60px; padding: 32px 0; }
 .site-footer .wrap { display: flex; justify-content: space-between; align-items: center; gap: 16px 28px; flex-wrap: wrap; }
+.footer-brand .brand-mark { width: 28px; height: 28px; }
+.footer-brand .brand-word { font-size: 16px; }
 .footer-stats { font-family: var(--font-mono); font-size: 13px; color: var(--text-muted); }
 .footer-stats b { color: var(--text); font-variant-numeric: tabular-nums; }
 /* Раньше был в верхнем меню — переехал сюда, когда шапка сжалась до пяти
@@ -859,6 +861,7 @@ h1.article-title {
   .wrap { padding: 0 16px; }
   .site-header { top: 10px; margin-bottom: 26px; }
   .capsule { padding: 6px 6px 6px 14px; gap: 4px; }
+  .brand-mark { width: 28px; height: 28px; }
   .brand-word { font-size: 16px; }
 }
 

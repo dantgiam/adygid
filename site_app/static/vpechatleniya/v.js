@@ -241,7 +241,7 @@
     );
   }
   function logo() {
-    return '<svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><polygon points="4,24 12,10 20,24" fill="#9BCBA4"/><polygon points="10,24 21,8 30,24" fill="#278C3E"/><circle cx="24" cy="9" r="2.6" fill="#D6A324"/></svg>';
+    return '<img class="brand-mark" src="/assets/logo-cat.png" alt="" width="32" height="32">';
   }
   var catalogY = 0, catalogFocusId = "", detailStack = [];
   function menuIcon(code) {
