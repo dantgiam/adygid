@@ -100,7 +100,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   box-shadow: 0 10px 30px -16px rgba(30, 110, 48, .35), 0 1px 2px rgba(20, 30, 15, .04);
 }
 .brand { display: flex; align-items: center; gap: 9px; text-decoration: none; flex: none; }
-.brand-mark { flex: none; width: 32px; height: 32px; display: block; }
+.brand-mark {
+  flex: none; width: 32px; height: 32px; display: block;
+  border-radius: 24%; object-fit: cover;
+}
 .brand-word { font-family: var(--font-display); font-size: 18px; color: var(--text); white-space: nowrap; }
 nav.main-nav { display: flex; gap: 2px; flex: 1; justify-content: center; padding: 0 8px; }
 nav.main-nav a {
@@ -246,7 +249,7 @@ h1.article-title {
   box-shadow: 0 2px 12px rgba(20, 30, 15, .18);
 }
 .hero-photo-badge .hero-photo-mark {
-  flex: none; width: 22px; height: 22px; border-radius: 5px; display: block;
+  flex: none; width: 22px; height: 22px; border-radius: 24%; display: block;
   object-fit: cover;
 }
 
@@ -275,7 +278,7 @@ h1.article-title {
     background: none; backdrop-filter: none; box-shadow: none;
     font-size: 11.5px; font-weight: 600; line-height: 1.3; color: var(--text-muted);
   }
-  .hero-photo-badge .hero-photo-mark { width: 16px; height: 16px; border-radius: 4px; }
+  .hero-photo-badge .hero-photo-mark { width: 16px; height: 16px; border-radius: 24%; }
 
   h1.page-title { font-size: clamp(25px, 6.6vw, 34px); margin-bottom: 12px; }
   .about-text { font-size: 15.5px; }
