@@ -46,6 +46,7 @@ PAGES = {
     "faq": ("Частые вопросы", "/voprosy"),
     "place": ("Карточка места", "/mesta"),
     "notfound": ("Страница 404", "/404-primer"),
+    "dosug": ("Досуг", "/dosug"),
 }
 
 _CACHE: dict = {"values": None, "at": 0.0}

@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+{% block title %}{{ offer.title }} — досуг в Адыгее — АдыГид{% endblock %}
+{% block meta_description %}{{ offer.lead }}{% endblock %}
+{% block og_image %}{% if offer.cover %}<meta property="og:image" content="{{ offer.cover|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="/assets/leisure.css?v={{ asset_version }}">{% endblock %}
+{% block extra_ld %}
+<script type="application/ld+json">{{ service_ld | tojson }}</script>
+<script type="application/ld+json">{{ breadcrumbs_ld | tojson }}</script>
+{% endblock %}
+{% block content %}
+<section class="section" style="padding-top:32px">
+  <div class="wrap">
+    <div class="detail-hero">
+      {% if offer.cover %}{{ cards.rimg(offer.cover, alt=offer.photos[0].alt, class='hero-img', sizes=img_sizes.hero, width=1600, height=900, loading='', fetchpriority='high', src_width=1280) }}{% endif %}
+    </div>
+    <div class="detail-grid">
+      <div class="detail-body">
+        <p class="eyebrow">{{ offer.activity }}{% if offer.district %} · {% if offer.district_url %}<a href="{{ offer.district_url }}">{{ offer.district }}</a>{% else %}{{ offer.district }}{% endif %}{% endif %}</p>
+        <h1 class="page-title">{{ offer.title }}</h1>
+        <div class="detail-text">
+          <section class="lz-block" id="opisanie">
+            <h2>Что это</h2>
+            <p class="lz-pre">{{ offer.description }}</p>
+            {% if offer.included %}<h3>Входит</h3><p class="lz-pre">{{ offer.included }}</p>{% endif %}
+            {% if offer.excluded %}<h3>Не входит</h3><p class="lz-pre">{{ offer.excluded }}</p>{% endif %}
+            {% if offer.bring %}<h3>Что взять с собой</h3><p class="lz-pre">{{ offer.bring }}</p>{% endif %}
+            {% if offer.provided %}<h3>Что выдают</h3><p class="lz-pre">{{ offer.provided }}</p>{% endif %}
+            {% if offer.extra %}
+            <h3>По этому типу</h3>
+            <dl>
+              {% for label, text in offer.extra %}
+              <dt>{{ label }}</dt><dd class="lz-pre">{{ text }}</dd>
+              {% endfor %}
+            </dl>
+            {% endif %}
+            {% if offer.photos|length > 1 %}
+            <div class="lz-gallery">
+              {% for p in offer.photos[1:] %}
+              {{ cards.rimg(p.url, alt=p.alt, sizes=img_sizes.card, width=900, height=600) }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </section>
+
+          <section class="lz-block lz-panel lz-panel-cond" id="usloviya">
+            <h2>Условия</h2>
+            <p class="lz-hint">Правила, отмена, предоплата и требования к участникам — отдельно от описания.</p>
+            <p class="lz-pre">{{ offer.conditions }}</p>
+            <h3>Отмена и возврат</h3>
+            <p class="lz-pre">{{ offer.cancellation }}</p>
+          </section>
+
+          <section class="lz-block" id="snaryazhenie">
+            <h2>Снаряжение и инструктаж</h2>
+            <p>Жилет: {{ offer.vest }}. Шлем: {{ offer.helmet }}.</p>
+            <p class="lz-pre">Проверка: {{ offer.gear_check }}</p>
+            <p>Инструктаж: {{ offer.briefing }}{% if offer.briefing_note %}. {{ offer.briefing_note }}{% endif %}</p>
+          </section>
+
+          {% if offer.show_state %}
+          <section class="lz-block lz-panel lz-panel-state" id="sostoyanie">
+            <h2>Состояние снаряжения и техники</h2>
+            <p class="lz-hint">Отдельное поле. Новая поставка появляется здесь только после проверки.</p>
+            {% if offer.equipment_state %}<p class="lz-pre">{{ offer.equipment_state }}</p>{% endif %}
+            {% for item in offer.supplies %}
+            <article class="lz-item">
+              <b>{{ item.title }}</b>
+              {% if item.quantity %}<span class="lz-kicker"> · {{ item.quantity }} шт.</span>{% endif %}
+              {% if item.price_text %}<p class="lz-kicker">{{ item.price_text }}</p>{% endif %}
+              <p class="lz-pre">{{ item.state_text }}</p>
+              {% if item.note %}<p class="lz-pre">{{ item.note }}</p>{% endif %}
+            </article>
+            {% endfor %}
+          </section>
+          {% endif %}
+
+          <section class="lz-block" id="organizator">
+            <h2>Организатор</h2>
+            <p><b>{{ offer.provider_name }}</b>{% if offer.legal_status %} · {{ offer.legal_status }}{% endif %}</p>
+            <p>{% if offer.has_instructor %}Инструктор есть.{% else %}Инструктора нет.{% endif %}</p>
+            {% if offer.docs_on_request %}<p>Аттестат, лицензию на перевозку и страховку можно запросить. Номера документов на сайте не публикуются.</p>{% endif %}
+            <p class="lz-hint">{{ t('dosug.card.note', 'Услугу и оплату принимает организатор. АдыГид не агент и не продаёт эту услугу.') }}</p>
+            {% if offer.website %}<p><a href="{{ offer.website }}">Сайт организатора</a></p>{% endif %}
+            {% if offer.socials %}<p class="lz-pre">Соцсети: {{ offer.socials }}</p>{% endif %}
+            <p class="lz-hint">Телефон организатора на сайте не публикуется.</p>
+          </section>
+        </div>
+      </div>
+      <aside class="spec-box">
+        <dl>
+          <dt>Сколько длится</dt><dd>{{ offer.duration }}</dd>
+          {% if offer.seasons %}<dt>Сезон</dt><dd>{{ offer.seasons }}</dd>{% endif %}
+          {% if offer.schedule %}<dt>Расписание</dt><dd class="lz-pre">{{ offer.schedule }}</dd>{% endif %}
+          <dt>Цена организатора</dt><dd class="lz-pre">{{ offer.price_text }}{% if offer.price_unit %} ({{ offer.price_unit }}){% endif %}</dd>
+          {% if offer.fee and offer.fee.public %}
+          <dt>{{ t('dosug.card.fee_label', 'Сбор АдыГида') }}</dt>
+          <dd>
+            {% if offer.fee.scheme == 'on_top_public' %}
+            {{ offer.fee_pct }}% {{ t('dosug.card.fee_top', 'сверху к указанной цене') }} — {{ rub(offer.fee.fee) }}. {{ t('dosug.card.fee_note_top', 'Гость платит эту сумму отдельно. Это плата за сервис АдыГида, не оплата активности.') }}
+            {% else %}
+            {{ offer.fee_pct }}% {{ t('dosug.card.fee_inside', 'внутри указанной цены') }} — {{ rub(offer.fee.fee) }}. {{ t('dosug.card.fee_note', 'Сверху к цене не прибавляется. Это плата за сервис АдыГида, не оплата активности.') }} {{ t('dosug.card.fee_rest', 'Организатору остаётся') }} {{ rub(offer.fee.pay_provider) }}.
+            {% endif %}
+          </dd>
+          {% endif %}
+          {% if offer.weather %}<dt>Погода</dt><dd class="lz-pre">{{ offer.weather }}</dd>{% endif %}
+          {% if offer.weight %}<dt>Вес</dt><dd>{{ offer.weight }}</dd>{% endif %}
+          {% if offer.group %}<dt>Группа</dt><dd>{{ offer.group }}</dd>{% endif %}
+          <dt>Возраст</dt><dd>{{ offer.age }}</dd>
+          <dt>Здоровье</dt><dd class="lz-pre">{{ offer.health }}</dd>
+          <dt>Сложность</dt><dd>{{ offer.difficulty }}</dd>
+          <dt>Трансфер</dt><dd>{{ offer.transfer }}{% if offer.transfer_note %}. {{ offer.transfer_note }}{% endif %}</dd>
+          {% if offer.languages %}<dt>Язык</dt><dd>{{ offer.languages }}{% if offer.language_note %}. {{ offer.language_note }}{% endif %}</dd>{% endif %}
+          <dt>Точка сбора</dt><dd>{{ offer.meeting_address }}</dd>
+          <dt>Финиш</dt><dd>{{ offer.finish_address }}</dd>
+        </dl>
+        {% if offer.map_url %}<a class="btn btn-primary" href="{{ offer.map_url }}" target="_blank" rel="noopener">Точка сбора на Яндекс Картах</a>{% endif %}
+      </aside>
+    </div>
+  </div>
+</section>
+{% include "_club_cta.html" %}
+{% endblock %}

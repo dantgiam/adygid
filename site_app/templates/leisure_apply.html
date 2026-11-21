@@ -1,0 +1,333 @@
+{% extends "base.html" %}
+{% block title %}{{ tp('dosug.form.meta.title', 'Заявка организатора досуга — АдыГид') }}{% endblock %}
+{% block meta_description %}{{ tp('dosug.form.meta.desc', 'Форма для организаторов экскурсий, прогулок, проката и мастер-классов. Карточка появляется на сайте после проверки.') }}{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="/assets/leisure.css?v={{ asset_version }}">{% endblock %}
+{% block content %}
+<section class="section" style="padding-top:32px">
+  <div class="wrap">
+    <p class="eyebrow">Досуг · для организаторов</p>
+    <h1 class="page-title">{% if mode == 'item' %}{{ t('dosug.form.item_title', 'Новая поставка') }}{% else %}{{ t('dosug.form.title', 'Заявка на активность') }}{% endif %}</h1>
+    {% if mode == 'item' %}
+    <p class="lz-lead">{{ t('dosug.form.item_lead', 'Единица техники, снаряжения или новая поставка. Она попадёт на проверку и не появится у гостей, пока её не откроют. Состояние пишется отдельно.') }}</p>
+    {% else %}
+    <p class="lz-lead">{{ t('dosug.form.lead', 'Экскурсия, конная прогулка, джиппинг, рафтинг, прокат, поход, канатная дорога, мастер-класс. Карточка для гостей выходит на сайт только после проверки. Позже из кабинета можно добавить ещё активности и новые поставки.') }}</p>
+    <p class="lz-fee-note">{{ t('dosug.form.fee', 'Сервисный сбор АдыГида — 5% от цены, которую вы укажете. Это плата за сервис АдыГида, не оплата вашей активности. Услугу и оплату принимаете вы. АдыГид не агент и не продаёт услугу. Жильё к этой заявке не прибавляется.') }}</p>
+    {% endif %}
+    {% if provider and mode != 'item' %}<p class="lz-lead">Кабинет «{{ provider.display_name }}». Новая заявка добавится к уже отправленным.</p>{% endif %}
+    {% if notice %}<div class="lz-ok" role="status">{{ notice }}</div>{% endif %}
+    {% if error %}
+    <div class="lz-error" role="alert">{{ error }}{% if error_field %} <a href="#lz-error">Перейти к полю</a>{% endif %}</div>
+    {% endif %}
+
+    {% macro ferr(name) %}{% if error_field == name %}<p class="lz-field-error" id="lz-error" role="alert">{{ error }}</p>{% endif %}{% endmacro %}
+    <form class="lz-form" method="post" action="/dosug/zayavka" enctype="multipart/form-data" novalidate>
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="code" value="{{ values.code }}">
+      <input type="hidden" name="mode" value="{{ mode }}">
+      {% if target %}<input type="hidden" name="offer_id" value="{{ target.id }}">{% endif %}
+      <label class="lz-hp">Сайт компании<input type="text" name="company_url" tabindex="-1" autocomplete="off"></label>
+
+      {% if mode == 'item' %}
+      <label class="lz-field"><span>Название поставки *</span>
+        <input name="item_title" required maxlength="200" value="{{ values.item_title }}" placeholder="Новая поставка SUP, ноябрь"></label>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Количество</span>
+          <input name="item_quantity" inputmode="numeric" value="{{ values.item_quantity }}" placeholder="4"></label>
+        <label class="lz-field"><span>Цена числом, ₽</span>
+          <input name="item_price_amount" inputmode="decimal" value="{{ values.item_price_amount }}"></label>
+      </div>
+      <label class="lz-field"><span>Цена словами</span>
+        <input name="item_price_text" maxlength="300" value="{{ values.item_price_text }}"></label>
+      <fieldset class="lz-panel lz-panel-state">
+        <legend>Состояние этой поставки *</legend>
+        <p class="lz-hint">Отдельное поле: год, пробег, что меняли, повреждения. Не в общее описание.</p>
+        <textarea name="item_state" required rows="4" maxlength="5000">{{ values.item_state }}</textarea>
+      </fieldset>
+      <label class="lz-field"><span>Комментарий</span>
+        <textarea name="item_note" rows="3" maxlength="3000">{{ values.item_note }}</textarea></label>
+      {% else %}
+
+      <h2>Кто проводит</h2>
+      <label class="lz-field"><span>Название для гостей *</span>
+        <input name="display_name" required maxlength="200" value="{{ values.display_name }}">{{ ferr('display_name') }}</label>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Юридический статус *</span>
+          <select name="legal_status" required>
+            <option value="">Выберите</option>
+            {% for code, title in legal_statuses %}
+            <option value="{{ code }}" {% if values.legal_status == code %}selected{% endif %}>{{ title }}</option>
+            {% endfor %}
+          </select></label>
+        {% if pd_in_site_db %}
+        <label class="lz-field"><span>Реквизиты</span>
+          <input name="legal_details" maxlength="300" value="{{ values.legal_details }}" placeholder="ИНН или название — только для проверки">
+          <p class="lz-hint">На сайте не публикуем, номера документов тоже.</p></label>
+        {% endif %}
+      </div>
+      <label class="lz-field"><span>Лицензии и допуски *</span>
+        <textarea name="licenses_note" required rows="2" maxlength="3000" placeholder="Что есть или «не требуются». Номер увидит только проверка">{{ values.licenses_note }}</textarea></label>
+      <label class="lz-field"><span>Страховка *</span>
+        <textarea name="insurance_note" required rows="2" maxlength="3000" placeholder="Есть или нет. Номер полиса на сайте не покажем">{{ values.insurance_note }}</textarea></label>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Инструктор *</span>
+          <select name="has_instructor" required>
+            <option value="" {% if values.has_instructor == '' %}selected{% endif %}>Выберите</option>
+            <option value="1" {% if values.has_instructor == '1' %}selected{% endif %}>Есть</option>
+            <option value="0" {% if values.has_instructor == '0' %}selected{% endif %}>Нет</option>
+          </select></label>
+        <label class="lz-field"><span>Про инструктора</span>
+          <input name="instructor_note" maxlength="2000" value="{{ values.instructor_note }}" placeholder="Без номера аттестата"></label>
+      </div>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Сайт</span>
+          <input name="website" type="url" maxlength="500" value="{{ values.website }}" placeholder="https://"></label>
+        <label class="lz-field"><span>Соцсети</span>
+          <input name="socials" maxlength="500" value="{{ values.socials }}"></label>
+      </div>
+      {% if pd_in_site_db %}
+      <label class="lz-field"><span>Как к вам обращаться *</span>
+        <input name="contact_name" required maxlength="120" value="{{ values.contact_name }}" autocomplete="name">{{ ferr('contact_name') }}</label>
+      <fieldset class="lz-panel">
+        <legend>Контакт для связи с АдыГидом</legend>
+        <p>Укажите, пожалуйста, ваш контактный номер телефона и ссылку на Telegram. Мы свяжемся с вами для уточнения деталей.</p>
+        <label class="lz-field"><span>Телефон *</span>
+          <input name="contact_phone" required type="tel" maxlength="40" value="{{ values.contact_phone }}" placeholder="+7 …" autocomplete="tel">{{ ferr('contact_phone') }}</label>
+        <label class="lz-field"><span>Telegram *</span>
+          <input name="contact_telegram" required maxlength="200" value="{{ values.contact_telegram }}" placeholder="@username или t.me/username" autocomplete="off">{{ ferr('contact_telegram') }}</label>
+        <p class="lz-hint">На карточке для гостей этих контактов нет.</p>
+      </fieldset>
+      <label class="lz-field"><span>Другой мессенджер</span>
+        <input name="contact_messenger" maxlength="160" value="{{ values.contact_messenger }}" placeholder="Необязательно"></label>
+      {% else %}
+      <p class="lz-fee-note">{{ t('dosug.form.bot_note', 'Телефон и Telegram вы оставите на следующем шаге, в боте. На карточке для гостей этих контактов нет.') }}</p>
+      {% endif %}
+
+      <h2>Активность</h2>
+      <label class="lz-field"><span>Название *</span>
+        <input name="title" required maxlength="200" value="{{ values.title }}">{{ ferr('title') }}</label>
+      <label class="lz-field"><span>Тип *</span>
+        <select name="activity_type" id="lz-type" required>
+          <option value="">Выберите</option>
+          {% for code, title, _state in activities %}
+          <option value="{{ code }}" {% if values.activity_type == code %}selected{% endif %}>{{ title }}</option>
+          {% endfor %}
+        </select></label>
+      {% for activity, fields in category_fields.items() %}
+      <fieldset class="lz-panel" data-cat="{{ activity }}" {% if values.activity_type != activity %}hidden{% endif %}>
+        <legend>Вопросы для этого типа</legend>
+        {% for field in fields %}
+        <label class="lz-field"><span>{{ field.label }}{% if field.required or field.required_if %} *{% endif %}</span>
+          {% if field.hint %}<p class="lz-hint">{{ field.hint }}</p>{% endif %}
+          {% if field.choices %}
+          <select name="extra_{{ activity }}_{{ field.key }}">
+            <option value="">Выберите</option>
+            {% for code, title in field.choices %}
+            <option value="{{ code }}" {% if values['extra_' ~ activity ~ '_' ~ field.key] == code %}selected{% endif %}>{{ title }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <textarea name="extra_{{ activity }}_{{ field.key }}" rows="2" maxlength="2000">{{ values['extra_' ~ activity ~ '_' ~ field.key] }}</textarea>
+          {% endif %}
+          {% if not field.public %}<p class="lz-hint">Это поле гости не увидят.</p>{% endif %}
+        </label>
+        {% endfor %}
+      </fieldset>
+      {% endfor %}
+
+      <label class="lz-field"><span>Описание *</span>
+        <textarea name="description" required rows="5" maxlength="5000" placeholder="Что происходит и для кого. Условия, отмену и состояние техники сюда не пишите.">{{ values.description }}</textarea>{{ ferr('description') }}</label>
+      <label class="lz-field"><span>Точка сбора *</span>
+        <input name="meeting_address" required maxlength="300" value="{{ values.meeting_address }}">{{ ferr('meeting_address') }}</label>
+      <label class="lz-field"><span>Точка финиша *</span>
+        <input name="finish_address" required maxlength="300" value="{{ values.finish_address }}" placeholder="Если там же — так и напишите">{{ ferr('finish_address') }}</label>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Широта сбора</span>
+          <input name="lat" inputmode="decimal" value="{{ values.lat }}" placeholder="44.23"></label>
+        <label class="lz-field"><span>Долгота сбора</span>
+          <input name="lon" inputmode="decimal" value="{{ values.lon }}" placeholder="40.18"></label>
+      </div>
+      <label class="lz-field"><span>Район</span>
+        <select name="district">
+          <option value="">Не выбран</option>
+          {% for slug, label in districts %}
+          <option value="{{ slug }}" {% if values.district == slug %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select></label>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Длительность *</span>
+          <input name="duration_text" required maxlength="200" value="{{ values.duration_text }}" placeholder="2 часа">{{ ferr('duration_text') }}</label>
+        <label class="lz-field"><span>Сложность *</span>
+          <select name="difficulty" required>
+            {% for code, title in difficulties %}
+            <option value="{{ code }}" {% if values.difficulty == code %}selected{% endif %}>{{ title }}</option>
+            {% endfor %}
+          </select></label>
+      </div>
+      <fieldset class="lz-field"><legend>Сезон *</legend>
+        <div class="lz-chips">{% for code, title in seasons %}
+          <label><input type="checkbox" name="seasons" value="{{ code }}" {% if code in values.seasons %}checked{% endif %}> {{ title }}</label>
+        {% endfor %}</div>
+      </fieldset>
+      <label class="lz-field"><span>Расписание *</span>
+        <textarea name="schedule_text" required rows="2" maxlength="3000">{{ values.schedule_text }}</textarea></label>
+      <label class="lz-field"><span>Погода *</span>
+        <textarea name="weather_terms" required rows="2" maxlength="3000" placeholder="В какой сезон выходите и когда отменяете, например при паводке или грозе">{{ values.weather_terms }}</textarea>{{ ferr('weather_terms') }}</label>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Цена числом, ₽</span>
+          <input name="price_amount" inputmode="decimal" value="{{ values.price_amount }}" placeholder="2500">
+          <p class="lz-hint">{{ t('dosug.form.price_hint', 'Число нужно, только если хотите, чтобы сбор посчитали от цены. Можно оставить пустым и описать цену словами.') }}</p></label>
+        <label class="lz-field"><span>Цена за что *</span>
+          <select name="price_unit">
+            {% for code, title in price_units %}
+            <option value="{{ code }}" {% if values.price_unit == code %}selected{% endif %}>{{ title }}</option>
+            {% endfor %}
+          </select></label>
+      </div>
+      <label class="lz-field"><span>Цена словами *</span>
+        <textarea name="price_text" required rows="2" maxlength="2000">{{ values.price_text }}</textarea></label>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Что включено в цену *</span>
+          <textarea name="included" required rows="3" maxlength="3000">{{ values.included }}</textarea></label>
+        <label class="lz-field"><span>Что не включено *</span>
+          <textarea name="excluded" required rows="3" maxlength="3000">{{ values.excluded }}</textarea></label>
+      </div>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Группа, минимум *</span>
+          <input name="group_min" required inputmode="numeric" value="{{ values.group_min }}">{{ ferr('group_min') }}</label>
+        <label class="lz-field"><span>Группа, максимум *</span>
+          <input name="group_max" required inputmode="numeric" value="{{ values.group_max }}"></label>
+      </div>
+      <label class="lz-field"><span>Возраст *</span>
+        <input name="age_text" required maxlength="200" value="{{ values.age_text }}"></label>
+      <label class="lz-field"><span>Ограничение по весу *</span>
+        <input name="weight_limit" required maxlength="500" value="{{ values.weight_limit }}" placeholder="До 120 кг или «ограничения нет»"></label>
+      <label class="lz-field"><span>Ограничения по здоровью *</span>
+        <textarea name="health_limits" required rows="2" maxlength="3000">{{ values.health_limits }}</textarea></label>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Что взять с собой *</span>
+          <textarea name="what_to_bring" required rows="3" maxlength="3000">{{ values.what_to_bring }}</textarea></label>
+        <label class="lz-field"><span>Что выдают *</span>
+          <textarea name="provided_gear" required rows="3" maxlength="3000" placeholder="Жилет, шлем, весло — или «ничего не выдаём»">{{ values.provided_gear }}</textarea></label>
+      </div>
+      <div class="lz-grid lz-grid-2">
+        <label class="lz-field"><span>Трансфер *</span>
+          <select name="transfer" required>
+            {% for code, title in transfers %}
+            <option value="{{ code }}" {% if values.transfer == code %}selected{% endif %}>{{ title }}</option>
+            {% endfor %}
+          </select></label>
+        <label class="lz-field"><span>Про трансфер</span>
+          <input name="transfer_note" maxlength="2000" value="{{ values.transfer_note }}"></label>
+      </div>
+      <fieldset class="lz-field"><legend>Язык *</legend>
+        <div class="lz-chips">{% for code, title in languages %}
+          <label><input type="checkbox" name="languages" value="{{ code }}" {% if code in values.languages %}checked{% endif %}> {{ title }}</label>
+        {% endfor %}</div>
+      </fieldset>
+      <label class="lz-field"><span>Другой язык</span>
+        <input name="language_note" maxlength="200" value="{{ values.language_note }}"></label>
+
+      <fieldset class="lz-panel">
+        <legend>Снаряжение</legend>
+        <p class="lz-hint">Жилет, шлем, кто и когда его проверяет, и есть ли инструктаж. Это не описание и не поле «состояние».</p>
+        <div class="lz-grid lz-grid-2">
+          <label class="lz-field"><span>Жилет *</span>
+            <select name="vest" required>
+              <option value="">Выберите</option>
+              {% for code, title in gear_answer %}
+              <option value="{{ code }}" {% if values.vest == code %}selected{% endif %}>{{ title }}</option>
+              {% endfor %}
+            </select></label>
+          <label class="lz-field"><span>Шлем *</span>
+            <select name="helmet" required>
+              <option value="">Выберите</option>
+              {% for code, title in gear_answer %}
+              <option value="{{ code }}" {% if values.helmet == code %}selected{% endif %}>{{ title }}</option>
+              {% endfor %}
+            </select></label>
+        </div>
+        <label class="lz-field"><span>Кто и когда проверяет снаряжение *</span>
+          <textarea name="gear_check" required rows="2" maxlength="2000">{{ values.gear_check }}</textarea></label>
+        <div class="lz-grid lz-grid-2">
+          <label class="lz-field"><span>Инструктаж *</span>
+            <select name="briefing" required>
+              <option value="">Выберите</option>
+              {% for code, title in briefing_answer %}
+              <option value="{{ code }}" {% if values.briefing == code %}selected{% endif %}>{{ title }}</option>
+              {% endfor %}
+            </select></label>
+          <label class="lz-field"><span>Что в инструктаже</span>
+            <input name="briefing_note" maxlength="2000" value="{{ values.briefing_note }}"></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="lz-panel lz-panel-cond">
+        <legend>Условия *</legend>
+        <p class="lz-hint">{{ t('dosug.form.conditions_hint', 'Отдельный блок: правила, предоплата, требования к участникам. Не смешивайте с описанием.') }}</p>
+        <textarea name="conditions" required rows="4" maxlength="5000">{{ values.conditions }}</textarea>{{ ferr('conditions') }}
+        <label class="lz-field"><span>Отмена и возврат *</span>
+          <textarea name="cancellation_terms" required rows="3" maxlength="3000" placeholder="За сколько часов можно отменить и что возвращаете">{{ values.cancellation_terms }}</textarea>{{ ferr('cancellation_terms') }}</label>
+      </fieldset>
+      <fieldset class="lz-panel lz-panel-state">
+        <legend>Состояние снаряжения и техники</legend>
+        <p class="lz-hint">{{ t('dosug.form.state_hint', 'Тоже отдельно. Обязательно для проката, джиппинга, квадроциклов и рафтинга: возраст и состояние лодок, машин, досок. Для экскурсии можно оставить пустым.') }}</p>
+        <textarea name="equipment_state" rows="4" maxlength="5000">{{ values.equipment_state }}</textarea>{{ ferr('equipment_state') }}
+      </fieldset>
+      {% endif %}
+
+      <fieldset class="lz-panel">
+        <legend>Фото</legend>
+        <p class="lz-hint">{{ t('dosug.form.photo_hint', 'Лучше от 6 кадров, ширина от 1200 px. Без логотипов и без сгенерированных ИИ изображений. Для сплава на фото все участники в жилетах. У каждого фото обязательна подпись.') }}</p>
+        {{ ferr('photo_1') }}{{ ferr('alt_1') }}{{ ferr('photos_honest') }}{{ ferr('photos_vests') }}
+        {% for n in photo_slots %}
+        <div class="lz-grid lz-grid-2">
+          <label class="lz-field"><span>Фото {{ n }}</span>
+            <input type="file" name="photo_{{ n }}" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"></label>
+          <label class="lz-field"><span>Подпись к фото {{ n }}</span>
+            <input name="alt_{{ n }}" maxlength="300" placeholder="Что на снимке">{{ ferr('alt_' ~ n) }}</label>
+        </div>
+        {% endfor %}
+        {% if mode != 'item' %}
+        <label class="lz-check"><input type="checkbox" name="photos_honest" value="1" {% if values.photos_honest %}checked{% endif %}>
+          <span>На фото нет логотипов и сгенерированных ИИ изображений.</span></label>
+        <label class="lz-check" id="lz-vest-photos" {% if values.activity_type != 'rafting' %}hidden{% endif %}>
+          <input type="checkbox" name="photos_vests" value="1" {% if values.photos_vests %}checked{% endif %}>
+          <span>На фото сплава все участники в жилетах.</span></label>
+        {% endif %}
+      </fieldset>
+
+      {% if mode != 'item' %}
+      {% if not provider %}
+      <label class="lz-check"><input type="checkbox" name="consent" value="1" {% if values.consent %}checked{% endif %} required>
+        <span>Даю <a href="/soglasie">согласие на обработку персональных данных</a> и знакомлюсь с <a href="/privacy">политикой</a>.</span></label>
+      {% else %}
+      <p class="lz-hint">Согласие на обработку данных вы уже дали в первой заявке этого кабинета.</p>
+      {% endif %}
+      <label class="lz-check"><input type="checkbox" name="consent_own_service" value="1" {% if values.consent_own_service %}checked{% endif %} required>
+        <span>Услугу и оплату принимаю сам(а). АдыГид не является агентом и не продаёт мою услугу.</span></label>
+      <label class="lz-check"><input type="checkbox" name="consent_docs" value="1" {% if values.consent_docs %}checked{% endif %} required>
+        <span>Готов(а) предъявить аттестат гида или инструктора-проводника, лицензию на перевозку пассажиров и страховку по запросу.</span></label>
+      {% endif %}
+      <button class="btn btn-primary" type="submit">{% if mode == 'item' %}{{ t('dosug.form.submit_item', 'Отправить поставку на проверку') }}{% else %}{{ t('dosug.form.submit', 'Отправить на проверку') }}{% endif %}</button>
+    </form>
+    {% if error_field %}<script>var el=document.getElementById("lz-error"); if(el) el.scrollIntoView({block:"center"});</script>{% endif %}
+  </div>
+</section>
+<script>
+(function () {
+  var sel = document.getElementById("lz-type");
+  if (!sel) return;
+  function sync() {
+    var value = sel.value;
+    document.querySelectorAll("[data-cat]").forEach(function (el) {
+      el.hidden = el.getAttribute("data-cat") !== value;
+    });
+    var vests = document.getElementById("lz-vest-photos");
+    if (vests) vests.hidden = value !== "rafting";
+  }
+  sel.addEventListener("change", sync);
+  sync();
+})();
+</script>
+{% endblock %}

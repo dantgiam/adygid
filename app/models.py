@@ -158,7 +158,7 @@ class SlugRedirect(Base):
     """Прежние слаги страниц. Когда слаг меняют в админке, старый адрес
     записывается сюда и навсегда отвечает 301 на текущий — ссылки из
     поиска, ботов и чужих постов не ломаются.
-    kind: place | route | article | trip."""
+    kind: place | route | article | trip | leisure."""
     __tablename__ = "slug_redirects"
     __table_args__ = (UniqueConstraint("kind", "old_slug", name="uq_slug_redirects_kind_old"),)
 
@@ -508,6 +508,151 @@ class PartnerLead(Base):
     notes              = Column(Text)
     created_at         = Column(DateTime, server_default=func.now())
     updated_at         = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class LeisureProvider(Base):
+    """Организатор досуга. Один кабинет — много активностей и поставок.
+
+    Телефон и имя видны только в админке и на публичные страницы не выводятся.
+    В бота и мессенджеры эта форма ничего не отправляет.
+    """
+    __tablename__ = "leisure_providers"
+
+    id                = Column(Integer, primary_key=True)
+    code              = Column(String(20), nullable=False, unique=True, index=True)
+    display_name      = Column(String(200), nullable=False)
+    legal_status      = Column(String(30), nullable=False)
+    legal_details     = Column(String(300))
+    licenses_note     = Column(Text)
+    insurance_note    = Column(Text)
+    has_instructor    = Column(Boolean, nullable=False, default=False)
+    instructor_note   = Column(Text)
+    website           = Column(String(500))
+    socials           = Column(String(500))
+    contact_name      = Column(String(120))
+    contact_phone     = Column(String(40))
+    contact_messenger = Column(String(160))
+    # Нормализованная ссылка https://t.me/… Только админка, не публичная карточка.
+    telegram          = Column(String(200))
+    consent_version   = Column(String(20))
+    consent_at        = Column(DateTime)
+    created_at        = Column(DateTime, server_default=func.now())
+
+    offers = relationship("LeisureOffer", back_populates="provider", cascade="all, delete-orphan")
+
+
+class LeisureOffer(Base):
+    """Заявка на активность. Публичная страница — только status=approved и is_published.
+
+    conditions и equipment_state — отдельные поля, не часть description.
+    service_fee_pct по решению владельца для досуга 5. Сбор жилья (partners) здесь не задаётся.
+    """
+    __tablename__ = "leisure_offers"
+
+    id               = Column(Integer, primary_key=True)
+    provider_id      = Column(Integer, ForeignKey("leisure_providers.id", ondelete="CASCADE"), nullable=False, index=True)
+    title            = Column(String(200), nullable=False)
+    # /dosug/<slug>. Числовой /dosug/<id> у опубликованной карточки — 301 сюда.
+    slug             = Column(String(120), nullable=True, unique=True, index=True)
+    activity_type    = Column(String(40), nullable=False)
+    description      = Column(Text, nullable=False)
+    meeting_address  = Column(String(300), nullable=False)
+    finish_address   = Column(String(300), nullable=False)
+    lat              = Column(Numeric(9, 6))
+    lon              = Column(Numeric(9, 6))
+    district         = Column(String(30))
+    duration_text    = Column(String(200), nullable=False)
+    seasons          = Column(String(120))
+    schedule_text    = Column(Text)
+    weather_terms    = Column(Text, nullable=False)
+    price_amount     = Column(Numeric(12, 2))
+    price_unit       = Column(String(20))
+    price_text       = Column(Text, nullable=False)
+    included         = Column(Text, nullable=False)
+    excluded         = Column(Text, nullable=False)
+    group_min        = Column(Integer, nullable=False)
+    group_max        = Column(Integer, nullable=False)
+    age_text         = Column(String(200), nullable=False)
+    weight_limit     = Column(Text, nullable=False)
+    health_limits    = Column(Text, nullable=False)
+    difficulty       = Column(String(20), nullable=False, default="medium")
+    what_to_bring    = Column(Text, nullable=False)
+    provided_gear    = Column(Text, nullable=False)
+    transfer         = Column(String(20), nullable=False, default="none")
+    transfer_note    = Column(Text)
+    languages        = Column(String(80))
+    language_note    = Column(String(200))
+    conditions       = Column(Text, nullable=False)
+    cancellation_terms = Column(Text, nullable=False)
+    # Состояние техники и снаряжения — отдельно от описания и от «что выдают».
+    equipment_state  = Column(Text)
+    vest             = Column(String(10), nullable=False, default="na")
+    helmet           = Column(String(10), nullable=False, default="na")
+    gear_check       = Column(Text, nullable=False)
+    briefing         = Column(String(10), nullable=False, default="no")
+    briefing_note    = Column(Text)
+    # Ответы, которые зависят от типа: сплав, кони, джип, поход, канатка.
+    # Секретные ключи (номера лицензий) на сайт не выводятся.
+    category_extra   = Column(JSONB, nullable=False, default=dict)
+    consent_own_service = Column(Boolean, nullable=False, default=False)
+    consent_docs     = Column(Boolean, nullable=False, default=False)
+    photos_honest    = Column(Boolean, nullable=False, default=False)
+    photos_vests     = Column(Boolean, nullable=False, default=False)
+    service_fee_pct  = Column(Numeric(5, 2), nullable=False, default=5)
+    status           = Column(String(20), nullable=False, default="pending")
+    is_published     = Column(Boolean, nullable=False, default=False)
+    moderation_note  = Column(Text)
+    admin_notes      = Column(Text)
+    created_at       = Column(DateTime, server_default=func.now())
+    updated_at       = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    provider = relationship("LeisureProvider", back_populates="offers")
+    items    = relationship("LeisureItem", back_populates="offer", cascade="all, delete-orphan",
+                            order_by="LeisureItem.created_at")
+    photos   = relationship("LeisurePhoto", back_populates="offer", cascade="all, delete-orphan",
+                            foreign_keys="LeisurePhoto.offer_id", order_by="LeisurePhoto.sort_order")
+
+    @property
+    def name(self) -> str:
+        """Для общего генератора слагов (app/slugs.py), он читает .name."""
+        return self.title or ""
+
+
+class LeisureItem(Base):
+    """Единица или новая поставка внутри активности. Своё состояние и своя модерация."""
+    __tablename__ = "leisure_items"
+
+    id           = Column(Integer, primary_key=True)
+    offer_id     = Column(Integer, ForeignKey("leisure_offers.id", ondelete="CASCADE"), nullable=False, index=True)
+    title        = Column(String(200), nullable=False)
+    quantity     = Column(Integer)
+    state_text   = Column(Text, nullable=False)
+    price_text   = Column(String(300))
+    price_amount = Column(Numeric(12, 2))
+    note         = Column(Text)
+    status       = Column(String(20), nullable=False, default="pending")
+    created_at   = Column(DateTime, server_default=func.now())
+    updated_at   = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    offer  = relationship("LeisureOffer", back_populates="items")
+    photos = relationship("LeisurePhoto", back_populates="item", foreign_keys="LeisurePhoto.item_id",
+                          order_by="LeisurePhoto.sort_order")
+
+
+class LeisurePhoto(Base):
+    __tablename__ = "leisure_photos"
+
+    id         = Column(Integer, primary_key=True)
+    offer_id   = Column(Integer, ForeignKey("leisure_offers.id", ondelete="CASCADE"), nullable=False, index=True)
+    item_id    = Column(Integer, ForeignKey("leisure_items.id", ondelete="CASCADE"), nullable=True, index=True)
+    url        = Column(String(500), nullable=False)
+    thumb_url  = Column(String(500))
+    alt        = Column(String(300), nullable=False, default="")
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+
+    offer = relationship("LeisureOffer", back_populates="photos", foreign_keys=[offer_id])
+    item  = relationship("LeisureItem", back_populates="photos", foreign_keys=[item_id])
 
 
 # ─────────────────────────────────────────────

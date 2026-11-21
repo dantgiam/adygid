@@ -1964,6 +1964,14 @@ ensure_partner_tables()
 app.include_router(partners_router)
 app.include_router(partners_admin_router)
 
+# Досуг: заявка организатора, модерация /admin/dosug и публичные /dosug/<slug>.
+from site_app.leisure import ensure_leisure_tables, router as leisure_router
+from app.leisure_admin import router as leisure_admin_router
+
+ensure_leisure_tables()
+app.include_router(leisure_router)
+app.include_router(leisure_admin_router)
+
 # Тексты сайта в админке (/admin/texts): «Коротко для поездки», плашки, тексты
 # страниц. Миграция повторяемая и наполняет таблицы из кода один раз.
 from site_app.admin_texts_db import ensure_admin_text_tables
