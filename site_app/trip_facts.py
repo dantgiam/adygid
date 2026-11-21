@@ -299,6 +299,23 @@ def seed_from_code(conn) -> int:
             "route": b["route_id"], "sf": json.dumps(b["search_facts"], ensure_ascii=False),
             "src": json.dumps(b["sources"], ensure_ascii=False)})
         n += res.rowcount or 0
+        if not res.rowcount and b["enabled"] and b["rows"]:
+            # Строка есть с прошлого переноса, но тогда в коде был только title
+            # (блок выключен, строк нет), а теперь появился сам блок — как у
+            # пустыни (30) в PR #36. Дописываем, только если в админке строку
+            # не трогали: updated_by всё ещё «перенос из кода».
+            up = conn.execute(text(
+                "UPDATE place_trip_blocks SET enabled = TRUE, "
+                "heading_name = coalesce(heading_name, :hn), rows = CAST(:rows AS jsonb), "
+                "combine_ids = CAST(:comb AS jsonb), route_id = :route, "
+                "search_facts = CAST(:sf AS jsonb), sources = CAST(:src AS jsonb), updated_at = now() "
+                "WHERE place_id = :pid AND updated_by = 'перенос из кода' AND enabled = FALSE "
+                "AND coalesce(jsonb_array_length(rows), 0) = 0"
+            ), {"pid": pid, "hn": b["heading_name"] or None,
+                "rows": json.dumps(b["rows"], ensure_ascii=False), "comb": json.dumps(b["combine_ids"]),
+                "route": b["route_id"], "sf": json.dumps(b["search_facts"], ensure_ascii=False),
+                "src": json.dumps(b["sources"], ensure_ascii=False)})
+            n += up.rowcount or 0
     return n
 
 
