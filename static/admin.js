@@ -130,6 +130,54 @@ function districtOptionsHtml(selected) {
   return `<option value="">— не указан —</option>` + optionsHtml(DISTRICT_OPTS, selected);
 }
 
+// Длины как у мест (site_app/seo.py): рекомендуем 60 и 160,
+// потолок title — 80, description — от 60 до 230. Пустое поле можно.
+const SEO_TITLE_REC = 60, SEO_TITLE_MAX = 80;
+const SEO_DESC_REC = 160, SEO_DESC_MIN = 60, SEO_DESC_MAX = 230;
+
+function seoFlat(value) {
+  return (value || '').trim().replace(/\s+/g, ' ');
+}
+
+function paintSeoCounts() {
+  document.querySelectorAll('[data-seo-for]').forEach(c => {
+    const el = document.getElementById(c.dataset.seoFor);
+    if (!el) return;
+    const n = seoFlat(el.value).length;
+    const title = c.dataset.seoKind === 'title';
+    const rec = title ? SEO_TITLE_REC : SEO_DESC_REC;
+    c.textContent = n ? `· ${n} / ${rec}` : `· рекомендуется ${rec}`;
+    const outside = title ? n > SEO_TITLE_REC : (n > 0 && (n < SEO_DESC_MIN || n > SEO_DESC_REC));
+    c.classList.toggle('over', outside);
+  });
+  const warn = document.getElementById('sc-seo-warn');
+  const desc = document.getElementById('sc-seo');
+  if (warn && desc) {
+    const n = seoFlat(desc.value).length;
+    const changed = seoFlat(desc.value) !== scenarioSeoDescOriginal;
+    const bad = n > 0 && (n < SEO_DESC_MIN || n > SEO_DESC_MAX);
+    warn.hidden = !bad;
+    warn.textContent = !bad ? '' : (changed
+      ? `Сейчас ${n} знаков — нужно от ${SEO_DESC_MIN} до ${SEO_DESC_MAX}, иначе это поле не сохранится.`
+      : `Сейчас ${n} знаков — вне ${SEO_DESC_MIN}–${SEO_DESC_MAX}. Другие правки сохранятся. Если меняете это поле, уложите текст в диапазон.`);
+  }
+}
+
+let scenarioSeoDescOriginal = '';
+
+function seoLengthError(title, desc, originalDesc) {
+  if (title.length > SEO_TITLE_MAX) {
+    return `Title для поиска — до ${SEO_TITLE_MAX} знаков (сейчас ${title.length}).`;
+  }
+  // Старое описание сценария вне диапазона не блокирует сохранение,
+  // пока его текст не меняли.
+  const unchanged = originalDesc !== undefined && seoFlat(desc) === seoFlat(originalDesc);
+  if (desc && !unchanged && (desc.length < SEO_DESC_MIN || desc.length > SEO_DESC_MAX)) {
+    return `Description для поиска — от ${SEO_DESC_MIN} до ${SEO_DESC_MAX} знаков (сейчас ${desc.length}).`;
+  }
+  return '';
+}
+
 function categoryOptionsHtml(kind, selected) {
   // Служебные категории показываем, но помечаем — иначе легко случайно
   // выбрать «Стоянку» и потерять объект из фильтров на сайте.
@@ -942,6 +990,9 @@ function openArticleEditor(id) {
   const a = id ? articles.find(x => x.id === id) : null;
   document.getElementById('a-title').value = a ? a.title : '';
   document.getElementById('a-excerpt').value = a ? (a.excerpt || '') : '';
+  document.getElementById('a-seo-title').value = a ? (a.seo_title || '') : '';
+  document.getElementById('a-seo-desc').value = a ? (a.seo_description || '') : '';
+  paintSeoCounts();
   document.getElementById('a-slug').value = a ? a.slug : '';
   document.getElementById('a-cover-url').value = a ? (a.cover_url || '') : '';
   document.getElementById('a-cover-focus').value = a ? (a.cover_focus || '') : '';
@@ -1082,6 +1133,8 @@ function collectArticleDraft() {
     savedAt: Date.now(),
     title: document.getElementById('a-title').value,
     excerpt: document.getElementById('a-excerpt').value,
+    seo_title: document.getElementById('a-seo-title').value,
+    seo_description: document.getElementById('a-seo-desc').value,
     slug: document.getElementById('a-slug').value,
     cover_url: document.getElementById('a-cover-url').value,
     district: document.getElementById('a-district').value,
@@ -1119,6 +1172,9 @@ function clearDraft(id) {
 function applyDraft(d) {
   document.getElementById('a-title').value = d.title || '';
   document.getElementById('a-excerpt').value = d.excerpt || '';
+  document.getElementById('a-seo-title').value = d.seo_title || '';
+  document.getElementById('a-seo-desc').value = d.seo_description || '';
+  paintSeoCounts();
   document.getElementById('a-slug').value = d.slug || '';
   document.getElementById('a-cover-url').value = d.cover_url || '';
   document.getElementById('a-cover-focus').value = d.cover_focus || '';
@@ -1143,6 +1199,10 @@ function previewArticle() {
 async function saveArticle() {
   const title = document.getElementById('a-title').value.trim();
   if (!title) { toast('Введите заголовок', true); return; }
+  const seoTitle = seoFlat(document.getElementById('a-seo-title').value);
+  const seoDesc = seoFlat(document.getElementById('a-seo-desc').value);
+  const seoError = seoLengthError(seoTitle, seoDesc);
+  if (seoError) { toast(seoError, true); return; }
 
   // Если новый файл не выбирали, миниатюру берём прежнюю. Раньше здесь было
   // просто null, и любое сохранение — хоть правка заголовка — стирало
@@ -1161,6 +1221,8 @@ async function saveArticle() {
     title,
     slug: document.getElementById('a-slug').value.trim() || null,
     excerpt: document.getElementById('a-excerpt').value.trim() || null,
+    seo_title: seoTitle || null,
+    seo_description: seoDesc || null,
     cover_url: coverUrl || null,
     cover_focus: document.getElementById('a-cover-focus') ? (document.getElementById('a-cover-focus').value || null) : null,
     cover_thumb_url: coverThumb,
@@ -1463,6 +1525,9 @@ function openRouteForm(id) {
   document.getElementById('rt-duration').value = v.duration_minutes || '';
   document.getElementById('rt-yandex-url').value = v.yandex_url || '';
   document.getElementById('rt-slug').value = v.slug || '';
+  document.getElementById('rt-seo-title').value = v.seo_title || '';
+  document.getElementById('rt-seo-desc').value = v.seo_description || '';
+  paintSeoCounts();
   document.getElementById('rt-desc-slot').innerHTML = descEditorHtml('Описание');
   document.getElementById('rt-criteria-slot').innerHTML = criteriaHtml(v);
   document.getElementById('rt-map-hint').style.display = t ? '' : 'none';
@@ -1489,6 +1554,10 @@ function previewRoute() {
 async function saveRoute() {
   const name = document.getElementById('rt-name').value.trim();
   if (!name) { toast('Введите название', true); return; }
+  const seoTitle = seoFlat(document.getElementById('rt-seo-title').value);
+  const seoDesc = seoFlat(document.getElementById('rt-seo-desc').value);
+  const seoError = seoLengthError(seoTitle, seoDesc);
+  if (seoError) { toast(seoError, true); return; }
 
   const payload = Object.assign({
     name,
@@ -1497,6 +1566,8 @@ async function saveRoute() {
     yandex_url: document.getElementById('rt-yandex-url').value.trim(),
     slug: document.getElementById('rt-slug').value.trim() || null,
     description: readDescEditor(),
+    seo_title: seoTitle || null,
+    seo_description: seoDesc || null,
   }, readCriteria());
 
   const wasNew = !editingRouteId;
@@ -2563,6 +2634,9 @@ function openScenarioForm(id) {
   document.getElementById('sc-tile-cover-focus').value = v.tile_cover_focus || '';
   document.getElementById('sc-tile-cover-file').value = '';
   document.getElementById('sc-seo').value = v.seo_description || '';
+  document.getElementById('sc-seo-title').value = v.seo_title || '';
+  scenarioSeoDescOriginal = seoFlat(v.seo_description || '');
+  paintSeoCounts();
   document.getElementById('sc-order').value = v.order_index;
   document.getElementById('sc-published').checked = v.is_published !== false;
 
@@ -2606,6 +2680,10 @@ async function saveScenario() {
   const door = document.getElementById('sc-door').value.trim();
   const title = document.getElementById('sc-title').value.trim();
   if (!door || !title) { toast('Заполните подпись и заголовок', true); return; }
+  const seoTitle = seoFlat(document.getElementById('sc-seo-title').value);
+  const seoDesc = seoFlat(document.getElementById('sc-seo').value);
+  const seoError = seoLengthError(seoTitle, seoDesc, scenarioSeoDescOriginal);
+  if (seoError) { toast(seoError, true); return; }
 
   // Та же история, что у статьи: без выбора нового файла миниатюра
   // затиралась в null, и плитка сценария на главной начинала тянуть
@@ -2642,7 +2720,8 @@ async function saveScenario() {
     tile_cover_focus: document.getElementById('sc-tile-cover-focus').value || null,
     tile_cover_url: tileCoverUrl || null,
     tile_cover_thumb_url: tileCoverUrl ? tileCoverThumb : null,
-    seo_description: document.getElementById('sc-seo').value.trim() || null,
+    seo_title: seoTitle || null,
+    seo_description: seoDesc || null,
     featured_article_ids: readPicker('sc-articles'),
     filter_kid_friendly: document.getElementById('sc-kid').value,
     filter_seasonality: document.getElementById('sc-season').value,
@@ -2662,7 +2741,9 @@ async function saveScenario() {
   editingScenarioId = saved.id;
   await loadAll();
   setSaveState('Сохранено на сервере', true, 'sc-save-state');
-  toast('Сценарий сохранён');
+  scenarioSeoDescOriginal = seoFlat(saved.seo_description || '');
+  paintSeoCounts();
+  toast(saved.seo_warning || 'Сценарий сохранён', !!saved.seo_warning);
 }
 
 function scheduleScenarioAutosave() {
@@ -3274,6 +3355,12 @@ function openDistrictForm(id) {
       <div class="hint">${isNew ? 'Латиницей. Потом не меняется: к нему привязаны места, маршруты и статьи.' : 'Адрес не меняется — к нему привязаны места, маршруты и статьи.'}</div></div>
     <div class="field"><label>Вступление</label>
       <textarea id="dist-lead" rows="4" placeholder="Чем этот округ полезен в поездке">${escHtml(d.lead || '')}</textarea></div>
+    <div class="field"><label>Title для поиска <span class="seo-count" data-seo-for="dist-seo-title" data-seo-kind="title"></span></label>
+      <input id="dist-seo-title" maxlength="80" value="${escAttr(d.seo_title || '')}" placeholder="Пусто — останется текущий заголовок в поиске" oninput="paintSeoCounts()">
+      <div class="hint">Рекомендуем 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «название — что посмотреть и какие маршруты рядом».</div></div>
+    <div class="field"><label>Description для поиска <span class="seo-count" data-seo-for="dist-seo-desc" data-seo-kind="desc"></span></label>
+      <textarea id="dist-seo-desc" maxlength="230" rows="3" placeholder="Пусто — вступление округа" oninput="paintSeoCounts()">${escHtml(d.seo_description || '')}</textarea>
+      <div class="hint">Рекомендуем 160 знаков, допустимо от 60 до 230. Пусто — текст вступления.</div></div>
     <div class="field"><label>Факты</label>
       <div id="dist-facts">${((d.facts && d.facts.length) ? d.facts : ['']).map(districtFactRow).join('')}</div>
       <button type="button" class="btn btn-ghost btn-sm" onclick="addDistrictFact()">+ Факт</button>
@@ -3288,6 +3375,10 @@ function openDistrictForm(id) {
   `, async () => {
     const name = document.getElementById('dist-name').value.trim();
     if (!name) { toast('Название обязательно', true); return; }
+    const seoTitle = seoFlat(document.getElementById('dist-seo-title').value);
+    const seoDesc = seoFlat(document.getElementById('dist-seo-desc').value);
+    const seoError = seoLengthError(seoTitle, seoDesc);
+    if (seoError) { toast(seoError, true); return; }
     let coverUrl = document.getElementById('dist-cover-url').value || null;
     let coverThumb = d.cover_thumb_url || null;
     const fileEl = document.getElementById('dist-cover-file');
@@ -3298,6 +3389,8 @@ function openDistrictForm(id) {
     const payload = {
       name,
       lead: document.getElementById('dist-lead').value.trim(),
+      seo_title: seoTitle || null,
+      seo_description: seoDesc || null,
       facts: Array.from(document.querySelectorAll('#dist-facts .dist-fact')).map(e => e.value.trim()).filter(Boolean),
       cover_url: coverUrl,
       cover_thumb_url: coverThumb,
@@ -3318,6 +3411,7 @@ function openDistrictForm(id) {
     toast('Сохранено');
   });
   setupCoverPreview('dist-cover-file', 'dist-cover-url', 'dist-cover-preview', 'dist-cover-focus');
+  paintSeoCounts();
 }
 
 async function removeDistrict(id) {

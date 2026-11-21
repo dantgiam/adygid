@@ -3,8 +3,8 @@
 {% import "_difficulty.html" as difficulty %}
 {% import "_faq.html" as faqui %}
 
-{% block title %}{{ route.name }}{% if route.duration_label %} — {{ route.duration_label }}{% endif %}, маршрут по Адыгее{% endblock %}
-{% block meta_description %}{{ route.excerpt or route.name }}{% endblock %}
+{% block title %}{% if route.seo_title %}{{ route.seo_title }}{% else %}{{ route.name }}{% if route.duration_label %} — {{ route.duration_label }}{% endif %}, маршрут по Адыгее{% endif %}{% endblock %}
+{% block meta_description %}{{ route.seo_description or route.excerpt or route.name }}{% endblock %}
 {% block og_image %}{% if route.cover %}<meta property="og:image" content="{{ route.cover|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
 
 {% block extra_ld %}
@@ -13,7 +13,7 @@
   "@context": "https://schema.org",
   "@type": "TouristTrip",
   "name": route.name,
-  "description": route.excerpt or route.name,
+  "description": route.seo_description or route.excerpt or route.name,
   "url": canonical_url,
   "touristType": "Пеший туризм",
   "itinerary": {
