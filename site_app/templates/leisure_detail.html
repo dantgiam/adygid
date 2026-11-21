@@ -95,7 +95,13 @@
           <dt>Цена организатора</dt><dd class="lz-pre">{{ offer.price_text }}{% if offer.price_unit %} ({{ offer.price_unit }}){% endif %}</dd>
           {% if offer.fee and offer.fee.public %}
           <dt>{{ t('dosug.card.fee_label', 'Сбор АдыГида') }}</dt>
-          <dd>{{ offer.fee_pct }}% — {{ rub(offer.fee.fee) }}. {{ t('dosug.card.fee_note', 'Это плата за сервис АдыГида, не оплата активности.') }}</dd>
+          <dd>
+            {% if offer.fee.scheme == 'on_top_public' %}
+            {{ offer.fee_pct }}% {{ t('dosug.card.fee_top', 'сверху к указанной цене') }} — {{ rub(offer.fee.fee) }}. {{ t('dosug.card.fee_note_top', 'Гость платит эту сумму отдельно. Это плата за сервис АдыГида, не оплата активности.') }}
+            {% else %}
+            {{ offer.fee_pct }}% {{ t('dosug.card.fee_inside', 'внутри указанной цены') }} — {{ rub(offer.fee.fee) }}. {{ t('dosug.card.fee_note', 'Сверху к цене не прибавляется. Это плата за сервис АдыГида, не оплата активности.') }} {{ t('dosug.card.fee_rest', 'Организатору остаётся') }} {{ rub(offer.fee.pay_provider) }}.
+            {% endif %}
+          </dd>
           {% endif %}
           {% if offer.weather %}<dt>Погода</dt><dd class="lz-pre">{{ offer.weather }}</dd>{% endif %}
           {% if offer.weight %}<dt>Вес</dt><dd>{{ offer.weight }}</dd>{% endif %}

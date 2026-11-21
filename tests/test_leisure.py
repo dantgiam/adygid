@@ -129,7 +129,8 @@ def test_fee_is_five_percent_and_lodging_fee_stays():
     assert cat.LEISURE_SERVICE_FEE_PCT == Decimal("5")
     parts = cat.fee_parts(Decimal("2500"))
     assert parts["fee"] == Decimal("125") and parts["pay_provider"] == Decimal("2375")
-    assert parts["discount"] == parts["fee"] and parts["scheme"] == "from_price" and parts["public"] is False
+    assert parts["discount"] == parts["fee"] and parts["scheme"] == "from_price_public" and parts["public"] is True
+    assert parts["guest_total"] == Decimal("2500")
     on_top = cat.fee_parts(Decimal("2500"), scheme="on_top")
     assert on_top["pay_provider"] == Decimal("2500") and on_top["guest_total"] == Decimal("2625") and on_top["public"] is False
     assert cat.fee_parts(Decimal("2500"), scheme="hidden")["fee"] == Decimal("0")
@@ -363,9 +364,11 @@ def test_submit_moderate_slug_fee_and_hide_documents(client, monkeypatch):
     assert f'<link rel="canonical" href="{SITE_URL}/dosug/{published.slug}">' in html
     assert "УСЛОВИЯ-ДЕМО" in html.split('id="usloviya"')[1].split('id="snaryazhenie"')[0]
     assert "УСЛОВИЯ-ДЕМО" not in html.split('id="opisanie"')[1].split('id="usloviya"')[0]
-    assert "125 ₽" not in html and "2 375" not in html and "скидк" not in html.lower()
+    assert "125 ₽" in html and "2 375 ₽" in html and "внутри указанной цены" in html
+    assert "Сверху к цене не прибавляется" in html and "скидк" not in html.lower()
     admin_html = client.get(f"/admin/dosug/{row.id}", auth=AUTH).text
-    assert "from_price" in admin_html and "125 ₽" in admin_html and "скидк" not in admin_html.lower()
+    assert "from_price_public" in admin_html and "125 ₽" in admin_html and "Сумма видна на карточке" in admin_html
+    assert "скидк" not in admin_html.lower()
     assert SECRET_PHONE not in html and SECRET_NAME not in html and SECRET_DOC not in html
     assert "t.me/demogid19" not in html and "demogid19" not in html
     assert "не агент и не продаёт" in html
@@ -391,10 +394,10 @@ def test_submit_moderate_slug_fee_and_hide_documents(client, monkeypatch):
             "SELECT old_slug, entity_id FROM slug_redirects WHERE kind='leisure' AND old_slug=:s"
         ), {"s": published.slug}).one()
     assert stored.entity_id == row.id
-    monkeypatch.setattr(cat, "LEISURE_FEE_SCHEME", "from_price_public")
-    shown = client.get(f"/dosug/{renamed}").text
-    assert "125 ₽" in shown and "скидк" not in shown.lower()
     monkeypatch.setattr(cat, "LEISURE_FEE_SCHEME", "from_price")
+    hidden = client.get(f"/dosug/{renamed}").text
+    assert "125 ₽" not in hidden and "скидк" not in hidden.lower()
+    monkeypatch.setattr(cat, "LEISURE_FEE_SCHEME", "from_price_public")
     rejected = client.post(
         f"/admin/dosug/{row.id}",
         data={**_base(title=title + " правка"), "csrf": _token(client.get(f"/admin/dosug/{row.id}", auth=AUTH).text),
