@@ -12,11 +12,11 @@
 <link rel="canonical" href="{{ canonical_url }}">
 <meta name="robots" content="{% block robots %}index, follow{% endblock %}">
 
-<link rel="icon" href="/assets/favicon.ico" sizes="any">
-<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/assets/favicon-192x192.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png">
+<link rel="icon" href="/assets/favicon.ico?v={{ asset_version }}" sizes="any">
+<link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png?v={{ asset_version }}">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png?v={{ asset_version }}">
+<link rel="icon" type="image/png" sizes="192x192" href="/assets/favicon-192x192.png?v={{ asset_version }}">
+<link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png?v={{ asset_version }}">
 
 <meta property="og:type" content="{% block og_type %}website{% endblock %}">
 <meta property="og:site_name" content="АдыГид">
@@ -49,6 +49,15 @@
   "inLanguage": "ru-RU"
 } | tojson }}
 </script>
+<script type="application/ld+json">
+{{ {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "АдыГид",
+  "url": site_url,
+  "logo": site_url ~ "/assets/logo-cat.png"
+} | tojson }}
+</script>
 {% block extra_ld %}{% endblock %}
 
 {% if yandex_metrika_id %}
@@ -70,11 +79,7 @@
   <div class="wrap">
     <div class="capsule">
       <a class="brand" href="/" aria-label="АдыГид — на главную">
-        <svg class="brand-mark" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
-          <polygon points="4,24 12,10 20,24" fill="#9BCBA4"/>
-          <polygon points="10,24 21,8 30,24" fill="#278C3E"/>
-          <circle cx="24" cy="9" r="2.6" fill="#D6A324"/>
-        </svg>
+        <img class="brand-mark" src="/assets/logo-cat.png?v={{ asset_version }}" alt="" width="32" height="32">
         <span class="brand-word">АдыГид</span>
       </a>
       <nav class="main-nav">
@@ -113,6 +118,10 @@
 
 <footer class="site-footer">
   <div class="wrap">
+    <a class="footer-brand brand" href="/" aria-label="АдыГид — на главную">
+      <img class="brand-mark" src="/assets/logo-cat.png?v={{ asset_version }}" alt="" width="28" height="28">
+      <span class="brand-word">АдыГид</span>
+    </a>
     <div class="footer-stats">
       На сайте собрано {{ places_label(footer_stats.places) }} и {{ routes_label(footer_stats.trails) }}
     </div>
