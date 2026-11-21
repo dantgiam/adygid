@@ -35,7 +35,7 @@ a { color: var(--accent); }
   display: flex; align-items: center; gap: 24px; padding: 0 24px; height: 58px;
 }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 16px; color: var(--accent); white-space: nowrap; }
-.brand img { width: 28px; height: 28px; display: block; flex: none; }
+.brand img { width: 28px; height: 28px; display: block; flex: none; border-radius: 24%; object-fit: cover; }
 .brand-name { line-height: 1.15; }
 .brand small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
 .tabs { display: flex; gap: 4px; flex: 1; }
