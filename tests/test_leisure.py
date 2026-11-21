@@ -60,6 +60,7 @@ def _base(**extra):
         "instructor_note": "ведёт группу, без номера аттестата",
         "contact_name": SECRET_NAME,
         "contact_phone": SECRET_PHONE,
+        "contact_telegram": "@demogid19",
         "title": "ДЕМО прогулка",
         "activity_type": "excursion",
         "description": "Вымышленное описание демо-активности для проверки формы, без настоящего места и организатора.",
@@ -154,6 +155,38 @@ def test_leisure_copy_is_edited_in_admin_and_shown_on_the_page(client):
         client.post("/admin/texts/pages/edit", data={"key": key, "value": "", "action": "reset"}, auth=AUTH)
     assert "Текст досуга из админки" not in client.get("/dosug/zayavka").text
     assert "Карточка для гостей" in client.get("/dosug/zayavka").text
+
+
+def test_phone_and_telegram_are_required_and_normalized():
+    from site_app.leisure import normalize_telegram
+    assert normalize_telegram("@Demo_Gid") == "https://t.me/Demo_Gid"
+    assert normalize_telegram("t.me/Demo_Gid/") == "https://t.me/Demo_Gid"
+    assert normalize_telegram("https://telegram.me/Demo_Gid") == "https://t.me/Demo_Gid"
+    with pytest.raises(leisure_mod.FormError) as empty:
+        normalize_telegram("")
+    assert empty.value.field == "contact_telegram"
+    with pytest.raises(leisure_mod.FormError):
+        normalize_telegram("не ссылка")
+    data = _base()
+    data["seasons"] = ["summer"]
+    data["languages"] = ["ru"]
+    data["consent_own_service"] = True
+    data["consent_docs"] = True
+    data["contact_phone"] = ""
+    with pytest.raises(leisure_mod.FormError) as no_phone:
+        leisure_mod.validate_provider(data)
+    assert no_phone.value.field == "contact_phone"
+
+
+def test_form_asks_for_phone_and_telegram_and_pins_the_error(client):
+    page = client.get("/dosug/zayavka").text
+    assert "Укажите, пожалуйста, ваш контактный номер телефона и ссылку на Telegram. Мы свяжемся с вами для уточнения деталей." in page
+    assert page.count('name="contact_phone"') == 1
+    assert 'name="contact_telegram"' in page
+    missing = _submit(client, _base(contact_telegram=""))
+    assert missing.status_code == 400
+    assert 'href="#lz-error"' in missing.text
+    assert missing.text.find('name="contact_telegram"') < missing.text.find('id="lz-error"')
 
 
 def test_form_lists_research_fields_and_does_not_sell(client):
@@ -294,6 +327,7 @@ def test_submit_moderate_slug_fee_and_hide_documents(client, monkeypatch):
     admin = client.get(f"/admin/dosug/{row.id}", auth=AUTH)
     assert admin.status_code == 200 and "Условия" in admin.text and "Состояние" in admin.text
     assert SECRET_PHONE in admin.text and SECRET_DOC in admin.text
+    assert 'href="https://t.me/demogid19"' in admin.text
     saved = client.post(
         f"/admin/dosug/{row.id}",
         data={**_base(title=title + " правка"), "csrf": _token(admin.text), "action": "approve", "service_fee_pct": "5"},
@@ -314,6 +348,7 @@ def test_submit_moderate_slug_fee_and_hide_documents(client, monkeypatch):
     admin_html = client.get(f"/admin/dosug/{row.id}", auth=AUTH).text
     assert "from_price" in admin_html and "125 ₽" in admin_html and "скидк" not in admin_html.lower()
     assert SECRET_PHONE not in html and SECRET_NAME not in html and SECRET_DOC not in html
+    assert "t.me/demogid19" not in html and "demogid19" not in html
     assert "не агент и не продаёт" in html
     by_id = client.get(f"/dosug/{row.id}", follow_redirects=False)
     assert by_id.status_code == 301 and by_id.headers["location"] == f"/dosug/{published.slug}"

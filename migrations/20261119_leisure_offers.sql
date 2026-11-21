@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS leisure_providers (
     contact_name VARCHAR(120),
     contact_phone VARCHAR(40),
     contact_messenger VARCHAR(160),
+    telegram VARCHAR(200),
     consent_version VARCHAR(20),
     consent_at TIMESTAMP,
     created_at TIMESTAMP DEFAULT now()
@@ -132,3 +133,4 @@ ALTER TABLE leisure_offers ADD COLUMN IF NOT EXISTS consent_docs BOOLEAN NOT NUL
 ALTER TABLE leisure_offers ADD COLUMN IF NOT EXISTS photos_honest BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE leisure_offers ADD COLUMN IF NOT EXISTS photos_vests BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE leisure_photos ADD COLUMN IF NOT EXISTS alt VARCHAR(300) NOT NULL DEFAULT '';
+ALTER TABLE leisure_providers ADD COLUMN IF NOT EXISTS telegram VARCHAR(200);

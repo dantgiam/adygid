@@ -532,6 +532,8 @@ class LeisureProvider(Base):
     contact_name      = Column(String(120))
     contact_phone     = Column(String(40))
     contact_messenger = Column(String(160))
+    # Нормализованная ссылка https://t.me/… Только админка, не публичная карточка.
+    telegram          = Column(String(200))
     consent_version   = Column(String(20))
     consent_at        = Column(DateTime)
     created_at        = Column(DateTime, server_default=func.now())

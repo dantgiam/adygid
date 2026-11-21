@@ -17,6 +17,16 @@
   {% if saved %}<div class="psaved">Сохранено.{% if o.status != 'approved' %} На сайте карточки нет.{% endif %}</div>{% endif %}
   {% if error %}<div class="pnote">{{ error }}</div>{% endif %}
   {% if fee %}<div class="pnote">Схема {{ fee.scheme }}: сбор {{ rub(fee.fee) }} ({{ pct_label(o.service_fee_pct) }}% от {{ rub(fee.price) }}), организатору {{ rub(fee.pay_provider) }}.{% if fee.public %} Сумма видна на карточке.{% else %} На карточке сумму не показываем.{% endif %} Переключатель — LEISURE_FEE_SCHEME в site_app/leisure_catalog.py.</div>{% endif %}
+  <div class="pbox" style="border:2px solid var(--accent)">
+    <h2>Связаться с организатором</h2>
+    <p style="font-size:20px;margin:0 0 8px"><a href="tel:{{ o.provider.contact_phone }}">{{ o.provider.contact_phone or 'телефон не указан' }}</a></p>
+    {% if o.provider.telegram %}
+    <p style="font-size:18px;margin:0"><a href="{{ o.provider.telegram }}" target="_blank" rel="noopener">{{ o.provider.telegram }}</a></p>
+    {% else %}
+    <p class="muted">Telegram не указан</p>
+    {% endif %}
+    <p class="hint">Эти контакты только здесь. На публичной карточке их нет.</p>
+  </div>
 
   <form method="post" action="/admin/dosug/{{ o.id }}" enctype="multipart/form-data">
     <input type="hidden" name="csrf" value="{{ csrf }}">
@@ -190,7 +200,8 @@
           <div class="field"><label>Соцсети</label><input type="text" name="socials" value="{{ o.provider.socials or '' }}"></div>
           <div class="field"><label>Имя контакта</label><input type="text" name="contact_name" value="{{ o.provider.contact_name or '' }}"></div>
           <div class="field"><label>Телефон</label><input type="text" name="contact_phone" value="{{ o.provider.contact_phone or '' }}"></div>
-          <div class="field"><label>Мессенджер</label><input type="text" name="contact_messenger" value="{{ o.provider.contact_messenger or '' }}"></div>
+          <div class="field"><label>Telegram</label><input type="text" name="contact_telegram" value="{{ o.provider.telegram or '' }}" placeholder="@username или t.me/…"></div>
+          <div class="field"><label>Другой мессенджер</label><input type="text" name="contact_messenger" value="{{ o.provider.contact_messenger or '' }}"></div>
         </div>
       </div>
     </div>

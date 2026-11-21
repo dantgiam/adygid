@@ -83,15 +83,19 @@
         <label class="lz-field"><span>Соцсети</span>
           <input name="socials" maxlength="500" value="{{ values.socials }}"></label>
       </div>
-      <div class="lz-grid lz-grid-2">
-        <label class="lz-field"><span>Как к вам обращаться *</span>
-          <input name="contact_name" required maxlength="120" value="{{ values.contact_name }}" autocomplete="name"></label>
-        <label class="lz-field"><span>Телефон</span>
-          <input name="contact_phone" type="tel" maxlength="40" value="{{ values.contact_phone }}" placeholder="+7 …" autocomplete="tel">{{ ferr('contact_phone') }}</label>
-      </div>
-      <label class="lz-field"><span>Мессенджер</span>
-        <input name="contact_messenger" maxlength="160" value="{{ values.contact_messenger }}">
-        <p class="lz-hint">Нужен телефон или мессенджер. На карточке для гостей контактов нет. В бота и каналы форма ничего не отправляет.</p></label>
+      <label class="lz-field"><span>Как к вам обращаться *</span>
+        <input name="contact_name" required maxlength="120" value="{{ values.contact_name }}" autocomplete="name"></label>
+      <fieldset class="lz-panel">
+        <legend>Контакт для связи с АдыГидом</legend>
+        <p>Укажите, пожалуйста, ваш контактный номер телефона и ссылку на Telegram. Мы свяжемся с вами для уточнения деталей.</p>
+        <label class="lz-field"><span>Телефон *</span>
+          <input name="contact_phone" required type="tel" maxlength="40" value="{{ values.contact_phone }}" placeholder="+7 …" autocomplete="tel">{{ ferr('contact_phone') }}</label>
+        <label class="lz-field"><span>Telegram *</span>
+          <input name="contact_telegram" required maxlength="200" value="{{ values.contact_telegram }}" placeholder="@username или t.me/username" autocomplete="off">{{ ferr('contact_telegram') }}</label>
+        <p class="lz-hint">На карточке для гостей этих контактов нет. В бота и каналы форма ничего не отправляет.</p>
+      </fieldset>
+      <label class="lz-field"><span>Другой мессенджер</span>
+        <input name="contact_messenger" maxlength="160" value="{{ values.contact_messenger }}" placeholder="Необязательно"></label>
 
       <h2>Активность</h2>
       <label class="lz-field"><span>Название *</span>

@@ -37,6 +37,15 @@ router = APIRouter()
 
 MIGRATION = os.path.join(os.path.dirname(__file__), "..", "migrations", "20261119_leisure_offers.sql")
 _PHONE_RE = re.compile(r"^[+\d][\d\s()\-]{8,20}$")
+_TG_USER = re.compile(r"^[A-Za-z][A-Za-z0-9_]{4,31}$")
+_TG_LINK = re.compile(
+    r"^(?:https?://)?(?:www\.)?(?:t\.me|telegram\.me)/([A-Za-z0-9_+][A-Za-z0-9_/+-]{0,120})/?$",
+    re.I,
+)
+CONTACT_ASK = (
+    "Укажите, пожалуйста, ваш контактный номер телефона и ссылку на Telegram. "
+    "Мы свяжемся с вами для уточнения деталей."
+)
 _URL_RE = re.compile(r"^https?://\S{4,500}$", re.I)
 _CODE_RE = re.compile(r"^[a-f0-9]{16}$")
 
@@ -135,6 +144,7 @@ def _text(form, name: str, limit: int) -> str:
 _TEXT_KEYS = (
     "display_name", "legal_status", "legal_details", "licenses_note", "insurance_note",
     "instructor_note", "website", "socials", "contact_name", "contact_phone", "contact_messenger",
+    "contact_telegram",
     "title", "activity_type", "description", "meeting_address", "finish_address", "lat", "lon", "district",
     "duration_text", "schedule_text", "weather_terms", "price_amount", "price_unit", "price_text", "included",
     "excluded", "group_min", "group_max", "age_text", "weight_limit", "health_limits", "difficulty",
@@ -215,8 +225,9 @@ def validate_provider(data: dict) -> dict:
         "website": (data.get("website") or "")[:500] or None,
         "socials": (data.get("socials") or "")[:500] or None,
         "contact_name": _need(data.get("contact_name", ""), "Имя контакта", 2, "contact_name")[:120],
-        "contact_phone": (data.get("contact_phone") or "")[:40] or None,
+        "contact_phone": (data.get("contact_phone") or "")[:40],
         "contact_messenger": (data.get("contact_messenger") or "")[:160] or None,
+        "telegram": normalize_telegram(data.get("contact_telegram") or ""),
     }
     if out["legal_status"] not in cat.LEGAL_BY_CODE:
         raise FormError("Выберите юридический статус", "legal_status")
@@ -224,11 +235,33 @@ def validate_provider(data: dict) -> dict:
         raise FormError("Укажите, есть ли инструктор")
     if out["website"] and not _URL_RE.match(out["website"]):
         raise FormError("Сайт должен начинаться с https://")
-    if not out["contact_phone"] and not out["contact_messenger"]:
-        raise FormError("Оставьте телефон или мессенджер", "contact_phone")
-    if out["contact_phone"] and not _PHONE_RE.match(out["contact_phone"]):
-        raise FormError("Проверьте номер телефона")
+    if not out["contact_phone"]:
+        raise FormError("Укажите контактный номер телефона", "contact_phone")
+    if not _PHONE_RE.match(out["contact_phone"]):
+        raise FormError("Проверьте номер телефона", "contact_phone")
     return out
+
+
+def normalize_telegram(raw: str) -> str:
+    """@username или ссылка t.me/… → https://t.me/…"""
+    value = (raw or "").strip()
+    if value.startswith("@"):
+        user = value[1:]
+        if not _TG_USER.match(user):
+            raise FormError("Telegram: укажите @username или ссылку t.me/…", "contact_telegram")
+        return f"https://t.me/{user}"
+    match = _TG_LINK.match(value)
+    if not match:
+        raise FormError("Укажите ссылку на Telegram", "contact_telegram")
+    path = match.group(1).strip("/")
+    head = path.split("/", 1)[0]
+    if _TG_USER.match(head) and "/" not in path:
+        return f"https://t.me/{head}"
+    if head.startswith("+") and len(head) >= 6 and "/" not in path:
+        return f"https://t.me/{head}"
+    if path.lower().startswith("joinchat/") and len(path) > len("joinchat/"):
+        return "https://t.me/" + path
+    raise FormError("Telegram: укажите @username или ссылку t.me/…", "contact_telegram")
 
 
 def validate_offer(data: dict) -> dict:
@@ -417,7 +450,7 @@ def _blank() -> dict:
     return {
         "display_name": "", "legal_status": "", "legal_details": "", "licenses_note": "",
         "insurance_note": "", "has_instructor": "", "instructor_note": "", "website": "", "socials": "",
-        "contact_name": "", "contact_phone": "", "contact_messenger": "",
+        "contact_name": "", "contact_phone": "", "contact_messenger": "", "contact_telegram": "",
         "title": "", "activity_type": "", "description": "", "meeting_address": "", "finish_address": "",
         "lat": "", "lon": "", "district": "", "duration_text": "", "schedule_text": "", "weather_terms": "",
         "price_amount": "", "price_unit": "person", "price_text": "", "included": "", "excluded": "",
@@ -447,6 +480,7 @@ def _from_provider(row: LeisureProvider) -> dict:
         "contact_name": row.contact_name or "",
         "contact_phone": row.contact_phone or "",
         "contact_messenger": row.contact_messenger or "",
+        "contact_telegram": row.telegram or "",
         "code": row.code,
         "consent": True,
     })
