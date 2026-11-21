@@ -1,12 +1,55 @@
-"""SEO-настройки, которые пока живут в коде, а не в админке.
+"""SEO-настройки. Title и description статей, маршрутов, округов и сценариев
+уже можно править в админке. Поле из админки важнее словаря ниже, словарь
+важнее формулы в шаблоне. Словари не удаляем: пока поле пустое, на сайте
+остаётся прежний текст.
 
 Title страницы и H1 — разные вещи: H1 остаётся живым авторским заголовком,
 а в <title> добавляем формулировку, которую реально ищут («Каменномостский»,
-«Адыгея», «что посмотреть»). Пусто в словаре — title собирается как раньше.
-Когда правил станет больше, их стоит перенести в поле seo_title в админке.
+«Адыгея», «что посмотреть»). Пусто и в админке, и в словаре — title
+собирается как раньше.
 """
 from datetime import date
 from typing import Optional
+
+# Длины как у карточек мест: в поле рекомендуем 60 и 160 знаков,
+# сохраняем title не длиннее 80, description — от 60 до 230.
+# Пустое поле не ошибка: на сайте остаётся словарь или формула шаблона.
+SEO_TITLE_RECOMMENDED = 60
+SEO_TITLE_MAX = 80
+SEO_DESC_RECOMMENDED = 160
+SEO_DESC_MIN = 60
+SEO_DESC_MAX = 230
+
+
+def _seo_flat(value: Optional[str]) -> str:
+    return " ".join((value or "").split())
+
+
+def same_seo_text(left: Optional[str], right: Optional[str]) -> bool:
+    """Одинаковый текст после схлопывания пробелов: поле не меняли."""
+    return _seo_flat(left) == _seo_flat(right)
+
+
+def normalize_seo_title(value: Optional[str]) -> Optional[str]:
+    """Пусто → None. Длиннее потолка — ValueError, вызывающий отдаёт 400."""
+    text = _seo_flat(value)
+    if not text:
+        return None
+    if len(text) > SEO_TITLE_MAX:
+        raise ValueError(f"Title для поиска — до {SEO_TITLE_MAX} знаков (сейчас {len(text)}).")
+    return text
+
+
+def normalize_seo_description(value: Optional[str]) -> Optional[str]:
+    """Пусто → None. Вне 60–230 знаков — ValueError."""
+    text = _seo_flat(value)
+    if not text:
+        return None
+    if len(text) < SEO_DESC_MIN or len(text) > SEO_DESC_MAX:
+        raise ValueError(
+            f"Description для поиска — от {SEO_DESC_MIN} до {SEO_DESC_MAX} знаков (сейчас {len(text)})."
+        )
+    return text
 
 # /okrugi/{slug}: title. В имени округа в базе «Округ Хаджоха» — по такому
 # названию никто не ищет, ищут посёлок и «что посмотреть». Формулы разные:
@@ -275,6 +318,8 @@ FACT_SOURCES = {
                      "url": "https://pokolenie.adygheya.gov.ru/tourism/dolina-ammonitov/"},
     "gov_bogatyr": {"title": "туристический портал Правительства Адыгеи",
                     "url": "https://pokolenie.adygheya.gov.ru/tourism/bogatyrskaya-polyana/"},
+    "gov_dakh_most": {"title": "туристический портал Правительства Адыгеи",
+                      "url": "https://pokolenie.adygheya.gov.ru/tourism/dakhovskiy-most/"},
     "zapoved_close": {"title": "новость заповедника от 26.10.2026 о закрытии маршрутов",
                       "url": "https://www.kavkazzapoved.ru/news/s-27-oktyabrya-zakryvaetsya-chast-letnikh-turisticheskikh-marshrutov"},
     "zapoved_30v": {"title": "маршрут № 30 В на сайте заповедника",
@@ -964,6 +1009,27 @@ PLACE_PRACTICAL = {
         "winter": "После дождя глина на подъёме скользкая. К краю скалы не подходи, особенно в гололёд.",
         "kids": "Нет: крутой подъём и край смотровой, не прогулка с малышами.",
         "combine": [91, 93, 24],
+    },
+    # Раньше у 30 и 49 блока не было. Часы, цены и километры — только если их
+    # прямо пишет источник; пустое поле в таблицу не попадает.
+    30: {
+        "how": {"text": "Посёлок Победа, ул. Родниковая, 5, склон горы Физиабго. С дороги Майкоп — Гузерипль в Каменномостском поворот на восток до посёлка.",
+                "source": "https://mihailov-monastir.narod.ru/"},
+        "combine": [46],
+    },
+    49: {
+        "facts": {"name": "Старый мост в Даховской", "hours": "круглосуточно",
+                  "opens": "00:00", "closes": "23:59",
+                  "price": 0, "price_label": "бесплатно",
+                  "price_place": "Посещение старого моста в Даховской",
+                  "seo_title": "Старый мост в Даховской: вход свободный, как добраться",
+                  "locality": "ст. Даховская"},
+        "checked": "2026-11-19", "sources": ["gov_dakh_most"],
+        "hours": "На портале Правительства Адыгеи режим указан как круглосуточный.",
+        "tickets": "Вход бесплатный (0 ₽).",
+        "how": "Станица Даховская, каменный мост через реку Дах, построенный казаками в 1906 году. На портале Правительства Адыгеи: через реку построили новый мост, чтобы сохранить старый.",
+        "kids": "Портал рекомендует с детьми.",
+        "combine": [48, 50],
     },
 
 }

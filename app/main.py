@@ -35,6 +35,7 @@ from site_app.content import (
     consider_embed_html,
 )
 from site_app.router import router as site_router
+from site_app import seo
 from app.bot_admin import router as bot_admin_router
 
 app = FastAPI(title="АдыГид API v2")
@@ -222,6 +223,14 @@ with engine.begin() as _conn:
     _conn.execute(text("UPDATE site_pages SET items = '[]'::jsonb WHERE items IS NULL"))
     _conn.execute(text("ALTER TABLE site_pages ALTER COLUMN items SET DEFAULT '[]'::jsonb"))
     _conn.execute(text("ALTER TABLE site_pages ALTER COLUMN items SET NOT NULL"))
+
+    # SEO-поля статей, маршрутов, округов и title сценария. Файл повторяемый:
+    # только ADD COLUMN IF NOT EXISTS, уже записанные тексты не переписывает.
+    _seo_sql = os.path.join(os.path.dirname(__file__), "..", "migrations", "20261119_seo_admin_fields.sql")
+    for _chunk in open(_seo_sql, encoding="utf-8").read().split(";"):
+        _lines = [ln for ln in _chunk.splitlines() if ln.strip() and not ln.strip().startswith("--")]
+        if _lines:
+            _conn.execute(text("\n".join(_lines)))
 
 from site_app.podbor_api import ensure_podbor_table
 ensure_podbor_table()
@@ -740,6 +749,8 @@ class TrailIn(ExtraCriteriaIn):
     yandex_url: Optional[str] = None
     # Адрес страницы на сайте; пусто — слаг из названия (app/slugs.py).
     slug: Optional[str] = None
+    seo_title: Optional[str] = None
+    seo_description: Optional[str] = None
 
 class TrailUpdate(ExtraCriteriaIn):
     name: Optional[str] = None
@@ -751,6 +762,16 @@ class TrailUpdate(ExtraCriteriaIn):
     yandex_url: Optional[str] = None
     # Адрес страницы на сайте; пусто — слаг из названия (app/slugs.py).
     slug: Optional[str] = None
+    seo_title: Optional[str] = None
+    seo_description: Optional[str] = None
+
+
+def _stored_seo(normalize, value):
+    """Пустая строка сохраняется как NULL. Слишком длинное или короткое — 400."""
+    try:
+        return normalize(value)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 class SegmentIn(BaseModel):
     difficulty: str = "easy"      # easy | medium | hard
@@ -843,6 +864,8 @@ class ArticleIn(BaseModel):
     featured_checkpoint_ids: Optional[List[int]] = None
     featured_trail_ids: Optional[List[int]] = None
     is_published: bool = True
+    seo_title: Optional[str] = None
+    seo_description: Optional[str] = None
 
 class ArticleUpdate(BaseModel):
     title: Optional[str] = None
@@ -857,6 +880,8 @@ class ArticleUpdate(BaseModel):
     featured_checkpoint_ids: Optional[List[int]] = None
     featured_trail_ids: Optional[List[int]] = None
     is_published: Optional[bool] = None
+    seo_title: Optional[str] = None
+    seo_description: Optional[str] = None
 
 
 class ScenarioIn(BaseModel):
@@ -872,6 +897,7 @@ class ScenarioIn(BaseModel):
     tile_cover_url: Optional[str] = None
     tile_cover_thumb_url: Optional[str] = None
     tile_cover_focus: Optional[str] = None
+    seo_title: Optional[str] = None
     seo_description: Optional[str] = None
     featured_article_ids: List[int] = []
     # Три состояния — "any"/"yes"/"no" и "any"/"year_round"/"summer_only" —
@@ -1005,6 +1031,8 @@ def create_trail(body: TrailIn, db: Session = Depends(get_db), _: bool = Depends
         checked_at=body.checked_at,
         is_published=body.is_published,
         yandex_url=body.yandex_url or None,
+        seo_title=_stored_seo(seo.normalize_seo_title, body.seo_title),
+        seo_description=_stored_seo(seo.normalize_seo_description, body.seo_description),
         **_extra_criteria_kwargs(body),
     )
     if body.slug and body.slug.strip():
@@ -1016,6 +1044,9 @@ def create_trail(body: TrailIn, db: Session = Depends(get_db), _: bool = Depends
 @app.patch("/api/trails/{trail_id}")
 def update_trail(trail_id: int, body: TrailUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     t = _get_or_404(db, Trail, trail_id)
+    # Проверяем длины до записи остальных полей: ошибка не должна менять маршрут.
+    seo_title = _stored_seo(seo.normalize_seo_title, body.seo_title) if "seo_title" in body.model_fields_set else None
+    seo_description = _stored_seo(seo.normalize_seo_description, body.seo_description) if "seo_description" in body.model_fields_set else None
     if body.name is not None:              t.name = body.name
     if body.description is not None:       t.description = body.description
     if body.category_id is not None:       t.category_id = body.category_id
@@ -1026,6 +1057,8 @@ def update_trail(trail_id: int, body: TrailUpdate, db: Session = Depends(get_db)
     # Переименование слаг не трогает (адрес стабилен); сменить его можно
     # только явно — тогда старый адрес остаётся 301-редиректом.
     if body.slug is not None and body.slug.strip(): _set_slug(db, t, body.slug)
+    if "seo_title" in body.model_fields_set: t.seo_title = seo_title
+    if "seo_description" in body.model_fields_set: t.seo_description = seo_description
     _apply_extra_criteria(t, body)
     db.commit(); db.refresh(t)
     return _trail_out(t)
@@ -1086,6 +1119,8 @@ def _trail_out(t: Trail):
         "checked_at": t.checked_at.isoformat() if t.checked_at else None,
         "is_published": t.is_published,
         "yandex_url": t.yandex_url,
+        "seo_title": t.seo_title,
+        "seo_description": t.seo_description,
         "segments": [_seg_out(s) for s in t.segments],
         "checkpoints": [_cp_out(c) for c in t.checkpoints],
         "photos": [_photo_out(p) for p in t.photos],
@@ -1378,6 +1413,8 @@ def create_article(body: ArticleIn, db: Session = Depends(get_db), _: bool = Dep
         featured_checkpoint_ids=body.featured_checkpoint_ids or [],
         featured_trail_ids=body.featured_trail_ids or [],
         is_published=body.is_published,
+        seo_title=_stored_seo(seo.normalize_seo_title, body.seo_title),
+        seo_description=_stored_seo(seo.normalize_seo_description, body.seo_description),
     )
     db.add(a); db.commit(); db.refresh(a)
     return _article_out(a)
@@ -1386,6 +1423,8 @@ def create_article(body: ArticleIn, db: Session = Depends(get_db), _: bool = Dep
 @app.patch("/api/articles/{article_id}")
 def update_article(article_id: int, body: ArticleUpdate, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     a = _get_or_404(db, Article, article_id)
+    seo_title = _stored_seo(seo.normalize_seo_title, body.seo_title) if "seo_title" in body.model_fields_set else None
+    seo_description = _stored_seo(seo.normalize_seo_description, body.seo_description) if "seo_description" in body.model_fields_set else None
     if body.title is not None: a.title = body.title
     # Старый адрес статьи остаётся 301-редиректом на новый (slug_redirects).
     if body.slug is not None and body.slug.strip(): _set_slug(db, a, body.slug)
@@ -1399,6 +1438,8 @@ def update_article(article_id: int, body: ArticleUpdate, db: Session = Depends(g
     if body.featured_checkpoint_ids is not None: a.featured_checkpoint_ids = body.featured_checkpoint_ids
     if body.featured_trail_ids is not None: a.featured_trail_ids = body.featured_trail_ids
     if body.is_published is not None: a.is_published = body.is_published
+    if "seo_title" in body.model_fields_set: a.seo_title = seo_title
+    if "seo_description" in body.model_fields_set: a.seo_description = seo_description
     db.commit(); db.refresh(a)
     return _article_out(a)
 
@@ -1425,6 +1466,8 @@ def _article_out(a: Article):
         "featured_checkpoint_ids": a.featured_checkpoint_ids or [],
         "featured_trail_ids": a.featured_trail_ids or [],
         "is_published": a.is_published,
+        "seo_title": a.seo_title,
+        "seo_description": a.seo_description,
     }
 
 
@@ -1442,7 +1485,37 @@ def _tri_to_season(value: str) -> Optional[str]:
     return value if value in ("year_round", "summer_only") else None
 
 
-def _apply_scenario(sc: Scenario, body: ScenarioIn):
+def _scenario_seo_description(sc: Scenario, body: ScenarioIn):
+    """Новый текст проверяем. Прежний вне 60–230 не блокирует остальные правки.
+
+    Ключ, которого в теле нет, поле не затирает: скрипт публикации может
+    прислать сценарий без seo_description, если в админке оно уже задано.
+    """
+    if "seo_description" not in body.model_fields_set:
+        return sc.seo_description, _seo_length_warning(sc.seo_description)
+    if seo.same_seo_text(sc.seo_description, body.seo_description):
+        kept = sc.seo_description if (sc.seo_description or "").strip() else None
+        return kept, _seo_length_warning(kept)
+    return _stored_seo(seo.normalize_seo_description, body.seo_description), None
+
+
+def _seo_length_warning(value: Optional[str]) -> Optional[str]:
+    text = seo._seo_flat(value)
+    if not text or seo.SEO_DESC_MIN <= len(text) <= seo.SEO_DESC_MAX:
+        return None
+    return (
+        f"Description для поиска сейчас {len(text)} знаков — вне "
+        f"{seo.SEO_DESC_MIN}–{seo.SEO_DESC_MAX}. Остальные правки сохранены. "
+        "Если меняете это поле, уложите текст в диапазон."
+    )
+
+
+def _apply_scenario(sc: Scenario, body: ScenarioIn) -> Optional[str]:
+    # Title — только если ключ реально прислали. Description — тоже,
+    # кроме случая, когда форму прислали целиком со старым текстом вне диапазона:
+    # тогда текст остаётся, а в ответе будет предупреждение.
+    seo_description, warning = _scenario_seo_description(sc, body)
+    seo_title = _stored_seo(seo.normalize_seo_title, body.seo_title) if "seo_title" in body.model_fields_set else sc.seo_title
     if body.door is not None: sc.door = body.door
     if body.title is not None: sc.title = body.title
     sc.icon = body.icon
@@ -1454,7 +1527,8 @@ def _apply_scenario(sc: Scenario, body: ScenarioIn):
     sc.tile_cover_url = body.tile_cover_url
     sc.tile_cover_thumb_url = body.tile_cover_thumb_url
     sc.tile_cover_focus = body.tile_cover_focus or None
-    sc.seo_description = body.seo_description
+    sc.seo_title = seo_title
+    sc.seo_description = seo_description
     sc.featured_article_ids = body.featured_article_ids or []
     sc.filter_kid_friendly = _tri_to_kid(body.filter_kid_friendly)
     sc.filter_popularity = body.filter_popularity or []
@@ -1463,6 +1537,7 @@ def _apply_scenario(sc: Scenario, body: ScenarioIn):
     sc.filter_access = body.filter_access or []
     sc.order_index = body.order_index
     sc.is_published = body.is_published
+    return warning
 
 
 @app.get("/api/scenarios")
@@ -1476,9 +1551,12 @@ def list_scenarios(db: Session = Depends(get_db), admin: bool = Depends(viewer_i
 def create_scenario(body: ScenarioIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     slug = _unique_slug(db, _slugify(body.slug or body.door), model=Scenario)
     sc = Scenario(slug=slug)
-    _apply_scenario(sc, body)
+    warning = _apply_scenario(sc, body)
     db.add(sc); db.commit(); db.refresh(sc)
-    return _scenario_out(sc)
+    out = _scenario_out(sc)
+    if warning:
+        out["seo_warning"] = warning
+    return out
 
 
 @app.patch("/api/scenarios/{scenario_id}")
@@ -1486,9 +1564,12 @@ def update_scenario(scenario_id: int, body: ScenarioUpdate, db: Session = Depend
     sc = _get_or_404(db, Scenario, scenario_id)
     if body.slug is not None:
         sc.slug = _unique_slug(db, _slugify(body.slug), exclude_id=scenario_id, model=Scenario)
-    _apply_scenario(sc, body)
+    warning = _apply_scenario(sc, body)
     db.commit(); db.refresh(sc)
-    return _scenario_out(sc)
+    out = _scenario_out(sc)
+    if warning:
+        out["seo_warning"] = warning
+    return out
 
 
 @app.delete("/api/scenarios/{scenario_id}")
@@ -1513,6 +1594,7 @@ def _scenario_out(s: Scenario):
         "tile_cover_url": s.tile_cover_url,
         "tile_cover_thumb_url": s.tile_cover_thumb_url,
         "tile_cover_focus": s.tile_cover_focus,
+        "seo_title": s.seo_title,
         "seo_description": s.seo_description,
         "featured_article_ids": s.featured_article_ids or [],
         "filter_kid_friendly": {True: "yes", False: "no"}.get(s.filter_kid_friendly, "any"),
@@ -1741,6 +1823,8 @@ class DistrictIn(BaseModel):
     cover_focus: Optional[str] = None
     order_index: Optional[int] = None
     is_published: Optional[bool] = None
+    seo_title: Optional[str] = None
+    seo_description: Optional[str] = None
 
 
 def _district_out(d: District) -> dict:
@@ -1748,6 +1832,7 @@ def _district_out(d: District) -> dict:
         "id": d.id, "slug": d.slug, "name": d.name, "lead": d.lead or "",
         "facts": d.facts or [], "cover_url": d.cover_url, "cover_thumb_url": d.cover_thumb_url,
         "cover_focus": d.cover_focus,
+        "seo_title": d.seo_title, "seo_description": d.seo_description,
         "order_index": d.order_index, "is_published": d.is_published,
     }
 
@@ -1769,6 +1854,8 @@ def create_district(body: DistrictIn, db: Session = Depends(get_db), _: bool = D
     d = District(
         slug=slug, name=body.name, lead=body.lead, facts=body.facts or [],
         cover_url=body.cover_url, cover_thumb_url=body.cover_thumb_url, cover_focus=body.cover_focus,
+        seo_title=_stored_seo(seo.normalize_seo_title, body.seo_title),
+        seo_description=_stored_seo(seo.normalize_seo_description, body.seo_description),
         order_index=body.order_index or 0,
         is_published=True if body.is_published is None else body.is_published,
     )
@@ -1779,6 +1866,8 @@ def create_district(body: DistrictIn, db: Session = Depends(get_db), _: bool = D
 @app.patch("/api/districts/{district_id}")
 def update_district(district_id: int, body: DistrictIn, db: Session = Depends(get_db), _: bool = Depends(require_admin)):
     d = _get_or_404(db, District, district_id)
+    seo_title = _stored_seo(seo.normalize_seo_title, body.seo_title) if "seo_title" in body.model_fields_set else None
+    seo_description = _stored_seo(seo.normalize_seo_description, body.seo_description) if "seo_description" in body.model_fields_set else None
     # slug намеренно не меняем: он записан в district у мест, маршрутов и статей,
     # и правка здесь молча оторвала бы их все от округа.
     if body.name is not None: d.name = body.name
@@ -1789,6 +1878,8 @@ def update_district(district_id: int, body: DistrictIn, db: Session = Depends(ge
     if body.cover_focus is not None: d.cover_focus = body.cover_focus or None
     if body.order_index is not None: d.order_index = body.order_index
     if body.is_published is not None: d.is_published = body.is_published
+    if "seo_title" in body.model_fields_set: d.seo_title = seo_title
+    if "seo_description" in body.model_fields_set: d.seo_description = seo_description
     db.commit()
     return _district_out(d)
 
@@ -1882,12 +1973,27 @@ ensure_admin_text_tables()
 app.include_router(texts_admin_router)
 
 # Поездки автора (/admin/poezdki) и разовые правки карточек: монастырь 30
-# и черновик Белореченского водопада. Повторный старт уже записанное не затирает.
+# и черновик Белореченского водопада. После сида «Коротко для поездки»:
+# H1 и SEO-title пустыни меняются, только если там ещё старый текст;
+# строки блока из #36 не затираются. Повторный старт уже записанное не трогает.
 from app.content_fixes import apply_editorial as _apply_editorial
 from app.trips_admin import router as trips_admin_router
 
 _apply_editorial(engine)
 app.include_router(trips_admin_router)
+
+# Ленты фото в статьях, маршрутах и сценариях. Выключено, пока на сервисе
+# нет APPLY_ARTICLE_CAROUSELS=1. Ошибка записи не роняет сайт.
+from content.carousels_2026_11.live import apply_if_enabled
+
+apply_if_enabled()
+
+# SEO title/description статей, маршрутов, округов и сценариев (21.11.2026).
+# Один раз, по метке; поля, правленные в админке, не трогает. Ошибка не роняет сайт.
+# Идёт после карточки 30: эти тексты про статьи и маршруты, title пустыни не переписывают.
+from content.seo_texts_2026_11.apply import run_on_startup as apply_seo_texts
+
+apply_seo_texts()
 
 
 @app.get("/api/podbor/stats")

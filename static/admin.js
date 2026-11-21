@@ -130,6 +130,54 @@ function districtOptionsHtml(selected) {
   return `<option value="">— не указан —</option>` + optionsHtml(DISTRICT_OPTS, selected);
 }
 
+// Длины как у мест (site_app/seo.py): рекомендуем 60 и 160,
+// потолок title — 80, description — от 60 до 230. Пустое поле можно.
+const SEO_TITLE_REC = 60, SEO_TITLE_MAX = 80;
+const SEO_DESC_REC = 160, SEO_DESC_MIN = 60, SEO_DESC_MAX = 230;
+
+function seoFlat(value) {
+  return (value || '').trim().replace(/\s+/g, ' ');
+}
+
+function paintSeoCounts() {
+  document.querySelectorAll('[data-seo-for]').forEach(c => {
+    const el = document.getElementById(c.dataset.seoFor);
+    if (!el) return;
+    const n = seoFlat(el.value).length;
+    const title = c.dataset.seoKind === 'title';
+    const rec = title ? SEO_TITLE_REC : SEO_DESC_REC;
+    c.textContent = n ? `· ${n} / ${rec}` : `· рекомендуется ${rec}`;
+    const outside = title ? n > SEO_TITLE_REC : (n > 0 && (n < SEO_DESC_MIN || n > SEO_DESC_REC));
+    c.classList.toggle('over', outside);
+  });
+  const warn = document.getElementById('sc-seo-warn');
+  const desc = document.getElementById('sc-seo');
+  if (warn && desc) {
+    const n = seoFlat(desc.value).length;
+    const changed = seoFlat(desc.value) !== scenarioSeoDescOriginal;
+    const bad = n > 0 && (n < SEO_DESC_MIN || n > SEO_DESC_MAX);
+    warn.hidden = !bad;
+    warn.textContent = !bad ? '' : (changed
+      ? `Сейчас ${n} знаков — нужно от ${SEO_DESC_MIN} до ${SEO_DESC_MAX}, иначе это поле не сохранится.`
+      : `Сейчас ${n} знаков — вне ${SEO_DESC_MIN}–${SEO_DESC_MAX}. Другие правки сохранятся. Если меняете это поле, уложите текст в диапазон.`);
+  }
+}
+
+let scenarioSeoDescOriginal = '';
+
+function seoLengthError(title, desc, originalDesc) {
+  if (title.length > SEO_TITLE_MAX) {
+    return `Title для поиска — до ${SEO_TITLE_MAX} знаков (сейчас ${title.length}).`;
+  }
+  // Старое описание сценария вне диапазона не блокирует сохранение,
+  // пока его текст не меняли.
+  const unchanged = originalDesc !== undefined && seoFlat(desc) === seoFlat(originalDesc);
+  if (desc && !unchanged && (desc.length < SEO_DESC_MIN || desc.length > SEO_DESC_MAX)) {
+    return `Description для поиска — от ${SEO_DESC_MIN} до ${SEO_DESC_MAX} знаков (сейчас ${desc.length}).`;
+  }
+  return '';
+}
+
 function categoryOptionsHtml(kind, selected) {
   // Служебные категории показываем, но помечаем — иначе легко случайно
   // выбрать «Стоянку» и потерять объект из фильтров на сайте.
@@ -461,7 +509,7 @@ function initDescEditor(html, scope) {
   registerGalleryMatcher(descQuill);
   disableQuillAutoScroll(descQuill);
   descQuill.setContents([], 'silent');
-  if (html) descQuill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
+  if (html) pasteEditorHtml(descQuill, html);
 
   if (descDraftScope) {
     let draft = null;
@@ -470,7 +518,7 @@ function initDescEditor(html, scope) {
       const when = new Date(draft.savedAt).toLocaleString('ru-RU');
       if (confirm(`Найден несохранённый черновик текста от ${when}. Восстановить его?`)) {
         descQuill.setContents([], 'silent');
-        descQuill.clipboard.dangerouslyPasteHTML(0, draft.html, 'silent');
+        pasteEditorHtml(descQuill, draft.html);
       } else {
         clearDescDraft(descDraftScope);
       }
@@ -867,7 +915,7 @@ function setArticleBody(html) {
   // редактор не разбирает в свою модель, и часть разметки (списки в первую
   // очередь) молча теряется при первом же сохранении.
   articleQuill.setContents([], 'silent');
-  if (html) articleQuill.clipboard.dangerouslyPasteHTML(0, html, 'silent');
+  if (html) pasteEditorHtml(articleQuill, html);
 }
 
 function initArticleQuill() {
@@ -942,6 +990,9 @@ function openArticleEditor(id) {
   const a = id ? articles.find(x => x.id === id) : null;
   document.getElementById('a-title').value = a ? a.title : '';
   document.getElementById('a-excerpt').value = a ? (a.excerpt || '') : '';
+  document.getElementById('a-seo-title').value = a ? (a.seo_title || '') : '';
+  document.getElementById('a-seo-desc').value = a ? (a.seo_description || '') : '';
+  paintSeoCounts();
   document.getElementById('a-slug').value = a ? a.slug : '';
   document.getElementById('a-cover-url').value = a ? (a.cover_url || '') : '';
   document.getElementById('a-cover-focus').value = a ? (a.cover_focus || '') : '';
@@ -995,17 +1046,86 @@ function readArticleBody() {
 // превью разворачивается обратно в голые <img> внутри <p> — именно то, что
 // умеет разобрать _render_article_gallery на сервере.
 function flattenGalleryEmbeds(clone) {
+  // Подпись без авторской строки возвращается в <p><img alt>: так устроены
+  // старые статьи, и сервер снова собирает из них галерею. Строка «Фото: …»
+  // в alt не влезает, поэтому кадр с кредитом уходит обратно в figure.shot —
+  // исходный формат новых статей, сервер группирует соседние фигуры сам.
   clone.querySelectorAll('.gallery-embed').forEach(el => {
-    const p = document.createElement('p');
-    el.querySelectorAll('img').forEach(img => {
-      const out = document.createElement('img');
-      out.setAttribute('src', img.getAttribute('src') || '');
-      const alt = img.getAttribute('alt') || '';
-      if (alt) out.setAttribute('alt', alt);
-      p.appendChild(out);
-    });
-    el.replaceWith(p);
+    const items = Array.from(el.querySelectorAll('img')).map(img => ({
+      url: img.getAttribute('src') || '',
+      caption: img.getAttribute('alt') || '',
+      credit: img.getAttribute('data-credit') || '',
+    })).filter(it => it.url);
+    if (!items.length) { el.remove(); return; }
+    const frag = document.createDocumentFragment();
+    if (items.some(it => it.credit)) {
+      items.forEach(it => frag.appendChild(shotFigure(it)));
+    } else {
+      const p = document.createElement('p');
+      items.forEach(it => {
+        const out = document.createElement('img');
+        out.setAttribute('src', it.url);
+        if (it.caption) out.setAttribute('alt', it.caption);
+        p.appendChild(out);
+      });
+      frag.appendChild(p);
+    }
+    el.replaceWith(frag);
   });
+}
+
+function shotFigure(it) {
+  const fig = document.createElement('figure');
+  fig.className = 'shot';
+  const img = document.createElement('img');
+  img.setAttribute('src', it.url);
+  if (it.caption) img.setAttribute('alt', it.caption);
+  fig.appendChild(img);
+  if (it.caption || it.credit) {
+    const cap = document.createElement('figcaption');
+    if (it.caption) cap.appendChild(document.createTextNode(it.caption));
+    if (it.credit) {
+      if (it.caption) cap.appendChild(document.createElement('br'));
+      const small = document.createElement('small');
+      small.innerHTML = safeCreditHtml(it.credit);
+      cap.appendChild(small);
+    }
+    fig.appendChild(cap);
+  }
+  return fig;
+}
+
+function safeCreditHtml(html) {
+  const parsed = new DOMParser().parseFromString('<div>' + (html || '') + '</div>', 'text/html');
+  const root = parsed.body.firstChild;
+  function walk(node) {
+    const out = [];
+    node.childNodes.forEach(child => {
+      if (child.nodeType === 3) { out.push(document.createTextNode(child.textContent)); return; }
+      if (child.nodeType !== 1) return;
+      const tag = child.tagName;
+      if (tag === 'BR') { out.push(document.createElement('br')); return; }
+      if (tag === 'EM' || tag === 'STRONG' || tag === 'B' || tag === 'I' || tag === 'A') {
+        const el = document.createElement(tag.toLowerCase());
+        if (tag === 'A') {
+          const href = (child.getAttribute('href') || '').trim();
+          if (/^(https?:\/\/|\/|mailto:)/i.test(href) && !/javascript:|data:/i.test(href)) {
+            el.setAttribute('href', href);
+            el.setAttribute('rel', 'nofollow noopener');
+            el.setAttribute('target', '_blank');
+          }
+        }
+        walk(child).forEach(n => el.appendChild(n));
+        out.push(el);
+        return;
+      }
+      walk(child).forEach(n => out.push(n));
+    });
+    return out;
+  }
+  const box = document.createElement('div');
+  if (root) walk(root).forEach(n => box.appendChild(n));
+  return box.innerHTML;
 }
 
 function collectArticleDraft() {
@@ -1013,6 +1133,8 @@ function collectArticleDraft() {
     savedAt: Date.now(),
     title: document.getElementById('a-title').value,
     excerpt: document.getElementById('a-excerpt').value,
+    seo_title: document.getElementById('a-seo-title').value,
+    seo_description: document.getElementById('a-seo-desc').value,
     slug: document.getElementById('a-slug').value,
     cover_url: document.getElementById('a-cover-url').value,
     district: document.getElementById('a-district').value,
@@ -1050,6 +1172,9 @@ function clearDraft(id) {
 function applyDraft(d) {
   document.getElementById('a-title').value = d.title || '';
   document.getElementById('a-excerpt').value = d.excerpt || '';
+  document.getElementById('a-seo-title').value = d.seo_title || '';
+  document.getElementById('a-seo-desc').value = d.seo_description || '';
+  paintSeoCounts();
   document.getElementById('a-slug').value = d.slug || '';
   document.getElementById('a-cover-url').value = d.cover_url || '';
   document.getElementById('a-cover-focus').value = d.cover_focus || '';
@@ -1074,6 +1199,10 @@ function previewArticle() {
 async function saveArticle() {
   const title = document.getElementById('a-title').value.trim();
   if (!title) { toast('Введите заголовок', true); return; }
+  const seoTitle = seoFlat(document.getElementById('a-seo-title').value);
+  const seoDesc = seoFlat(document.getElementById('a-seo-desc').value);
+  const seoError = seoLengthError(seoTitle, seoDesc);
+  if (seoError) { toast(seoError, true); return; }
 
   // Если новый файл не выбирали, миниатюру берём прежнюю. Раньше здесь было
   // просто null, и любое сохранение — хоть правка заголовка — стирало
@@ -1092,6 +1221,8 @@ async function saveArticle() {
     title,
     slug: document.getElementById('a-slug').value.trim() || null,
     excerpt: document.getElementById('a-excerpt').value.trim() || null,
+    seo_title: seoTitle || null,
+    seo_description: seoDesc || null,
     cover_url: coverUrl || null,
     cover_focus: document.getElementById('a-cover-focus') ? (document.getElementById('a-cover-focus').value || null) : null,
     cover_thumb_url: coverThumb,
@@ -1394,6 +1525,9 @@ function openRouteForm(id) {
   document.getElementById('rt-duration').value = v.duration_minutes || '';
   document.getElementById('rt-yandex-url').value = v.yandex_url || '';
   document.getElementById('rt-slug').value = v.slug || '';
+  document.getElementById('rt-seo-title').value = v.seo_title || '';
+  document.getElementById('rt-seo-desc').value = v.seo_description || '';
+  paintSeoCounts();
   document.getElementById('rt-desc-slot').innerHTML = descEditorHtml('Описание');
   document.getElementById('rt-criteria-slot').innerHTML = criteriaHtml(v);
   document.getElementById('rt-map-hint').style.display = t ? '' : 'none';
@@ -1420,6 +1554,10 @@ function previewRoute() {
 async function saveRoute() {
   const name = document.getElementById('rt-name').value.trim();
   if (!name) { toast('Введите название', true); return; }
+  const seoTitle = seoFlat(document.getElementById('rt-seo-title').value);
+  const seoDesc = seoFlat(document.getElementById('rt-seo-desc').value);
+  const seoError = seoLengthError(seoTitle, seoDesc);
+  if (seoError) { toast(seoError, true); return; }
 
   const payload = Object.assign({
     name,
@@ -1428,6 +1566,8 @@ async function saveRoute() {
     yandex_url: document.getElementById('rt-yandex-url').value.trim(),
     slug: document.getElementById('rt-slug').value.trim() || null,
     description: readDescEditor(),
+    seo_title: seoTitle || null,
+    seo_description: seoDesc || null,
   }, readCriteria());
 
   const wasNew = !editingRouteId;
@@ -2494,6 +2634,9 @@ function openScenarioForm(id) {
   document.getElementById('sc-tile-cover-focus').value = v.tile_cover_focus || '';
   document.getElementById('sc-tile-cover-file').value = '';
   document.getElementById('sc-seo').value = v.seo_description || '';
+  document.getElementById('sc-seo-title').value = v.seo_title || '';
+  scenarioSeoDescOriginal = seoFlat(v.seo_description || '');
+  paintSeoCounts();
   document.getElementById('sc-order').value = v.order_index;
   document.getElementById('sc-published').checked = v.is_published !== false;
 
@@ -2537,6 +2680,10 @@ async function saveScenario() {
   const door = document.getElementById('sc-door').value.trim();
   const title = document.getElementById('sc-title').value.trim();
   if (!door || !title) { toast('Заполните подпись и заголовок', true); return; }
+  const seoTitle = seoFlat(document.getElementById('sc-seo-title').value);
+  const seoDesc = seoFlat(document.getElementById('sc-seo').value);
+  const seoError = seoLengthError(seoTitle, seoDesc, scenarioSeoDescOriginal);
+  if (seoError) { toast(seoError, true); return; }
 
   // Та же история, что у статьи: без выбора нового файла миниатюра
   // затиралась в null, и плитка сценария на главной начинала тянуть
@@ -2573,7 +2720,8 @@ async function saveScenario() {
     tile_cover_focus: document.getElementById('sc-tile-cover-focus').value || null,
     tile_cover_url: tileCoverUrl || null,
     tile_cover_thumb_url: tileCoverUrl ? tileCoverThumb : null,
-    seo_description: document.getElementById('sc-seo').value.trim() || null,
+    seo_title: seoTitle || null,
+    seo_description: seoDesc || null,
     featured_article_ids: readPicker('sc-articles'),
     filter_kid_friendly: document.getElementById('sc-kid').value,
     filter_seasonality: document.getElementById('sc-season').value,
@@ -2593,7 +2741,9 @@ async function saveScenario() {
   editingScenarioId = saved.id;
   await loadAll();
   setSaveState('Сохранено на сервере', true, 'sc-save-state');
-  toast('Сценарий сохранён');
+  scenarioSeoDescOriginal = seoFlat(saved.seo_description || '');
+  paintSeoCounts();
+  toast(saved.seo_warning || 'Сценарий сохранён', !!saved.seo_warning);
 }
 
 function scheduleScenarioAutosave() {
@@ -2678,40 +2828,22 @@ function registerEmbedBlots() {
   ConsiderBlot.tagName = 'div';
   ConsiderBlot.className = 'consider-embed';
 
-  // Коллаж/фото с подписью — в отличие от магнита и набора вопросов, сюда
-  // не подставляется ничего с сервера: на сайте это просто несколько <img>
-  // подряд в одном <p> (см. _render_article_gallery в site_app/router.py),
-  // сервер группирует их в галерею сам. Здесь блот нужен только чтобы то же
-  // самое было видно уже в редакторе — при сохранении (readArticleBody/
-  // readDescEditor) он разворачивается обратно в голые <img>, а не остаётся
-  // пустым контейнером.
+  // Коллаж рисуется той же разметкой, что и на сайте (article-frame 3:2).
+  // При сохранении flattenGalleryEmbeds возвращает <p><img> или figure.shot,
+  // а публичная страница собирает из этого галерею ещё раз.
   class GalleryBlot extends BlockEmbed {
     static create(value) {
       const node = super.create();
       node.setAttribute('contenteditable', 'false');
-      const items = (value && value.items) || [];
-      if (items.length >= 2) {
-        const total = items.length;
-        node.innerHTML = '<div class="editor-gallery-track">' + items.map((it, i) => {
-          const cap = (it.caption || '').trim();
-          const capHtml = cap
-            ? '<figcaption class="editor-gallery-caption"><span class="editor-gallery-counter">' + (i + 1) + '/' + total + '</span><span class="editor-gallery-text">' + escHtml(cap) + '</span></figcaption>'
-            : '';
-          return '<figure class="editor-gallery-item"><img src="' + escAttr(it.url) + '" alt="' + escAttr(cap) + '">' + capHtml + '</figure>';
-        }).join('') + '</div>';
-      } else {
-        node.classList.add('single');
-        const it = items[0] || { url: '', caption: '' };
-        const cap = (it.caption || '').trim();
-        node.innerHTML = '<img src="' + escAttr(it.url) + '" alt="' + escAttr(cap) + '">' +
-          (cap ? '<figcaption>' + escHtml(cap) + '</figcaption>' : '');
-      }
+      const items = ((value && value.items) || []).filter(it => it && it.url);
+      node.appendChild(editorGalleryNode(items));
       return node;
     }
     static value(node) {
       const items = Array.from(node.querySelectorAll('img')).map(img => ({
         url: img.getAttribute('src') || '',
         caption: img.getAttribute('alt') || '',
+        credit: img.getAttribute('data-credit') || '',
       }));
       return { items };
     }
@@ -2724,26 +2856,260 @@ function registerEmbedBlots() {
   Quill.register(FaqBlot);
   Quill.register(ConsiderBlot);
   Quill.register(GalleryBlot);
+  bindEditorGalleries();
   window.__embedBlotsRegistered = true;
 }
 
-// При загрузке уже сохранённой статьи Quill парсит её HTML заново, и без этой
-// подсказки коллаж (несколько <img> подряд в одном <p>) снова превратился бы
-// в голые картинки без подписи — ровно баг, который этот блот и чинит.
-// Одиночное фото без подписи матчер не трогает — оно и на сайте, и в
-// редакторе остаётся обычной вставкой на всю ширину.
+function editorPhotoImg(it) {
+  const img = document.createElement('img');
+  img.setAttribute('src', it.url || '');
+  img.setAttribute('alt', (it.caption || '').trim());
+  img.setAttribute('width', '1500');
+  img.setAttribute('height', '1000');
+  img.setAttribute('loading', 'lazy');
+  if (it.credit) img.setAttribute('data-credit', it.credit);
+  return img;
+}
+
+function editorCaption(it, counter) {
+  const cap = (it.caption || '').trim();
+  if (!cap && !it.credit && !counter) return null;
+  const fig = document.createElement('figcaption');
+  if (counter) {
+    fig.className = 'article-gallery-caption';
+    const num = document.createElement('span');
+    num.className = 'article-gallery-counter';
+    num.textContent = counter;
+    fig.appendChild(num);
+  }
+  if (cap) {
+    const text = document.createElement('span');
+    text.className = 'article-gallery-text';
+    text.textContent = cap;
+    fig.appendChild(text);
+  }
+  if (it.credit) {
+    const small = document.createElement('small');
+    small.className = 'article-gallery-credit';
+    small.innerHTML = safeCreditHtml(it.credit);
+    fig.appendChild(small);
+  }
+  return fig;
+}
+
+function editorFrame(it) {
+  const frame = document.createElement('div');
+  frame.className = 'article-frame';
+  frame.appendChild(editorPhotoImg(it));
+  return frame;
+}
+
+// Та же рамка, что рисует site_app/galleries.py: один кадр или лента.
+function editorGalleryNode(items) {
+  if (items.length >= 2) {
+    const total = items.length;
+    const gallery = document.createElement('div');
+    gallery.className = 'article-gallery';
+    gallery.setAttribute('data-gallery', '');
+    const stage = document.createElement('div');
+    stage.className = 'article-gallery-stage';
+    const track = document.createElement('div');
+    track.className = 'article-gallery-track';
+    track.setAttribute('data-gal-track', '');
+    items.forEach((it, i) => {
+      const fig = document.createElement('figure');
+      fig.className = 'article-gallery-item';
+      fig.appendChild(editorFrame(it));
+      const cap = editorCaption(it, (i + 1) + ' / ' + total);
+      if (cap) fig.appendChild(cap);
+      track.appendChild(fig);
+    });
+    const arrows = document.createElement('div');
+    arrows.className = 'article-gallery-arrows';
+    arrows.innerHTML =
+      '<button type="button" class="gal-nav gal-prev" data-gal-prev disabled aria-label="Предыдущее фото">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>' +
+      '<button type="button" class="gal-nav gal-next" data-gal-next aria-label="Следующее фото">' +
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
+    stage.appendChild(track);
+    stage.appendChild(arrows);
+    gallery.appendChild(stage);
+    return gallery;
+  }
+  const it = items[0] || { url: '', caption: '', credit: '' };
+  const fig = document.createElement('figure');
+  fig.className = 'article-figure';
+  fig.appendChild(editorFrame(it));
+  const cap = editorCaption(it, '');
+  if (cap) fig.appendChild(cap);
+  return fig;
+}
+
+function figureToItem(fig) {
+  const img = fig.querySelector('img');
+  if (!img) return null;
+  const cls = (fig.getAttribute('class') || '').split(/\s+/);
+  if (cls.includes('article-gallery-item')) return null;
+  const known = cls.includes('shot') || cls.includes('article-figure');
+  if (!known && !fig.querySelector('figcaption')) return null;
+  const small = fig.querySelector('figcaption small');
+  let caption = '';
+  const cap = fig.querySelector('figcaption');
+  if (cap) {
+    const clone = cap.cloneNode(true);
+    clone.querySelectorAll('small').forEach(el => el.remove());
+    caption = (clone.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+  if (!caption) caption = (img.getAttribute('alt') || '').trim();
+  return {
+    url: img.getAttribute('src') || '',
+    caption,
+    credit: small ? small.innerHTML : '',
+  };
+}
+
+function isEditorPhotoNode(node) {
+  if (!node || node.nodeType !== 1) return false;
+  if (node.tagName === 'FIGURE') return !!figureToItem(node);
+  if (node.tagName !== 'P') return false;
+  const kids = Array.from(node.childNodes);
+  if (!kids.length) return false;
+  let imgs = 0;
+  for (const n of kids) {
+    if (n.nodeType === 3 && !n.textContent.trim()) continue;
+    if (n.nodeType === 1 && n.tagName === 'IMG') { imgs += 1; continue; }
+    if (n.nodeType === 1 && n.tagName === 'BR') continue;
+    return false;
+  }
+  return imgs > 0;
+}
+
+function itemsFromPhotoNode(node) {
+  if (node.tagName === 'FIGURE') {
+    const item = figureToItem(node);
+    return item && item.url ? [item] : [];
+  }
+  return Array.from(node.querySelectorAll('img')).map(img => ({
+    url: img.getAttribute('src') || '',
+    caption: (img.getAttribute('alt') || '').trim(),
+    credit: '',
+  })).filter(it => it.url);
+}
+
+// Соседние figure.shot и абзацы из одних картинок становятся одной галереей,
+// как на сайте. Одинокое фото без подписи не трогаем.
+function coalescePhotoHtml(html) {
+  if (!html || !/<img\b/i.test(html)) return html;
+  const doc = new DOMParser().parseFromString('<div id="ady-root">' + html + '</div>', 'text/html');
+  const root = doc.getElementById('ady-root');
+  if (!root) return html;
+  const nodes = Array.from(root.childNodes);
+  const out = doc.createElement('div');
+  let i = 0;
+  while (i < nodes.length) {
+    if (!isEditorPhotoNode(nodes[i])) {
+      out.appendChild(nodes[i]);
+      i += 1;
+      continue;
+    }
+    const group = [nodes[i]];
+    let j = i + 1;
+    while (j < nodes.length) {
+      const n = nodes[j];
+      if (n.nodeType === 3 && !n.textContent.trim()) { j += 1; continue; }
+      if (isEditorPhotoNode(n)) { group.push(n); j += 1; continue; }
+      break;
+    }
+    const items = group.flatMap(itemsFromPhotoNode);
+    const bare = items.length === 1 && !items[0].caption && !items[0].credit && group.length === 1 && group[0].tagName === 'P';
+    if (!items.length || bare) group.forEach(n => out.appendChild(n));
+    else {
+      const div = doc.createElement('div');
+      div.className = 'gallery-embed';
+      div.setAttribute('data-items', encodeURIComponent(JSON.stringify(items)));
+      out.appendChild(div);
+    }
+    i = j;
+  }
+  return out.innerHTML;
+}
+
+function pasteEditorHtml(quill, html) {
+  if (!quill || !html) return;
+  quill.clipboard.dangerouslyPasteHTML(0, coalescePhotoHtml(html), 'silent');
+}
+
+function bindEditorGalleries() {
+  if (window.__editorGalleriesBound) return;
+  window.__editorGalleriesBound = true;
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest && e.target.closest('.ql-editor [data-gal-prev], .ql-editor [data-gal-next]');
+    if (!btn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const root = btn.closest('[data-gallery]');
+    const track = root && root.querySelector('[data-gal-track]');
+    if (!track) return;
+    const slides = Array.from(track.querySelectorAll('.article-gallery-item'));
+    if (!slides.length) return;
+    let idx = 0;
+    let best = Infinity;
+    slides.forEach((el, i) => {
+      const d = Math.abs(el.offsetLeft - track.scrollLeft);
+      if (d < best) { best = d; idx = i; }
+    });
+    const dir = btn.hasAttribute('data-gal-prev') ? -1 : 1;
+    const nextIdx = Math.max(0, Math.min(slides.length - 1, idx + dir));
+    if (nextIdx === idx) return;
+    const target = slides[nextIdx];
+    const left = target.getBoundingClientRect().left - track.getBoundingClientRect().left + track.scrollLeft;
+    track.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+    const prev = root.querySelector('[data-gal-prev]');
+    const next = root.querySelector('[data-gal-next]');
+    if (prev) prev.disabled = nextIdx <= 0;
+    if (next) next.disabled = nextIdx >= slides.length - 1;
+  });
+}
+
+// При загрузке статьи Quill разбирает HTML заново. Без этих матчеров
+// коллаж и figure.shot снова стали бы голыми картинками. Одинокое фото
+// без подписи матчер не трогает — и на сайте оно остаётся вставкой.
 function registerGalleryMatcher(quill) {
   const Delta = Quill.import('delta');
+  quill.clipboard.addMatcher('div.gallery-embed', (node, delta) => {
+    const raw = node.getAttribute('data-items');
+    let items = [];
+    if (raw) {
+      try { items = JSON.parse(decodeURIComponent(raw)); } catch (e) { items = []; }
+    }
+    if (!items.length) {
+      items = Array.from(node.querySelectorAll('img')).map(img => ({
+        url: img.getAttribute('src') || '',
+        caption: img.getAttribute('alt') || '',
+        credit: img.getAttribute('data-credit') || '',
+      })).filter(it => it.url);
+    }
+    if (!items.length) return delta;
+    return new Delta().insert({ gallery: { items } });
+  });
+  quill.clipboard.addMatcher('FIGURE', (node, delta) => {
+    const item = figureToItem(node);
+    if (!item || !item.url) return delta;
+    if (!item.caption && !item.credit) return delta;
+    return new Delta().insert({ gallery: { items: [item] } });
+  });
   quill.clipboard.addMatcher('p', (node, delta) => {
     const children = Array.from(node.childNodes);
     const onlyImgs = children.length > 0 && children.every(n =>
-      (n.nodeType === 1 && n.tagName === 'IMG') || (n.nodeType === 3 && !n.textContent.trim()));
+      (n.nodeType === 1 && (n.tagName === 'IMG' || n.tagName === 'BR')) ||
+      (n.nodeType === 3 && !n.textContent.trim()));
     if (!onlyImgs) return delta;
     const imgs = children.filter(n => n.nodeType === 1 && n.tagName === 'IMG');
     if (!imgs.length) return delta;
     const items = imgs.map(img => ({
       url: img.getAttribute('src') || '',
       caption: (img.getAttribute('alt') || '').trim(),
+      credit: '',
     }));
     if (items.length === 1 && !items[0].caption) return delta;
     return new Delta().insert({ gallery: { items } });
@@ -2989,6 +3355,12 @@ function openDistrictForm(id) {
       <div class="hint">${isNew ? 'Латиницей. Потом не меняется: к нему привязаны места, маршруты и статьи.' : 'Адрес не меняется — к нему привязаны места, маршруты и статьи.'}</div></div>
     <div class="field"><label>Вступление</label>
       <textarea id="dist-lead" rows="4" placeholder="Чем этот округ полезен в поездке">${escHtml(d.lead || '')}</textarea></div>
+    <div class="field"><label>Title для поиска <span class="seo-count" data-seo-for="dist-seo-title" data-seo-kind="title"></span></label>
+      <input id="dist-seo-title" maxlength="80" value="${escAttr(d.seo_title || '')}" placeholder="Пусто — останется текущий заголовок в поиске" oninput="paintSeoCounts()">
+      <div class="hint">Рекомендуем 60 знаков, не длиннее 80. Пусто — берётся готовая формулировка, если она есть, иначе «название — что посмотреть и какие маршруты рядом».</div></div>
+    <div class="field"><label>Description для поиска <span class="seo-count" data-seo-for="dist-seo-desc" data-seo-kind="desc"></span></label>
+      <textarea id="dist-seo-desc" maxlength="230" rows="3" placeholder="Пусто — вступление округа" oninput="paintSeoCounts()">${escHtml(d.seo_description || '')}</textarea>
+      <div class="hint">Рекомендуем 160 знаков, допустимо от 60 до 230. Пусто — текст вступления.</div></div>
     <div class="field"><label>Факты</label>
       <div id="dist-facts">${((d.facts && d.facts.length) ? d.facts : ['']).map(districtFactRow).join('')}</div>
       <button type="button" class="btn btn-ghost btn-sm" onclick="addDistrictFact()">+ Факт</button>
@@ -3003,6 +3375,10 @@ function openDistrictForm(id) {
   `, async () => {
     const name = document.getElementById('dist-name').value.trim();
     if (!name) { toast('Название обязательно', true); return; }
+    const seoTitle = seoFlat(document.getElementById('dist-seo-title').value);
+    const seoDesc = seoFlat(document.getElementById('dist-seo-desc').value);
+    const seoError = seoLengthError(seoTitle, seoDesc);
+    if (seoError) { toast(seoError, true); return; }
     let coverUrl = document.getElementById('dist-cover-url').value || null;
     let coverThumb = d.cover_thumb_url || null;
     const fileEl = document.getElementById('dist-cover-file');
@@ -3013,6 +3389,8 @@ function openDistrictForm(id) {
     const payload = {
       name,
       lead: document.getElementById('dist-lead').value.trim(),
+      seo_title: seoTitle || null,
+      seo_description: seoDesc || null,
       facts: Array.from(document.querySelectorAll('#dist-facts .dist-fact')).map(e => e.value.trim()).filter(Boolean),
       cover_url: coverUrl,
       cover_thumb_url: coverThumb,
@@ -3033,6 +3411,7 @@ function openDistrictForm(id) {
     toast('Сохранено');
   });
   setupCoverPreview('dist-cover-file', 'dist-cover-url', 'dist-cover-preview', 'dist-cover-focus');
+  paintSeoCounts();
 }
 
 async function removeDistrict(id) {

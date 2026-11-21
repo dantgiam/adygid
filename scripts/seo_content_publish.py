@@ -64,10 +64,36 @@ SCENARIO_FIELDS = ("slug", "icon", "door", "hint", "title", "lead", "cover_url",
                    "filter_seasonality", "filter_access", "order_index", "is_published")
 
 
+def keep_manual_seo(stored, draft):
+    """Непустой текст из админки остаётся. Пустое поле черновик может заполнить."""
+    if isinstance(stored, str) and stored.strip():
+        return stored
+    return draft
+
+
+def respect_manual_seo(payload: dict, current: Optional[dict]) -> dict:
+    """В payload подменяем только те SEO-ключи, которые скрипт сам собрался писать.
+
+    Ключ, которого в payload нет, не добавляем: частичный PATCH статьи
+    отсутствующее поле и так не трогает.
+    """
+    out = dict(payload)
+    if not current:
+        return out
+    for key in ("seo_title", "seo_description"):
+        if key in out:
+            out[key] = keep_manual_seo(current.get(key), out[key])
+    return out
+
+
 def scenario_payload(current: dict, **over) -> dict:
     data = {k: current.get(k) for k in SCENARIO_FIELDS if k in current}
+    # seo_title в списке полей мог отсутствовать у старого скрипта. Кладём
+    # текущее значение до черновика, чтобы respect_manual_seo мог его оставить.
+    if "seo_title" in (current or {}):
+        data["seo_title"] = current.get("seo_title")
     data.update(over)
-    return data
+    return respect_manual_seo(data, current)
 
 
 def apply_text_patch(text: str, pairs: list, label: str) -> tuple:
@@ -229,6 +255,7 @@ def via_api():
         payload["is_published"] = True
         row = fresh("article", a["slug"])
         if row:
+            payload = respect_manual_seo(payload, row)
             print("PATCH article", a["slug"], f"(+{len(added)} автоссылок)")
             changes["update"].append("stati/" + a["slug"])
             LIVE and api("PATCH", f"/articles/{row['id']}", payload)
@@ -266,6 +293,9 @@ def via_api():
         row = fresh(pch["kind"], pch["slug"])
         if not row:
             print("SKIP  text_patch", pch["kind"], pch["slug"], "— нет на сайте"); continue
+        if pch["field"] in ("seo_title", "seo_description") and keep_manual_seo(row.get(pch["field"]), None) not in (None, ""):
+            print("SKIP  text_patch", pch["kind"], pch["slug"], pch["field"], "— поле задано в админке")
+            continue
         if pch["kind"] == "faq_set":
             try:
                 items, done = patch_faq_items(row.get("items"), pch["replace"], f"faq:{pch['slug']}")
@@ -350,6 +380,9 @@ def via_db():
     z = CONTENT["scenario_zimoy"]
     sc = db.execute(select(Scenario).where(Scenario.slug == "zimoy")).scalars().first()
     for k in ("title", "door", "hint", "seo_description", "lead", "cover_url", "tile_cover_url", "tile_cover_focus", "is_published"):
+        if k in ("seo_title", "seo_description"):
+            setattr(sc, k, keep_manual_seo(getattr(sc, k, None), z[k]))
+            continue
         setattr(sc, k, z[k])
     by_slug = {a.slug: a.id for a in db.execute(select(Article)).scalars().all()}
     sc.featured_article_ids = [by_slug[s] for s in z["featured_article_slugs"] if s in by_slug]
@@ -358,6 +391,9 @@ def via_db():
         row = db.execute(select(model).where(model.slug == pch["slug"])).scalars().first()
         if not row:
             print("SKIP  text_patch", pch["slug"]); continue
+        if pch["field"] in ("seo_title", "seo_description") and keep_manual_seo(getattr(row, pch["field"], None), None) not in (None, ""):
+            print("SKIP  text_patch", pch["slug"], pch["field"], "— поле задано в админке")
+            continue
         if pch["kind"] == "faq_set":
             row.items, done = patch_faq_items(row.items, pch["replace"], f"faq:{pch['slug']}")
             print(f"text_patch faq:{pch['slug']}: {done}")

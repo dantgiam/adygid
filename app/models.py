@@ -73,6 +73,11 @@ class Trail(Base):
     # с точками привязки, который автогенерация не соберёт один в один).
     yandex_url  = Column(String(500), nullable=True)
 
+    # Заголовок и описание в поиске. Пусто — формула в шаблоне
+    # (словаря title для маршрутов в seo.py нет).
+    seo_title       = Column(String(80), nullable=True)
+    seo_description = Column(String(230), nullable=True)
+
     category    = relationship("Category")
     segments    = relationship("TrailSegment",  back_populates="trail", cascade="all, delete-orphan", order_by="TrailSegment.order_index")
     checkpoints = relationship("Checkpoint",    back_populates="trail", cascade="all, delete-orphan", order_by="Checkpoint.order_index")
@@ -247,6 +252,9 @@ class Scenario(Base):
     tile_cover_url        = Column(String(500), nullable=True)
     tile_cover_thumb_url  = Column(String(500), nullable=True)
     tile_cover_focus      = Column(String(20), nullable=True)
+    # Title в поиске. Пусто — словарь SCENARIO_TITLES, затем «заголовок — АдыГид».
+    # Description уже было отдельным полем и остаётся им.
+    seo_title             = Column(String(80), nullable=True)
     seo_description       = Column(String(500), nullable=True)
     featured_article_ids  = Column(ARRAY(Integer), nullable=False, default=list)
 
@@ -275,6 +283,10 @@ class Article(Base):
     slug                   = Column(String(200), nullable=False, unique=True, index=True)
     title                  = Column(String(255), nullable=False)
     excerpt                = Column(String(500), nullable=True)
+    # Заголовок и описание в поиске. Пусто — словарь в site_app/seo.py,
+    # затем формула в шаблоне. Анонс карточки (excerpt) от этого не зависит.
+    seo_title              = Column(String(80), nullable=True)
+    seo_description        = Column(String(230), nullable=True)
     cover_url              = Column(String(500), nullable=True)
     # Уменьшенная копия обложки — её показывают карточки статей; оригинал
     # весит мегабайты и нужен только на самой странице.
@@ -391,6 +403,10 @@ class District(Base):
     cover_url       = Column(String(500), nullable=True)
     cover_thumb_url = Column(String(500), nullable=True)
     cover_focus     = Column(String(20), nullable=True)
+    # Заголовок и описание в поиске. Пусто — словарь DISTRICT_TITLES
+    # и вступление округа, как было до поля в админке.
+    seo_title       = Column(String(80), nullable=True)
+    seo_description = Column(String(230), nullable=True)
     order_index     = Column(Integer, nullable=False, default=0)
     is_published    = Column(Boolean, nullable=False, default=True)
 

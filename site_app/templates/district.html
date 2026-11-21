@@ -3,7 +3,7 @@
 {% import "_faq.html" as faqui %}
 
 {% block title %}{{ district.seo_title or (district.label ~ " — что посмотреть и какие маршруты рядом") }}{% endblock %}
-{% block meta_description %}{{ district.lead }}{% endblock %}
+{% block meta_description %}{{ district.seo_description or district.lead }}{% endblock %}
 
 {% block extra_ld %}
 <script type="application/ld+json">
@@ -11,7 +11,7 @@
   "@context": "https://schema.org",
   "@type": "Place",
   "name": district.label,
-  "description": district.lead,
+  "description": district.seo_description or district.lead,
   "url": canonical_url,
   "address": {"@type": "PostalAddress", "addressRegion": "Республика Адыгея", "addressCountry": "RU"}
 } | tojson }}
