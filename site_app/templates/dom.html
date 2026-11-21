@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ house.name }} — страница домика · АдыГид</title>
+<meta name="description" content="{{ house.lead }}">
+<link rel="canonical" href="{{ canonical_url }}">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="АдыГид">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="{{ canonical_url }}">
+<meta property="og:title" content="{{ house.name }} — страница домика · АдыГид">
+<meta property="og:description" content="{{ house.lead }}">
+<meta property="og:image" content="{{ site_url }}/assets/og-default.jpg?v={{ rev }}">
+<link rel="stylesheet" href="/assets/site.css?v={{ rev }}">
+<link rel="stylesheet" href="/assets/dom.css?v={{ rev }}">
+</head>
+<body class="dom-page dom--{{ house.variant }}{% if house.is_demo %} is-demo{% endif %}">
+  <a class="dom-skip" href="#contact">К связи с хозяином</a>
+
+  <header class="dom-top">
+    <a class="dom-brand" href="/" aria-label="АдыГид — на главную">
+      <svg class="brand-mark" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+        <polygon points="4,24 12,10 20,24" fill="#9BCBA4"/>
+        <polygon points="10,24 21,8 30,24" fill="#278C3E"/>
+        <circle cx="24" cy="9" r="2.6" fill="#D6A324"/>
+      </svg>
+      <span>АдыГид</span>
+    </a>
+    <p class="dom-top-note">{% if house.is_demo %}Макет · не настоящий дом{% else %}Страница дома{% endif %}</p>
+  </header>
+
+  <main class="dom-shell">
+    <section class="dom-hero">
+      <p class="dom-kicker">{{ house.kicker }}</p>
+      <h1>{{ house.name }}</h1>
+      <p class="dom-lead">{{ house.lead }}</p>
+    </section>
+
+    <section class="dom-block" id="welcome">
+      <h2>Добро пожаловать</h2>
+      <p>{{ house.welcome }}</p>
+    </section>
+
+    <div class="dom-split">
+      <section class="dom-block" id="rules">
+        <h2>Правила дома</h2>
+        {% if house.rules_caption %}<p class="dom-caption">{{ house.rules_caption }}</p>{% endif %}
+        <ul class="dom-list">
+          {% for item in house.rules %}
+          <li>{{ item }}</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="dom-block" id="wifi">
+        <h2>Wi-Fi</h2>
+        {% if house.wifi %}
+          <p class="dom-wifi-net">Сеть: <b>{{ house.wifi.network }}</b></p>
+          <p class="dom-wifi-pass">Пароль: <b>{{ house.wifi.password }}</b></p>
+        {% else %}
+          <div class="dom-empty" role="status">
+            <p>Сеть и пароль появятся здесь, когда страницу заведут для настоящего дома. В макете их нет — выдумывать доступ незачем.</p>
+          </div>
+        {% endif %}
+      </section>
+    </div>
+
+    <section class="dom-block" id="how">
+      <h2>Как всё устроено</h2>
+      {% if house.how_caption %}<p class="dom-caption">{{ house.how_caption }}</p>{% endif %}
+      <ul class="dom-list">
+        {% for item in house.how %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="dom-block" id="nearby">
+      <h2>Гид АдыГида</h2>
+      {% if house.nearby_caption %}<p class="dom-caption">{{ house.nearby_caption }}</p>{% endif %}
+      <ul class="dom-nearby">
+        {% for item in house.nearby %}
+        <li>
+          <a href="{{ item.url }}">{{ item.title }}</a>
+          {% if item.note %}<span>{{ item.note }}</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="dom-block dom-contact" id="contact">
+      <h2>Написать хозяину</h2>
+      <p>{{ house.contact_note }}</p>
+      <div class="dom-bots">
+        <a class="btn btn-messenger btn-tg" href="{{ bots.telegram }}" rel="noopener">
+          <img src="/assets/magnet-tg.png?v={{ rev }}" alt="" width="26" height="26">Написать в Telegram
+        </a>
+        <a class="btn btn-messenger btn-max" href="{{ bots.max }}" rel="noopener">
+          <img src="/assets/magnet-max.png?v={{ rev }}" alt="" width="26" height="26">Написать в MAX
+        </a>
+      </div>
+      <p class="dom-emergency">{{ house.emergency_note }} <a href="tel:112">112</a></p>
+    </section>
+  </main>
+
+  <div class="dom-sticky" aria-label="Связь с хозяином">
+    <a class="btn btn-messenger btn-tg" href="{{ bots.telegram }}" rel="noopener">
+      <img src="/assets/magnet-tg.png?v={{ rev }}" alt="" width="22" height="22">Telegram
+    </a>
+    <a class="btn btn-messenger btn-max" href="{{ bots.max }}" rel="noopener">
+      <img src="/assets/magnet-max.png?v={{ rev }}" alt="" width="22" height="22">MAX
+    </a>
+  </div>
+
+  <footer class="dom-foot">
+    <a href="/dom">О макете страницы домика</a>
+    <a href="/">АдыГид</a>
+    <a href="/podbor">Подбор поездки</a>
+    <a href="/privacy">Политика конфиденциальности</a>
+  </footer>
+</body>
+</html>
