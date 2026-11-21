@@ -36,6 +36,8 @@ PAGES = {
     "v": ("Впечатления (скрытый тест)", "/v"),
     "nav": ("Меню сайта", "/"),
     "footer": ("Подвал сайта", "/"),
+    "avtor": ("Об авторе", "/avtor"),
+    "poezdki": ("Поездки автора", "/poezdki"),
     "places": ("Список мест", "/mesta"),
     "routes": ("Список маршрутов", "/marshruty"),
     "articles": ("Список статей", "/stati"),
@@ -44,6 +46,7 @@ PAGES = {
     "faq": ("Частые вопросы", "/voprosy"),
     "place": ("Карточка места", "/mesta"),
     "notfound": ("Страница 404", "/404-primer"),
+    "dosug": ("Досуг", "/dosug"),
 }
 
 _CACHE: dict = {"values": None, "at": 0.0}

@@ -18,7 +18,7 @@
   "image": [scenario.cover_url|abs_url] if scenario.cover_url else [],
   "dateModified": scenario.updated_iso,
   "inLanguage": "ru-RU",
-  "author": {"@type": "Person", "name": "Данила"},
+  "author": {"@type": "Person", "name": tp('avtor.schema_name', 'Данила'), "url": site_url ~ "/avtor"},
   "publisher": {"@type": "Organization", "name": "АдыГид", "url": site_url, "logo": site_url ~ "/assets/logo-cat.png"}
 }) }}
 {{ faqui.ld(scenario.faq_ld) }}

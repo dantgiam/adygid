@@ -20,7 +20,7 @@
   "datePublished": article.published_iso,
   "dateModified": article.modified_iso,
   "mainEntityOfPage": canonical_url,
-  "author": {"@type": "Person", "name": "Данила"},
+  "author": {"@type": "Person", "name": tp('avtor.schema_name', 'Данила'), "url": site_url ~ "/avtor"},
   "publisher": {"@type": "Organization", "name": "АдыГид", "url": site_url, "logo": site_url ~ "/assets/logo-cat.png"}
 } | tojson }}
 </script>
@@ -34,6 +34,7 @@
     {% if article.cover_url %}<div class="detail-hero">{{ cards.rimg(article.cover_url, alt=article.title, class="hero-img", sizes=img_sizes.hero, width=1600, height=900, loading="", fetchpriority="high", style=article.cover_style, src_width=800) }}</div>{% endif %}
     <p class="eyebrow">Статья{% if article.district_label %} · {{ article.district_label }}{% endif %}</p>
     <h1 class="article-title">{{ article.title }}</h1>
+    <p class="article-byline">{{ t('articles.byline_prefix', 'Автор:') }} <a href="/avtor">{{ t('articles.byline_name', 'Данила') }}</a></p>
 
     <div class="article-layout{{ ' has-toc' if article.toc else '' }}">
       <div class="article-main">

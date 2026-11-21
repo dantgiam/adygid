@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% import "_cards.html" as cards %}
+{% import "_faq.html" as faqui %}
+
+{% block title %}{{ trip.title }} — АдыГид{% endblock %}
+{% block meta_description %}{{ trip.excerpt or trip.title }}{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_image %}{% if trip.cover %}<meta property="og:image" content="{{ trip.cover|abs_url }}">{% else %}{{ super() }}{% endif %}{% endblock %}
+
+{% block extra_ld %}
+{{ faqui.ld(breadcrumbs_ld) }}
+{% endblock %}
+
+{% block content %}
+<section class="section" style="padding-top:32px">
+  <div class="wrap">
+    <p class="eyebrow"><a href="/poezdki">{{ t('poezdki.eyebrow_link', 'Поездки автора') }}</a></p>
+    <h1 class="page-title">{{ trip.title }}</h1>
+    <p class="trip-meta"><time datetime="{{ trip.date_iso }}">{{ trip.date_label }}</time> · <a href="/avtor">{{ t('poezdki.by_author', 'Данила') }}</a></p>
+
+    <div class="article-body trip-body">
+      {{ trip.body_html }}
+    </div>
+
+    {% if trip.changes_html %}
+    <h2>{{ t('poezdki.changes_title', 'Что изменилось с прошлого раза') }}</h2>
+    <div class="article-body">{{ trip.changes_html }}</div>
+    {% endif %}
+
+    {% if trip.spent %}
+    <h2>{{ t('poezdki.spent_title', 'Сколько потратил') }}</h2>
+    <p class="about-text">{{ trip.spent }}</p>
+    {% endif %}
+
+    {{ cards.photo_carousel(trip.gallery) }}
+
+    {% if trip.video_src %}
+    <div class="trip-video">
+      <iframe src="{{ trip.video_src }}" title="{{ trip.title }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen></iframe>
+    </div>
+    {% elif trip.video_url %}
+    <p><a href="{{ trip.video_url }}" target="_blank" rel="noopener">{{ t('poezdki.video_link', 'Видео поездки') }}</a></p>
+    {% endif %}
+
+    {% if trip.places %}
+    <div class="featured-row">
+      <h2>{{ t('poezdki.places_title', 'Места из этой поездки') }}</h2>
+      <div class="grid">{% for p in trip.places %}{{ cards.place_card(p) }}{% endfor %}</div>
+    </div>
+    {% endif %}
+
+    {% if trip.source_url %}
+    <p class="trip-source"><a href="{{ trip.source_url }}" target="_blank" rel="noopener">{{ t('poezdki.source', 'Пост в MAX или Telegram') }}</a></p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

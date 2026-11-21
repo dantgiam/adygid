@@ -1964,6 +1964,14 @@ ensure_partner_tables()
 app.include_router(partners_router)
 app.include_router(partners_admin_router)
 
+# Досуг: заявка организатора, модерация /admin/dosug и публичные /dosug/<slug>.
+from site_app.leisure import ensure_leisure_tables, router as leisure_router
+from app.leisure_admin import router as leisure_admin_router
+
+ensure_leisure_tables()
+app.include_router(leisure_router)
+app.include_router(leisure_admin_router)
+
 # Тексты сайта в админке (/admin/texts): «Коротко для поездки», плашки, тексты
 # страниц. Миграция повторяемая и наполняет таблицы из кода один раз.
 from site_app.admin_texts_db import ensure_admin_text_tables
@@ -1971,6 +1979,16 @@ from app.texts_admin import router as texts_admin_router
 
 ensure_admin_text_tables()
 app.include_router(texts_admin_router)
+
+# Поездки автора (/admin/poezdki) и разовые правки карточек: монастырь 30
+# и черновик Белореченского водопада. После сида «Коротко для поездки»:
+# H1 и SEO-title пустыни меняются, только если там ещё старый текст;
+# строки блока из #36 не затираются. Повторный старт уже записанное не трогает.
+from app.content_fixes import apply_editorial as _apply_editorial
+from app.trips_admin import router as trips_admin_router
+
+_apply_editorial(engine)
+app.include_router(trips_admin_router)
 
 # Ленты фото в статьях, маршрутах и сценариях. Выключено, пока на сервисе
 # нет APPLY_ARTICLE_CAROUSELS=1. Ошибка записи не роняет сайт.
@@ -1980,6 +1998,7 @@ apply_if_enabled()
 
 # SEO title/description статей, маршрутов, округов и сценариев (21.11.2026).
 # Один раз, по метке; поля, правленные в админке, не трогает. Ошибка не роняет сайт.
+# Идёт после карточки 30: эти тексты про статьи и маршруты, title пустыни не переписывают.
 from content.seo_texts_2026_11.apply import run_on_startup as apply_seo_texts
 
 apply_seo_texts()

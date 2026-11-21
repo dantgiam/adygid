@@ -1,0 +1,43 @@
+{% extends "bot_base.html" %}
+{% block title %}Досуг{% endblock %}
+{% block content %}
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>Досуг</h1>
+      <div class="sub">Заявки с <a href="/dosug/zayavka" target="_blank" rel="noopener">/dosug/zayavka</a>. На сайте только одобренные, по слагу. Сбор гостя за досуг по умолчанию 5%. Сбор жилья здесь не меняется.</div>
+    </div>
+  </div>
+  {% set badge = {'pending': 'badge-gold', 'approved': 'badge-green', 'rejected': 'badge-muted'} %}
+  <nav class="ptabs">
+    {% for code, label in status_label.items() %}
+    <a class="{% if status == code %}on{% endif %}" href="/admin/dosug?status={{ code }}">{{ label }} <span class="badge {{ badge[code] }}">{{ counts.get(code, 0) }}</span></a>
+    {% endfor %}
+    <a class="{% if status == 'all' %}on{% endif %}" href="/admin/dosug?status=all">Все</a>
+  </nav>
+  {% if rows %}
+  <div class="list">
+    {% for o in rows %}
+    <a class="row inbox-row" href="/admin/dosug/{{ o.id }}">
+      <div class="row-main">
+        <div class="row-title">
+          <span class="badge {{ badge[o.status] }}">{{ status_label[o.status] }}</span>
+          <span class="badge">{{ activity_title(o.activity_type) }}</span>
+          <b>{{ o.title }}</b>
+        </div>
+        <div class="inbox-preview">{{ o.provider.display_name }}{% if o.meeting_address %} · {{ o.meeting_address }}{% endif %}</div>
+        <div class="row-meta">
+          <span>{{ o.created_at.strftime('%d.%m.%Y %H:%M') if o.created_at else '—' }}</span>
+          <span>сбор {{ pct_label(o.service_fee_pct) }}%</span>
+          {% if o.price_amount %}<span>от цены {{ rub(o.price_amount) }} сбор {{ rub(fee_parts(o.price_amount, o.service_fee_pct).fee) }}</span>{% endif %}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty"><b>В этой очереди пусто</b>Новая заявка с сайта появится в «На модерации».</div>
+  {% endif %}
+</div>
+{% include "_partners_admin_css.html" %}
+{% endblock %}
