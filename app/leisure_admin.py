@@ -11,7 +11,9 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.bot_admin import _page, require_bot_admin
+from app.bot_admin import (
+    BotApiError, BotNotConfigured, _filter_items, _kind_titles, _load_inbox, _page, require_bot_admin,
+)
 from app.database import get_db
 from app.models import LeisureItem, LeisureOffer, LeisurePhoto, LeisureProvider
 from app.slugs import set_slug
@@ -19,8 +21,9 @@ from site_app.content import DISTRICTS
 from site_app import leisure_catalog as cat
 from site_app.leisure import (
     FormError, _apply_offer, _apply_provider, _attach, _csrf_pair, _drop_photos, _posted, _set_csrf_cookie,
-    _take_photos, assert_post_guard, validate_offer, validate_provider,
+    _take_photos, assert_post_guard, leisure_bot_links, validate_offer, validate_provider,
 )
+from site_app.partners import pd_in_site_db
 from site_app import leisure_photos as photos
 
 router = APIRouter()
@@ -129,19 +132,60 @@ def leisure_admin_list(request: Request, status: str = "pending", db: Session = 
     })
 
 
+_TELEGRAM_KEYS = ("telegram", "tg", "username")
+
+
+def _payload_telegram(raw: dict) -> str | None:
+    payload = raw.get("payload") if isinstance(raw.get("payload"), dict) else {}
+    for key in _TELEGRAM_KEYS:
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()[:200]
+    return None
+
+
+async def _leisure_bot_matches(code: str) -> tuple[list[dict], str]:
+    """Обращения с start_payload leisure_<код>: только показ, в базу сайта не пишем."""
+    try:
+        raw, _t = await _load_inbox(None)
+        titles = await _kind_titles()
+    except BotNotConfigured:
+        return [], "Бот не подключён (нет BOT_API_TOKEN) — контакты организатора посмотрите во «Входящих» бота."
+    except BotApiError:
+        return [], "Бот сейчас не ответил — попробуйте обновить страницу."
+    want = f"leisure_{code}"
+    telegram_by_id = {
+        item.get("id"): _payload_telegram(item)
+        for item in raw
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    out = []
+    for view in _filter_items(raw, titles, None):
+        if view.get("start_payload") != want:
+            continue
+        row = dict(view)
+        row["telegram"] = telegram_by_id.get(view["id"])
+        out.append(row)
+    return out, ""
+
+
 @router.get("/admin/dosug/{offer_id}")
-def leisure_admin_offer(request: Request, offer_id: int, saved: str = "", error: str = "",
-                        db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
+async def leisure_admin_offer(request: Request, offer_id: int, saved: str = "", error: str = "",
+                              db: Session = Depends(get_db), _: str = Depends(require_bot_admin)):
     offer = _load(db, offer_id)
     if offer is None:
         raise HTTPException(404, "Заявка не найдена")
-    return _render(request, offer, saved == "1", error)
+    return await _render(request, offer, saved == "1", error)
 
 
-def _render(request, offer, saved, error, status_code=200):
+async def _render(request, offer, saved, error, status_code=200):
     token, fresh = _csrf_pair(request)
+    code = offer.provider.code if offer.provider is not None else ""
+    matches, bot_note = await _leisure_bot_matches(code) if code else ([], "")
     response = _page("leisure_admin_offer.html", {
         "request": request, "section": "leisure", "o": offer, "saved": saved, "error": error, "csrf": token,
+        "matches": matches, "bot_note": bot_note, "pd_in_site_db": pd_in_site_db(),
+        "bot": leisure_bot_links(code) if code else {"max": "", "telegram": ""},
         "activities": cat.ACTIVITIES, "legal_statuses": cat.LEGAL_STATUSES, "seasons": cat.SEASONS,
         "difficulties": cat.DIFFICULTIES, "transfers": cat.TRANSFERS, "languages": cat.LANGUAGES,
         "price_units": cat.PRICE_UNITS, "statuses": cat.STATUSES, "districts": list(DISTRICTS.items()),
@@ -219,7 +263,7 @@ async def leisure_admin_save(request: Request, offer_id: int, db: Session = Depe
         _drop_photos(saved_photos)
         db.rollback()
         fresh = _load(db, offer_id)
-        return _render(request, fresh, False, exc.message, status_code=400)
+        return await _render(request, fresh, False, exc.message, status_code=400)
     except Exception:
         _drop_photos(saved_photos)
         db.rollback()

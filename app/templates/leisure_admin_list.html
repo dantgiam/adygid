@@ -25,7 +25,7 @@
           <span class="badge">{{ activity_title(o.activity_type) }}</span>
           <b>{{ o.title }}</b>
         </div>
-        <div class="inbox-preview">{{ o.provider.display_name }}{% if o.provider.contact_phone %} · {{ o.provider.contact_phone }}{% endif %}{% if o.provider.telegram %} · {{ o.provider.telegram }}{% endif %}{% if o.meeting_address %} · {{ o.meeting_address }}{% endif %}</div>
+        <div class="inbox-preview">{{ o.provider.display_name }}{% if o.meeting_address %} · {{ o.meeting_address }}{% endif %}</div>
         <div class="row-meta">
           <span>{{ o.created_at.strftime('%d.%m.%Y %H:%M') if o.created_at else '—' }}</span>
           <span>сбор {{ pct_label(o.service_fee_pct) }}%</span>

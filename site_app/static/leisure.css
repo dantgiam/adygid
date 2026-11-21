@@ -62,7 +62,7 @@
 
 @media (max-width: 400px) {
   .lz-form, .lz-fee-note, .lz-lead, .lz-error, .lz-field-error, .lz-ok { max-width: 100%; }
-  .lz-form .btn { width: 100%; }
+  .lz-form .btn, .lz-ok .btn { width: 100%; box-sizing: border-box; justify-content: center; }
   .lz-form input, .lz-form select, .lz-form textarea { max-width: 100%; }
   .lz-check { font-size: 15px; }
 }

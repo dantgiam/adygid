@@ -30,7 +30,8 @@ from site_app.content import DISTRICTS
 from site_app import leisure_catalog as cat
 from site_app import leisure_photos as photos
 from site_app import seo
-from site_app.router import SITE_URL, _ctx, templates
+from site_app.partners import pd_in_site_db
+from site_app.router import REVIEW_BOT, REVIEW_BOT_TG, SITE_URL, _ctx, templates
 
 log = logging.getLogger("adygid.leisure")
 router = APIRouter()
@@ -214,20 +215,22 @@ def _coord(value: str, label: str, lo: Decimal, hi: Decimal) -> Decimal | None:
 
 
 def validate_provider(data: dict) -> dict:
+    """Имя, телефон и Telegram в базу сайта не пишем, пока PARTNER_PD_IN_SITE_DB выключен."""
+    store_pd = pd_in_site_db()
     out = {
         "display_name": _need(data.get("display_name", ""), "Название организатора", 2, "display_name")[:200],
         "legal_status": data.get("legal_status") or "",
-        "legal_details": (data.get("legal_details") or "")[:300] or None,
+        "legal_details": ((data.get("legal_details") or "")[:300] or None) if store_pd else None,
         "licenses_note": _need(data.get("licenses_note", ""), "Лицензии и допуски", 2, "licenses_note"),
         "insurance_note": _need(data.get("insurance_note", ""), "Страховка", 2, "insurance_note"),
         "has_instructor": data.get("has_instructor") == "1",
         "instructor_note": (data.get("instructor_note") or "")[:2000] or None,
         "website": (data.get("website") or "")[:500] or None,
         "socials": (data.get("socials") or "")[:500] or None,
-        "contact_name": _need(data.get("contact_name", ""), "Имя контакта", 2, "contact_name")[:120],
-        "contact_phone": (data.get("contact_phone") or "")[:40],
-        "contact_messenger": (data.get("contact_messenger") or "")[:160] or None,
-        "telegram": normalize_telegram(data.get("contact_telegram") or ""),
+        "contact_name": None,
+        "contact_phone": None,
+        "contact_messenger": None,
+        "telegram": None,
     }
     if out["legal_status"] not in cat.LEGAL_BY_CODE:
         raise FormError("Выберите юридический статус", "legal_status")
@@ -235,11 +238,23 @@ def validate_provider(data: dict) -> dict:
         raise FormError("Укажите, есть ли инструктор")
     if out["website"] and not _URL_RE.match(out["website"]):
         raise FormError("Сайт должен начинаться с https://")
-    if not out["contact_phone"]:
-        raise FormError("Укажите контактный номер телефона", "contact_phone")
-    if not _PHONE_RE.match(out["contact_phone"]):
-        raise FormError("Проверьте номер телефона", "contact_phone")
+    if store_pd:
+        out["contact_name"] = _need(data.get("contact_name", ""), "Имя контакта", 2, "contact_name")[:120]
+        phone = (data.get("contact_phone") or "")[:40]
+        if not phone:
+            raise FormError("Укажите контактный номер телефона", "contact_phone")
+        if not _PHONE_RE.match(phone):
+            raise FormError("Проверьте номер телефона", "contact_phone")
+        out["contact_phone"] = phone
+        out["contact_messenger"] = (data.get("contact_messenger") or "")[:160] or None
+        out["telegram"] = normalize_telegram(data.get("contact_telegram") or "")
     return out
+
+
+def leisure_bot_links(code: str) -> dict:
+    """Та же схема, что partner_<код>: ссылка в бота, без записи контакта на сайте."""
+    payload = f"leisure_{code}"
+    return {"max": f"{REVIEW_BOT}?start={payload}", "telegram": f"{REVIEW_BOT_TG}?start={payload}"}
 
 
 def normalize_telegram(raw: str) -> str:
@@ -508,6 +523,7 @@ def _form_page(request, db, data, error="", error_field="", provider=None, targe
             districts=list(DISTRICTS.items()),
             category_fields=cat.CATEGORY_FIELDS, gear_answer=cat.GEAR_ANSWER, briefing_answer=cat.BRIEFING_ANSWER,
             photo_slots=list(range(1, photos.MAX_FILES + 1)), min_width=photos.MIN_WIDTH,
+            pd_in_site_db=pd_in_site_db(),
         ),
         status_code=status_code,
     )
@@ -834,7 +850,8 @@ def leisure_cabinet(request: Request, code: str, sent: str = "", db: Session = D
         _ctx(
             request, db, active_nav="leisure", provider=provider, offers=offers, sent=sent,
             status_label=cat.STATUS_BY_CODE, activity_title=cat.activity_title,
-            state_required=cat.STATE_REQUIRED,
+            state_required=cat.STATE_REQUIRED, pd_in_site_db=pd_in_site_db(),
+            bot=leisure_bot_links(provider.code),
         ),
     )
     response.headers["X-Robots-Tag"] = "noindex, nofollow"

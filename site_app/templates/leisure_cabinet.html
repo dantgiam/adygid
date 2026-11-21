@@ -8,7 +8,18 @@
   <div class="wrap">
     <p class="eyebrow">Кабинет · не для поисковиков</p>
     <h1 class="page-title">{{ provider.display_name }}</h1>
-    {% if sent == '1' %}<div class="lz-ok" role="status">{{ t('dosug.sent.offer', 'Заявка на модерации. На сайте её пока нет.') }}</div>{% endif %}
+    {% if sent == '1' %}
+    <div class="lz-ok" role="status">
+      <p>{{ t('dosug.sent.offer', 'Заявка на модерации. На сайте её пока нет.') }}</p>
+      {% if not pd_in_site_db %}
+      <p>{{ t('dosug.sent.bot', 'Осталось одно: оставьте контактный номер телефона и Telegram в нашем боте — мы свяжемся с вами для уточнения деталей.') }}</p>
+      <p class="lz-actions">
+        <a class="btn btn-messenger btn-max" href="{{ bot.max }}" target="_blank" rel="noopener"><img src="/assets/magnet-max.png?v={{ asset_version }}" alt="" width="26" height="26">Открыть бота</a>
+        <a class="btn btn-messenger btn-tg" href="{{ bot.telegram }}" target="_blank" rel="noopener"><img src="/assets/magnet-tg.png?v={{ asset_version }}" alt="" width="26" height="26">Открыть в Telegram</a>
+      </p>
+      {% endif %}
+    </div>
+    {% endif %}
     {% if sent == 'item' %}<div class="lz-ok" role="status">{{ t('dosug.sent.item', 'Новая поставка на модерации. Пока её не проверят, гости её не увидят.') }}</div>{% endif %}
     <p class="lz-lead">Ссылка на кабинет — ваш код. Её можно открыть снова и добавить ещё одну активность или поставку. Черновики снаружи не открываются.</p>
     <p class="lz-actions"><a class="btn btn-primary" href="/dosug/zayavka?code={{ provider.code }}">Добавить ещё активность</a></p>

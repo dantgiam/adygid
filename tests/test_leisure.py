@@ -157,7 +157,7 @@ def test_leisure_copy_is_edited_in_admin_and_shown_on_the_page(client):
     assert "Карточка для гостей" in client.get("/dosug/zayavka").text
 
 
-def test_phone_and_telegram_are_required_and_normalized():
+def test_phone_and_telegram_are_not_stored_unless_the_flag_is_on(monkeypatch):
     from site_app.leisure import normalize_telegram
     assert normalize_telegram("@Demo_Gid") == "https://t.me/Demo_Gid"
     assert normalize_telegram("t.me/Demo_Gid/") == "https://t.me/Demo_Gid"
@@ -165,28 +165,33 @@ def test_phone_and_telegram_are_required_and_normalized():
     with pytest.raises(leisure_mod.FormError) as empty:
         normalize_telegram("")
     assert empty.value.field == "contact_telegram"
-    with pytest.raises(leisure_mod.FormError):
-        normalize_telegram("не ссылка")
     data = _base()
     data["seasons"] = ["summer"]
     data["languages"] = ["ru"]
     data["consent_own_service"] = True
     data["consent_docs"] = True
+    dropped = leisure_mod.validate_provider(data)
+    assert dropped["contact_phone"] is None and dropped["contact_name"] is None
+    assert dropped["telegram"] is None and dropped["legal_details"] is None
+    monkeypatch.setattr(leisure_mod, "pd_in_site_db", lambda: True)
+    stored = leisure_mod.validate_provider(data)
+    assert stored["contact_phone"] == SECRET_PHONE
+    assert stored["telegram"] == "https://t.me/demogid19"
+    assert stored["contact_name"] == SECRET_NAME
     data["contact_phone"] = ""
     with pytest.raises(leisure_mod.FormError) as no_phone:
         leisure_mod.validate_provider(data)
     assert no_phone.value.field == "contact_phone"
 
 
-def test_form_asks_for_phone_and_telegram_and_pins_the_error(client):
+def test_form_points_to_the_bot_instead_of_contact_fields(client):
     page = client.get("/dosug/zayavka").text
-    assert "Укажите, пожалуйста, ваш контактный номер телефона и ссылку на Telegram. Мы свяжемся с вами для уточнения деталей." in page
-    assert page.count('name="contact_phone"') == 1
-    assert 'name="contact_telegram"' in page
-    missing = _submit(client, _base(contact_telegram=""))
-    assert missing.status_code == 400
-    assert 'href="#lz-error"' in missing.text
-    assert missing.text.find('name="contact_telegram"') < missing.text.find('id="lz-error"')
+    assert "Телефон и Telegram вы оставите на следующем шаге, в боте." in page
+    assert "На карточке для гостей этих контактов нет." in page
+    assert 'name="contact_phone"' not in page
+    assert 'name="contact_telegram"' not in page
+    assert 'name="contact_name"' not in page
+    assert 'name="legal_details"' not in page
 
 
 def test_form_lists_research_fields_and_does_not_sell(client):
@@ -314,7 +319,20 @@ def test_submit_moderate_slug_fee_and_hide_documents(client, monkeypatch):
     sent = _submit(client, _base(title=title))
     assert sent.status_code == 303, sent.text
     code = sent.headers["location"].rstrip("/").split("/")[-1].split("?")[0]
-    assert client.get(f"/dosug/kabinet/{code}").status_code == 200
+    cabinet = client.get(sent.headers["location"])
+    assert cabinet.status_code == 200
+    assert "Осталось одно: оставьте контактный номер телефона и Telegram в нашем боте" in cabinet.text
+    assert f"?start=leisure_{code}" in cabinet.text
+    assert f"https://max.ru/se15002131_bot?start=leisure_{code}" in cabinet.text
+    assert f"https://t.me/adygid_bot?start=leisure_{code}" in cabinet.text
+    with engine.connect() as conn:
+        stored_pd = conn.execute(text(
+            "SELECT contact_name, contact_phone, contact_messenger, telegram, legal_details "
+            "FROM leisure_providers WHERE code=:c"
+        ), {"c": code}).one()
+    assert stored_pd.contact_name is None and stored_pd.contact_phone is None
+    assert stored_pd.contact_messenger is None and stored_pd.telegram is None
+    assert stored_pd.legal_details is None
     with engine.connect() as conn:
         row = conn.execute(text("SELECT id, slug, status, is_published, service_fee_pct FROM leisure_offers WHERE title=:t"), {"t": title}).one()
     assert row.status == "pending" and row.is_published is False and Decimal(row.service_fee_pct) == Decimal("5")
@@ -326,8 +344,9 @@ def test_submit_moderate_slug_fee_and_hide_documents(client, monkeypatch):
 
     admin = client.get(f"/admin/dosug/{row.id}", auth=AUTH)
     assert admin.status_code == 200 and "Условия" in admin.text and "Состояние" in admin.text
-    assert SECRET_PHONE in admin.text and SECRET_DOC in admin.text
-    assert 'href="https://t.me/demogid19"' in admin.text
+    assert SECRET_DOC in admin.text
+    assert SECRET_PHONE not in admin.text and SECRET_NAME not in admin.text and "demogid19" not in admin.text
+    assert "Бот не подключён" in admin.text and f"leisure_{code}" in admin.text
     saved = client.post(
         f"/admin/dosug/{row.id}",
         data={**_base(title=title + " правка"), "csrf": _token(admin.text), "action": "approve", "service_fee_pct": "5"},
@@ -450,3 +469,80 @@ def test_photo_alt_and_repeat_supply_stay_hidden_until_approved(client):
     assert "ПОСТАВКА-ДЕМО" not in public
     cabinet = client.get(f"/dosug/kabinet/{code}").text
     assert "Новая поставка демо-жилетов" in cabinet and "На модерации" in cabinet
+
+
+def test_admin_shows_leisure_bot_contacts_without_saving_them(client, monkeypatch):
+    import app.leisure_admin as admin_mod
+    from app.bot_admin import BotApiError, BotNotConfigured
+
+    title = f"ДЕМО бот {uuid.uuid4().hex[:6]}"
+    sent = _submit(client, _base(title=title))
+    assert sent.status_code == 303, sent.text
+    code = sent.headers["location"].rstrip("/").split("/")[-1].split("?")[0]
+    with engine.connect() as conn:
+        offer_id = conn.execute(text("SELECT id FROM leisure_offers WHERE title=:t"), {"t": title}).scalar()
+
+    inbox_id = "11111111-2222-4333-8444-555555555555"
+    other_id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+
+    async def fake_load(_status):
+        return ([{
+            "id": inbox_id,
+            "created_at": "2026-11-21T07:00:00Z",
+            "user_name": "Демо Контакт",
+            "text": "оставил телефон и телеграм",
+            "kind": "service",
+            "status": "new",
+            "platform": "max",
+            "payload": {
+                "start_payload": f"leisure_{code}",
+                "phone": SECRET_PHONE,
+                "telegram": "https://t.me/demogid19",
+            },
+        }, {
+            "id": other_id,
+            "created_at": "2026-11-21T07:05:00Z",
+            "user_name": "Чужой партнёр",
+            "text": "это другая анкета",
+            "kind": "service",
+            "status": "new",
+            "payload": {"start_payload": "partner_xxx", "phone": "+7 900 000-00-00"},
+        }], False)
+
+    async def fake_titles():
+        return {}
+
+    monkeypatch.setattr(admin_mod, "_load_inbox", fake_load)
+    monkeypatch.setattr(admin_mod, "_kind_titles", fake_titles)
+    page = client.get(f"/admin/dosug/{offer_id}", auth=AUTH)
+    assert page.status_code == 200
+    assert "Демо Контакт" in page.text and SECRET_PHONE in page.text
+    assert 'href="https://t.me/demogid19"' in page.text
+    assert "+7 900 000-00-00" not in page.text and "Чужой партнёр" not in page.text
+    with engine.connect() as conn:
+        stored = conn.execute(text(
+            "SELECT contact_phone, telegram, contact_name FROM leisure_providers WHERE code=:c"
+        ), {"c": code}).one()
+    assert stored.contact_phone is None and stored.telegram is None and stored.contact_name is None
+
+    async def down(_status):
+        raise BotApiError(0, unavailable=True)
+
+    monkeypatch.setattr(admin_mod, "_load_inbox", down)
+    failed = client.get(f"/admin/dosug/{offer_id}", auth=AUTH)
+    assert "Бот сейчас не ответил" in failed.text and SECRET_PHONE not in failed.text
+
+    async def missing(_status):
+        raise BotNotConfigured()
+
+    monkeypatch.setattr(admin_mod, "_load_inbox", missing)
+    offline = client.get(f"/admin/dosug/{offer_id}", auth=AUTH)
+    assert "Бот не подключён" in offline.text
+
+
+def test_privacy_sends_leisure_contacts_to_the_bot(client):
+    page = client.get("/privacy").text
+    assert 'id="s3-7"' in page and "leisure_" in page
+    assert "в базу Сайта не записывает" in page
+    assert "разделы 3.2, 3.3 и 3.7" in page
+    assert "3.1–3.3 и 3.7" in page

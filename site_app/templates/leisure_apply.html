@@ -59,9 +59,11 @@
             <option value="{{ code }}" {% if values.legal_status == code %}selected{% endif %}>{{ title }}</option>
             {% endfor %}
           </select></label>
+        {% if pd_in_site_db %}
         <label class="lz-field"><span>Реквизиты</span>
           <input name="legal_details" maxlength="300" value="{{ values.legal_details }}" placeholder="ИНН или название — только для проверки">
           <p class="lz-hint">На сайте не публикуем, номера документов тоже.</p></label>
+        {% endif %}
       </div>
       <label class="lz-field"><span>Лицензии и допуски *</span>
         <textarea name="licenses_note" required rows="2" maxlength="3000" placeholder="Что есть или «не требуются». Номер увидит только проверка">{{ values.licenses_note }}</textarea></label>
@@ -83,8 +85,9 @@
         <label class="lz-field"><span>Соцсети</span>
           <input name="socials" maxlength="500" value="{{ values.socials }}"></label>
       </div>
+      {% if pd_in_site_db %}
       <label class="lz-field"><span>Как к вам обращаться *</span>
-        <input name="contact_name" required maxlength="120" value="{{ values.contact_name }}" autocomplete="name"></label>
+        <input name="contact_name" required maxlength="120" value="{{ values.contact_name }}" autocomplete="name">{{ ferr('contact_name') }}</label>
       <fieldset class="lz-panel">
         <legend>Контакт для связи с АдыГидом</legend>
         <p>Укажите, пожалуйста, ваш контактный номер телефона и ссылку на Telegram. Мы свяжемся с вами для уточнения деталей.</p>
@@ -96,6 +99,9 @@
       </fieldset>
       <label class="lz-field"><span>Другой мессенджер</span>
         <input name="contact_messenger" maxlength="160" value="{{ values.contact_messenger }}" placeholder="Необязательно"></label>
+      {% else %}
+      <p class="lz-fee-note">{{ t('dosug.form.bot_note', 'Телефон и Telegram вы оставите на следующем шаге, в боте. На карточке для гостей этих контактов нет.') }}</p>
+      {% endif %}
 
       <h2>Активность</h2>
       <label class="lz-field"><span>Название *</span>

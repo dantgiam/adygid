@@ -18,14 +18,29 @@
   {% if error %}<div class="pnote">{{ error }}</div>{% endif %}
   {% if fee %}<div class="pnote">Схема {{ fee.scheme }}: сбор {{ rub(fee.fee) }} ({{ pct_label(o.service_fee_pct) }}% от {{ rub(fee.price) }}), организатору {{ rub(fee.pay_provider) }}.{% if fee.public %} Сумма видна на карточке.{% else %} На карточке сумму не показываем.{% endif %} Переключатель — LEISURE_FEE_SCHEME в site_app/leisure_catalog.py.</div>{% endif %}
   <div class="pbox" style="border:2px solid var(--accent)">
-    <h2>Связаться с организатором</h2>
+    <h2>Контакты организатора</h2>
+    {% if pd_in_site_db %}
+    <p style="font-size:18px;margin:0 0 8px">{{ o.provider.contact_name or 'имя не указано' }}</p>
     <p style="font-size:20px;margin:0 0 8px"><a href="tel:{{ o.provider.contact_phone }}">{{ o.provider.contact_phone or 'телефон не указан' }}</a></p>
     {% if o.provider.telegram %}
     <p style="font-size:18px;margin:0"><a href="{{ o.provider.telegram }}" target="_blank" rel="noopener">{{ o.provider.telegram }}</a></p>
     {% else %}
     <p class="muted">Telegram не указан</p>
     {% endif %}
-    <p class="hint">Эти контакты только здесь. На публичной карточке их нет.</p>
+    {% else %}
+    <p class="hint">Имя, телефон и Telegram в базу сайта не пишутся. Организатор оставляет их в боте по коду <b>leisure_{{ o.provider.code }}</b>. Сюда они только подгружаются и не сохраняются.</p>
+    {% if bot_note %}<div class="pnote">{{ bot_note }}</div>{% endif %}
+    {% for m in matches %}
+    <div class="row" style="margin-top:10px">
+      <div class="row-title"><span class="badge {{ m.platform_badge }}">{{ m.platform_title }}</span> <span>{{ m.user_name }}</span> <span>{{ m.created_at }} МСК</span></div>
+      {% if m.phone %}<p style="font-size:18px;margin:6px 0">Телефон: {{ m.phone }}</p>{% endif %}
+      {% if m.telegram %}<p style="margin:6px 0">Telegram: {% if m.telegram.startswith('http') %}<a href="{{ m.telegram }}" target="_blank" rel="noopener">{{ m.telegram }}</a>{% else %}{{ m.telegram }}{% endif %}</p>{% endif %}
+      {% if m.preview %}<div class="inbox-preview">{{ m.preview }}</div>{% endif %}
+    </div>
+    {% else %}
+      {% if not bot_note %}<p class="muted">Пока нет. Ссылки для организатора: <a href="{{ bot.max }}" target="_blank" rel="noopener">MAX</a> · <a href="{{ bot.telegram }}" target="_blank" rel="noopener">Telegram</a></p>{% endif %}
+    {% endfor %}
+    {% endif %}
   </div>
 
   <form method="post" action="/admin/dosug/{{ o.id }}" enctype="multipart/form-data">
@@ -187,7 +202,7 @@
           <div class="field"><label>Название для гостей</label><input type="text" name="display_name" value="{{ o.provider.display_name }}"></div>
           <div class="field"><label>Статус</label>
             <select name="legal_status">{% for code, title in legal_statuses %}<option value="{{ code }}" {% if o.provider.legal_status == code %}selected{% endif %}>{{ title }}</option>{% endfor %}</select></div>
-          <div class="field"><label>Реквизиты (только здесь)</label><input type="text" name="legal_details" value="{{ o.provider.legal_details or '' }}"></div>
+          {% if pd_in_site_db %}<div class="field"><label>Реквизиты (только здесь)</label><input type="text" name="legal_details" value="{{ o.provider.legal_details or '' }}"></div>{% endif %}
           <div class="field"><label>Лицензии</label><textarea name="licenses_note" rows="2">{{ o.provider.licenses_note or '' }}</textarea></div>
           <div class="field"><label>Страховка</label><textarea name="insurance_note" rows="2">{{ o.provider.insurance_note or '' }}</textarea></div>
           <div class="field"><label>Инструктор</label>
@@ -198,10 +213,12 @@
           <div class="field"><label>Про инструктора</label><input type="text" name="instructor_note" value="{{ o.provider.instructor_note or '' }}"></div>
           <div class="field"><label>Сайт</label><input type="text" name="website" value="{{ o.provider.website or '' }}"></div>
           <div class="field"><label>Соцсети</label><input type="text" name="socials" value="{{ o.provider.socials or '' }}"></div>
+          {% if pd_in_site_db %}
           <div class="field"><label>Имя контакта</label><input type="text" name="contact_name" value="{{ o.provider.contact_name or '' }}"></div>
           <div class="field"><label>Телефон</label><input type="text" name="contact_phone" value="{{ o.provider.contact_phone or '' }}"></div>
           <div class="field"><label>Telegram</label><input type="text" name="contact_telegram" value="{{ o.provider.telegram or '' }}" placeholder="@username или t.me/…"></div>
           <div class="field"><label>Другой мессенджер</label><input type="text" name="contact_messenger" value="{{ o.provider.contact_messenger or '' }}"></div>
+          {% endif %}
         </div>
       </div>
     </div>
