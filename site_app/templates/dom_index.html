@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Страница домика — демо АдыГида</title>
+<meta name="description" content="Скрытая демо-страница гостевого домика для таблички QR. Не для индексации и не карточка настоящего дома.">
+<link rel="canonical" href="{{ canonical_url }}">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#1E6E30">
+<link rel="icon" href="/assets/favicon.ico?v={{ rev }}" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png?v={{ rev }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="АдыГид">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:url" content="{{ canonical_url }}">
+<meta property="og:title" content="Страница домика — демо АдыГида">
+<meta property="og:description" content="Скрытая демо-страница гостевого домика для таблички QR.">
+<meta property="og:image" content="{{ site_url }}/assets/og-default.jpg?v={{ rev }}">
+<link rel="stylesheet" href="/assets/site.css?v={{ rev }}">
+<link rel="stylesheet" href="/assets/dom.css?v={{ rev }}">
+</head>
+<body class="dom-page dom-index">
+  <a class="dom-skip" href="#houses">К демо-странице</a>
+  <header class="dom-top">
+    <a class="dom-brand" href="/" aria-label="АдыГид — на главную">
+      <img class="brand-mark" src="/assets/logo-cat.png?v={{ rev }}" alt="" width="32" height="32">
+      <span class="brand-word">АдыГид</span>
+    </a>
+    <p class="dom-badge">Демо</p>
+  </header>
+  <main class="dom-wrap dom-index-main" id="houses">
+    <p class="dom-kicker">Табличка QR в доме</p>
+    <h1 class="dom-title">Страница, которую гость откроет по ссылке</h1>
+    <p class="dom-offer">Адрес вида <code>adygid.ru/dom/&lt;код&gt;</code>. Код на табличке можно не менять, а текст — править. Сейчас здесь один учебный дом: это не карточка настоящего объекта.</p>
+    <ul class="dom-list">
+      <li>Страницы нет в меню и в sitemap, в заголовке ответа стоит noindex.</li>
+      <li>Телефон, имя и адрес хозяина на страницу не пишутся. Гость и хозяин пишут друг другу через ботов Адыгида.</li>
+      <li>Места и маршруты рядом берутся из каталога сайта. Если базы нет, страница дома всё равно открывается.</li>
+    </ul>
+    <div class="dom-index-cards">
+      {% for code, house in houses.items() %}
+      <a class="dom-index-card" href="/dom/{{ code }}">
+        <span class="dom-badge">{{ house.badge }}</span>
+        <h2>{{ house.name }}</h2>
+        <p>{{ house.offer }}</p>
+        <span class="dom-index-go">Открыть /dom/{{ code }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </main>
+  <footer class="dom-foot">
+    <div class="dom-wide dom-foot-links">
+      <a href="/">АдыГид</a>
+      <a href="/podbor">Подбор поездки</a>
+      <a href="/privacy">Политика конфиденциальности</a>
+    </div>
+  </footer>
+</body>
+</html>
