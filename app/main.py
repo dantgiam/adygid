@@ -85,9 +85,11 @@ async def _cache_policy(request, call_next):
         response.headers["Cache-Control"] = cache
     else:
         response.headers["Cache-Control"] = "no-store"
-    # /v — скрытый тест «Впечатления». noindex на странице и на иллюстрациях,
-    # но в robots.txt этого пути нет: запрет обхода не дал бы роботу увидеть noindex.
-    if path in ("/v", "/v/") or path.startswith("/assets/vpechatleniya/"):
+    # /v — скрытый тест «Впечатления». /dom — пилот страниц домика для табличек.
+    # noindex на самой странице, но в robots.txt путь не закрыт: иначе робот
+    # не увидел бы noindex.
+    if path in ("/v", "/v/", "/dom") or path.startswith("/assets/vpechatleniya/") \
+            or path.startswith("/dom/"):
         response.headers["X-Robots-Tag"] = "noindex, nofollow"
     return response
 
@@ -1949,6 +1951,10 @@ app.include_router(site_router)
 # Скрытый тест каталога «Впечатления»: только прямой адрес /v.
 from site_app.vpechatleniya import router as vpechatleniya_router
 app.include_router(vpechatleniya_router)
+
+# Пилот страниц домика для QR/NFC-табличек: /dom и /dom/<код>, без базы.
+from site_app.dom import router as dom_router
+app.include_router(dom_router)
 
 from site_app.podbor_api import router as podbor_router, podbor_stats
 from site_app.plan_store import router as plan_router

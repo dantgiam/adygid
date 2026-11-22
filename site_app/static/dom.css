@@ -1,0 +1,345 @@
+/* Страница домика /dom/<код> — пилот табличек QR/NFC.
+   Два варианта: .dom--plate (компактная «табличка») и .dom--journal («журнал»).
+   Шрифты, зелёный и золото те же, что на сайте; отдельный фон, чтобы страница
+   ощущалась как вещь в доме, а не как ещё один раздел каталога. */
+
+.dom-page {
+  min-height: 100vh;
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+.dom-skip {
+  position: absolute;
+  left: -999px;
+  top: 8px;
+  z-index: 20;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+.dom-skip:focus { left: 8px; }
+
+.dom-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px 20px 0;
+}
+.dom-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.dom-brand .brand-mark { display: block; }
+.dom-top-note {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.dom-kicker {
+  margin: 0 0 10px;
+  color: var(--accent-dark);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.dom-page h1 {
+  margin: 0 0 14px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(32px, 7vw, 48px);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: #14170F;
+}
+.dom-page h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.25;
+  color: #14170F;
+}
+.dom-lead, .dom-block p, .dom-list, .dom-caption, .dom-emergency {
+  font-size: 16.5px;
+  line-height: 1.55;
+}
+.dom-lead { margin: 0; color: var(--text); }
+.dom-caption, .dom-emergency, .dom-top-note { color: var(--text-muted); }
+.dom-caption { margin: 0 0 12px; font-size: 14.5px; }
+
+.dom-block {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px 22px 20px;
+}
+.dom-block p:last-child { margin-bottom: 0; }
+
+.dom-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dom-list li {
+  position: relative;
+  padding: 0 0 12px 18px;
+}
+.dom-list li:last-child { padding-bottom: 0; }
+.dom-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.7em;
+  width: 8px;
+  height: 2px;
+  background: var(--gold);
+  border-radius: 1px;
+}
+
+.dom-empty {
+  padding: 14px 16px;
+  border: 1px dashed #C9D8C6;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+}
+.dom-empty p { margin: 0; color: var(--text-muted); }
+
+.dom-nearby {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dom-nearby li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.dom-nearby li:first-child { border-top: 0; padding-top: 0; }
+.dom-nearby a {
+  font-weight: 700;
+  color: var(--accent-dark);
+}
+.dom-nearby a:hover { text-decoration: underline; }
+.dom-nearby span { color: var(--text-muted); font-size: 14px; }
+
+.dom-bots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 12px;
+}
+.dom-emergency a {
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.dom-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.dom-foot a:hover { color: var(--accent-dark); }
+
+/* Липкая панель — только у компактного варианта и только на узком экране. */
+.dom-sticky {
+  display: none;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  gap: 8px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(247, 251, 245, 0.94);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+}
+.dom-sticky .btn { flex: 1; justify-content: center; padding-left: 10px; padding-right: 14px; }
+
+/* ── Табличка ─────────────────────────────────── */
+.dom--plate {
+  background:
+    radial-gradient(800px 480px at 50% -10%, rgba(39, 140, 62, .10), transparent 60%),
+    radial-gradient(600px 400px at 100% 80%, rgba(214, 163, 36, .12), transparent 60%),
+    #F6F1E6;
+}
+.dom--plate .dom-shell {
+  max-width: 620px;
+  margin: 12px auto 0;
+  padding: 28px 22px 24px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.72), rgba(255,255,255,.88));
+  border: 1px solid #E6DCC8;
+  border-radius: 18px;
+  box-shadow: 0 10px 40px rgba(60, 45, 20, 0.08);
+}
+.dom--plate .dom-hero {
+  margin-bottom: 22px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #E6DCC8;
+}
+.dom--plate .dom-hero h1 {
+  display: block;
+  padding-bottom: 0;
+}
+.dom--plate .dom-hero h1::after {
+  content: "";
+  display: block;
+  width: 4.5rem;
+  height: 2px;
+  margin: 12px 0 0;
+  background: var(--gold);
+}
+.dom--plate .dom-block {
+  margin-bottom: 14px;
+  background: rgba(255,255,255,.84);
+  border-color: #E6DCC8;
+  box-shadow: none;
+}
+.dom--plate .dom-split { display: grid; gap: 14px; }
+.dom--plate .dom-contact {
+  background: var(--accent-soft);
+  border-color: #C9E3C9;
+}
+.dom--plate .dom-foot { max-width: 620px; }
+@media (max-width: 720px) {
+  .dom--plate .dom-sticky { display: flex; }
+  .dom--plate .dom-contact .dom-bots { display: none; }
+  .dom--plate { padding-bottom: 0; }
+  .dom--plate .dom-shell {
+    margin: 8px 12px 0;
+    padding: 22px 16px 18px;
+    border-radius: 14px;
+  }
+}
+
+/* ── Журнал ───────────────────────────────────── */
+.dom--journal .dom-shell {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 28px 24px 10px;
+}
+.dom--journal .dom-hero {
+  max-width: 720px;
+  margin: 12px 0 36px;
+  padding: 8px 0 8px;
+}
+.dom--journal .dom-hero h1 {
+  font-size: clamp(36px, 6vw, 58px);
+}
+.dom--journal .dom-lead { font-size: 18.5px; line-height: 1.5; max-width: 40em; }
+.dom--journal .dom-block {
+  margin-bottom: 18px;
+  padding: 26px 28px 24px;
+}
+.dom--journal .dom-split {
+  display: grid;
+  gap: 18px;
+}
+@media (min-width: 800px) {
+  .dom--journal .dom-split { grid-template-columns: 1.15fr 0.85fr; align-items: stretch; }
+  .dom--journal .dom-top, .dom--journal .dom-foot { max-width: 860px; }
+}
+.dom--journal .dom-contact {
+  padding: 32px 28px;
+}
+.dom--journal .dom-sticky { display: none; }
+
+/* ── Оглавление макетов /dom ──────────────────── */
+.dom-index {
+  background:
+    radial-gradient(900px 620px at 10% 2%, rgba(39, 140, 62, .13), transparent 62%),
+    radial-gradient(820px 560px at 94% 18%, rgba(214, 163, 36, .14), transparent 64%),
+    #F7FBF5;
+}
+.dom-index-main {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 36px 20px 20px;
+}
+.dom-index-main h1 { max-width: 16em; }
+.dom-index-main .dom-lead { max-width: 42em; margin-bottom: 22px; }
+.dom-index-main code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--gold-soft);
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+}
+.dom-points {
+  margin: 0 0 36px;
+  padding: 0;
+  list-style: none;
+  max-width: 42em;
+}
+.dom-points li {
+  position: relative;
+  padding: 0 0 10px 18px;
+}
+.dom-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.7em;
+  width: 8px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.dom-lead-sm { margin: 0 0 18px; color: var(--text-muted); max-width: 42em; }
+.dom-index-main h2 { margin: 0 0 8px; }
+.dom-variant-grid {
+  display: grid;
+  gap: 16px;
+  margin: 8px 0 20px;
+}
+@media (min-width: 720px) {
+  .dom-variant-grid { grid-template-columns: 1fr 1fr; }
+}
+.dom-variant-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 22px 20px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  min-height: 100%;
+}
+.dom-variant-card h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+}
+.dom-variant-card p { margin: 0; color: var(--text); flex: 1; }
+.dom-variant-go { font-weight: 700; color: var(--accent-dark); }
+.dom-variant-card:hover { border-color: var(--accent); }
+.dom-variant-card.is-rec { border-color: #C9E3C9; background: linear-gradient(180deg, #F3FAF3, #fff 40%); }
+.dom-rec {
+  align-self: flex-start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
