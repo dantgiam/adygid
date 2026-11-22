@@ -107,6 +107,32 @@ def _extra(filename: str, alt: str, width: int, height: int) -> dict:
 _WOOD = _extra("wood-720.webp", "Демо-фото: печка и колотые дрова у чана", 480, 364)
 _RENT = _extra("rent-720.webp", "Демо-фото: рюкзаки на тропе — пример проката снаряжения", 720, 352)
 
+# Реальные обложки каталога, уменьшенные рядом со страницей. Источник и файл
+# хранилища записаны в site_app/static/dom/places/SOURCES.txt.
+_SCENERY = [
+    {
+        "src": "/assets/dom/places/tesnina-960.webp",
+        "alt": "Хаджохская теснина: река в узком каньоне",
+        "caption": "Хаджохская теснина",
+        "credit": "Фото из каталога Адыгида",
+        "url": "/mesta/khadzhokhskaya-tesnina",
+    },
+    {
+        "src": "/assets/dom/places/rufabgo-960.webp",
+        "alt": "Водопады Руфабго",
+        "caption": "Водопады Руфабго",
+        "credit": "Фото из каталога Адыгида",
+        "url": "/mesta/vodopady-rufabgo",
+    },
+    {
+        "src": "/assets/dom/places/lago-960.webp",
+        "alt": "Плато Лаго-Наки",
+        "caption": "Плато Лаго-Наки",
+        "credit": "Фото из каталога Адыгида",
+        "url": "/mesta/plato-lago-naki",
+    },
+]
+
 
 def _service(
     sid: str,
@@ -160,6 +186,7 @@ DEMO = {
     "checkin": "с 14:00",
     "checkout": "до 12:00",
     "gallery": _GALLERY,
+    "scenery": _SCENERY,
     "quick": [
         {"href": "#now", "label": "Wi-Fi"},
         {"href": "#rules", "label": "Выезд до 12:00"},

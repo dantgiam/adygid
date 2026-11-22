@@ -15,16 +15,15 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 
+from app.database import SessionLocal
 from site_app.data.dom_houses import HOUSES, get_house
 from site_app.dom_nearby import load_catalog
-from site_app.router import REVIEW_BOT, REVIEW_BOT_TG
+from site_app.router import REVIEW_BOT, REVIEW_BOT_TG, YANDEX_METRIKA_ID, _footer_stats, templates
 
 router = APIRouter()
 
 _DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(_DIR / "templates"))
 SITE_URL = os.getenv("SITE_URL", "http://localhost:8000").rstrip("/")
 CODE_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,31}$")
 
@@ -39,9 +38,10 @@ def _asset_rev() -> str:
         _DIR / "templates" / "dom.html",
         _DIR / "templates" / "dom_index.html",
     ]
-    photo_dir = _DIR / "static" / "dom" / "demo"
-    if photo_dir.is_dir():
-        files.extend(photo_dir.glob("*.webp"))
+    for folder in ("demo", "places"):
+        photo_dir = _DIR / "static" / "dom" / folder
+        if photo_dir.is_dir():
+            files.extend(photo_dir.glob("*.webp"))
     for path in files:
         if path.is_file():
             stamp = max(stamp, int(path.stat().st_mtime))
@@ -61,11 +61,29 @@ def bot_links(code: str) -> dict:
     }
 
 
+def _footer() -> dict:
+    """Подвал сайта. Если базы нет, страница дома всё равно открывается."""
+    try:
+        db = SessionLocal()
+    except Exception:
+        return {"places": 0, "trails": 0}
+    try:
+        return _footer_stats(db)
+    except Exception:
+        return {"places": 0, "trails": 0}
+    finally:
+        db.close()
+
+
 def _base(request: Request) -> dict:
     return {
         "request": request,
         "rev": REV,
+        "asset_version": REV,
         "site_url": SITE_URL,
+        "footer_stats": _footer(),
+        "yandex_metrika_id": YANDEX_METRIKA_ID,
+        "media_origin": "",
     }
 
 

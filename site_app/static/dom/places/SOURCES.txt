@@ -1,0 +1,21 @@
+Фото мест на демо-странице домика взяты из опубликованного каталога Адыгида.
+Отдельного поля лицензии у снимка в базе нет: источник — карточка места и файл в хранилище сайта.
+На странице у каждого кадра есть подпись и ссылка на карточку.
+
+Хаджохская теснина
+Карточка: /mesta/khadzhokhskaya-tesnina
+Файл каталога: https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/448c4b816ebf4e748411e4320a874734.jpeg
+Подпись в каталоге: Хаджохская теснина
+Локальная копия: tesnina-960.webp
+
+Плато Лаго-Наки
+Карточка: /mesta/plato-lago-naki
+Файл каталога: https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/122d8d600b2444c0951446c8dda2498d.webp
+Подпись в каталоге: Плато Лаго-Наки
+Локальная копия: lago-960.webp
+
+Водопады Руфабго
+Карточка: /mesta/vodopady-rufabgo
+Файл каталога: https://hiotbrjgilwlztlfdkmg.supabase.co/storage/v1/object/public/uploads/e82354484518437b90d9f59160f1924a.webp
+Подпись в каталоге: Водопады Руфабго
+Локальная копия: rufabgo-960.webp

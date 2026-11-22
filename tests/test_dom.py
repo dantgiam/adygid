@@ -105,7 +105,9 @@ def test_contact_is_only_the_adygid_bots_and_112(quiet_catalog):
     assert 'href="tel:112"' in page.text
     assert "tel:+" not in page.text
     assert not re.search(r"\+7[\d\s()-]{8,}", page.text)
-    assert "@" not in page.text
+    # @context в разметке сайта — не адрес. Почты на странице быть не должно.
+    assert not re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", page.text)
+    assert "mailto:" not in page.text
 
 
 def test_house_config_has_no_personal_data_and_a_demo_pin():
@@ -262,7 +264,7 @@ def test_catalog_cards_render_with_drive_time_and_filter(monkeypatch):
     assert "Для детей" in page.text
     assert 'data-dom-cat="Водопад"' in page.text
     assert "Подобрать маршрут" in page.text
-    assert page.text.count('class="dom-q" open') == 3
+    assert page.text.count('class="dom-q faq-item" open') == 3
     assert "Частые вопросы" in page.text
     assert 'data-fallback="/assets/dom/demo/exterior-960.webp"' in page.text
     assert page.text.count('src="/assets/dom/demo/exterior-960.webp"') >= 1
@@ -285,7 +287,11 @@ def test_page_renders_when_catalog_database_is_down(monkeypatch):
     assert "А-фрейм у леса (демо)" in page.text
     html = page.text
     assert "Частые вопросы" in html
-    assert html.count('class="dom-q" open') == 3
+    assert html.count('class="dom-q faq-item" open') == 3
+    assert "Хаджохская теснина" in html and "Плато Лаго-Наки" in html and "Водопады Руфабго" in html
+    assert "Фото из каталога Адыгида" in html
+    assert 'class="site-header"' in html and 'class="site-footer"' in html
+    assert 'data-dom-letter' in html and 'id="dom-letter"' in html
     for phrase in (
         "Как попасть в дом?",
         "Код замка присылаем в боте",

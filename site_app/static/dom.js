@@ -27,6 +27,42 @@
     });
   }
 
+  document.querySelectorAll("[data-dom-letter]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var letter = document.getElementById("dom-letter");
+      if (letter && letter.showModal) letter.showModal();
+    });
+  });
+  var letter = document.getElementById("dom-letter");
+  if (letter) {
+    var closeLetter = letter.querySelector("[data-dom-close]");
+    if (closeLetter) closeLetter.addEventListener("click", function () { letter.close(); });
+    letter.addEventListener("click", function (event) {
+      if (event.target === letter) letter.close();
+    });
+  }
+
+  var tabs = [].slice.call(document.querySelectorAll("[data-dom-tab]"));
+  var tabSections = tabs.map(function (tab) {
+    return { tab: tab, el: document.getElementById((tab.getAttribute("href") || "").slice(1)) };
+  }).filter(function (item) { return item.el; });
+  function markTab() {
+    if (!tabSections.length) return;
+    var line = window.scrollY + 140;
+    var current = tabSections[0];
+    tabSections.forEach(function (item) {
+      if (item.el.offsetTop <= line) current = item;
+    });
+    tabSections.forEach(function (item) {
+      var on = item === current;
+      item.tab.classList.toggle("is-on", on);
+      if (on) item.tab.setAttribute("aria-current", "true");
+      else item.tab.removeAttribute("aria-current");
+    });
+  }
+  window.addEventListener("scroll", markTab, { passive: true });
+  markTab();
+
   var faqAll = document.getElementById("faq-all");
   if (faqAll) {
     faqAll.addEventListener("click", function () {
