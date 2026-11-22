@@ -32,6 +32,7 @@ def _cover(card: dict) -> dict:
     card["cover_srcset"] = image_srcset(cover) if cover else ""
     category = card.get("category") or {}
     card["category_name"] = category.get("name") or ""
+    card["why"] = card["category_name"]
     return card
 
 

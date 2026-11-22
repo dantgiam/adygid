@@ -122,7 +122,11 @@ def test_house_config_has_no_personal_data_and_a_demo_pin():
     assert house["place_limit"] == 6
     assert house["route_limit"] == 2
     assert len(house["gallery"]) == 6
-    assert len(house["services"]) == 6
+    assert len(house["services"]) == 8
+    assert house["highlights"] == [
+        "Утром пили кофе и смотрели на лес",
+        "Алина и Дмитрий быстро ответили на вопросы",
+    ]
     assert len(house["host"]["paragraphs"]) == 2
     assert house["cover_fallback"].endswith("exterior-960.webp")
     for svc in house["services"]:
@@ -264,7 +268,7 @@ def test_catalog_cards_render_with_drive_time_and_filter(monkeypatch):
     assert "Для детей" in page.text
     assert 'data-dom-cat="Водопад"' in page.text
     assert "Подобрать маршрут" in page.text
-    assert page.text.count('class="dom-q faq-item" open') == 3
+    assert page.text.count('class="dom-q faq-item" open') == 1
     assert "Частые вопросы" in page.text
     assert 'data-fallback="/assets/dom/demo/exterior-960.webp"' in page.text
     assert page.text.count('src="/assets/dom/demo/exterior-960.webp"') >= 1
@@ -287,7 +291,7 @@ def test_page_renders_when_catalog_database_is_down(monkeypatch):
     assert "А-фрейм у леса (демо)" in page.text
     html = page.text
     assert "Частые вопросы" in html
-    assert html.count('class="dom-q faq-item" open') == 3
+    assert html.count('class="dom-q faq-item" open') == 1
     assert "Хаджохская теснина" in html and "Плато Лаго-Наки" in html and "Водопады Руфабго" in html
     assert "Фото из каталога Адыгида" in html
     assert 'class="site-header"' in html and 'class="site-footer"' in html

@@ -72,11 +72,41 @@
       faqAll.textContent = open ? "Свернуть все" : "Развернуть все";
     });
   }
+  var faqMore = document.getElementById("faq-more");
+  var faqRest = document.getElementById("faq-rest");
+  function showFaqRest() {
+    if (!faqRest) return;
+    faqRest.hidden = false;
+    if (faqMore) {
+      faqMore.setAttribute("aria-expanded", "true");
+      faqMore.textContent = "Скрыть остальные вопросы";
+    }
+  }
+  if (faqMore && faqRest) {
+    faqMore.addEventListener("click", function () {
+      var open = faqRest.hidden;
+      faqRest.hidden = !open;
+      faqMore.setAttribute("aria-expanded", open ? "true" : "false");
+      faqMore.textContent = open ? "Скрыть остальные вопросы" : "Показать все вопросы";
+      if (open) faqRest.scrollIntoView({ block: "start" });
+    });
+  }
   document.querySelectorAll('a[href^="#faq-"]').forEach(function (link) {
     link.addEventListener("click", function () {
       var id = link.getAttribute("href").slice(1);
       var node = document.getElementById(id);
+      if (faqRest && node && faqRest.contains(node)) showFaqRest();
       if (node && node.tagName === "DETAILS") node.open = true;
+    });
+  });
+  document.querySelectorAll("[data-svc-dir]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      var rail = document.getElementById("svc-rail");
+      if (!rail) return;
+      var card = rail.querySelector(".card");
+      var step = card ? card.getBoundingClientRect().width + 12 : 280;
+      var dir = Number(button.getAttribute("data-svc-dir")) || 1;
+      rail.scrollBy({ left: dir * step, behavior: reduce ? "auto" : "smooth" });
     });
   });
 
