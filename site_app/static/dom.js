@@ -59,6 +59,15 @@
     });
   });
 
+  document.querySelectorAll("img[data-fallback]").forEach(function (img) {
+    img.addEventListener("error", function () {
+      var next = img.getAttribute("data-fallback");
+      if (!next || img.getAttribute("src") === next) return;
+      img.removeAttribute("srcset");
+      img.setAttribute("src", next);
+    });
+  });
+
   var raw = document.getElementById("dom-services");
   var services = raw ? JSON.parse(raw.textContent) : [];
   var byId = {};

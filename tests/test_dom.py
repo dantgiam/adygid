@@ -117,11 +117,16 @@ def test_house_config_has_no_personal_data_and_a_demo_pin():
     assert 40.17 < origin["lon"] < 40.23
     assert origin["label"].startswith("район хутора Грозный")
     house = dom_houses.get_house("demo")
-    assert house["place_limit"] == 8
-    assert house["route_limit"] == 4
+    assert house["place_limit"] == 6
+    assert house["route_limit"] == 2
     assert len(house["gallery"]) == 6
     assert len(house["services"]) == 6
-    assert len(house["host"]["paragraphs"]) == 3
+    assert len(house["host"]["paragraphs"]) == 2
+    assert house["cover_fallback"].endswith("exterior-960.webp")
+    for svc in house["services"]:
+        photo = svc["photo"]["src"]
+        assert photo.startswith("/assets/dom/demo/") and photo.endswith(".webp")
+        assert (PHOTOS / Path(photo).name).is_file()
     assert len(house["reviews"]) == 4
     assert house["host"]["names"] == "Алина и Дмитрий"
 
@@ -129,7 +134,7 @@ def test_house_config_has_no_personal_data_and_a_demo_pin():
 def test_demo_photos_are_local_webp_with_alt_and_lazy(quiet_catalog):
     page = _client().get("/dom/demo").text
     files = sorted(p.name for p in PHOTOS.glob("*.webp"))
-    assert len(files) == 14
+    assert len(files) == 16
     for name in files:
         path = PHOTOS / name
         assert path.stat().st_size < 260_000
@@ -256,11 +261,16 @@ def test_catalog_cards_render_with_drive_time_and_filter(monkeypatch):
     assert "12 км по прямой" in page.text
     assert "Для детей" in page.text
     assert 'data-dom-cat="Водопад"' in page.text
-    assert "Подобрать маршрут за 1 минуту" in page.text
+    assert "Подобрать маршрут" in page.text
+    assert page.text.count('class="dom-q" open') == 3
+    assert "Частые вопросы" in page.text
+    assert 'data-fallback="/assets/dom/demo/exterior-960.webp"' in page.text
+    assert page.text.count('src="/assets/dom/demo/exterior-960.webp"') >= 1
     assert 'href="/marshruty/test-route"' in page.text
     assert "Тестовый маршрут" in page.text
     assert "ТОП" in page.text
-    assert "Время в пути приблизительное, по прямой" in page.text
+    assert "Время в пути приблизительное, по прямой." in page.text
+    assert "Демо-точка: район хутора Грозный" in page.text
 
 
 def test_page_renders_when_catalog_database_is_down(monkeypatch):
@@ -273,6 +283,24 @@ def test_page_renders_when_catalog_database_is_down(monkeypatch):
     assert "Каталог мест сейчас недоступен" in page.text
     assert "Маршруты рядом появятся" in page.text
     assert "А-фрейм у леса (демо)" in page.text
+    html = page.text
+    assert "Частые вопросы" in html
+    assert html.count('class="dom-q" open') == 3
+    for phrase in (
+        "Как попасть в дом?",
+        "Код замка присылаем в боте",
+        "Как подключиться к Wi-Fi?",
+        "Как в доме с теплом?",
+        "Горячая вода кончилась?",
+        "Можно ли топить печь самим?",
+        "Баня и чан входят в проживание?",
+        "Есть ли мангал и дрова?",
+        "Куда девать мусор?",
+        "Что сделать перед отъездом?",
+    ):
+        assert phrase in html
+    assert "wood-720.webp" in html and "rent-720.webp" in html
+    assert "Dom Script" in _client().get(f"/assets/dom.css?v={REV}").text
 
 
 def test_dom_stays_out_of_sitemap_robots_and_navigation():

@@ -60,18 +60,19 @@
   {% endif %}
 
   <main id="content">
-    <section class="dom-wrap dom-welcome" id="host">
-      <img class="dom-host-photo" src="{{ house.host.photo.src }}" srcset="{{ house.host.photo.srcset }}" sizes="(max-width: 720px) 72px, 96px" alt="{{ house.host.photo.alt }}" width="{{ house.host.photo.width }}" height="{{ house.host.photo.height }}" loading="lazy" decoding="async">
-      <div>
-        <p class="dom-host-names">{{ house.host.names }} <span class="dom-ex">пример</span></p>
-        <p class="dom-host-role">{{ house.host.role }}</p>
+    <section class="dom-wrap dom-lettercard" id="host">
+      <figure class="dom-letter-figure">
+        <img src="{{ house.host.photo.src }}" srcset="{{ house.host.photo.srcset }}" sizes="(max-width: 800px) 100vw, 460px" alt="{{ house.host.photo.alt }}" width="{{ house.host.photo.width }}" height="{{ house.host.photo.height }}" loading="lazy" decoding="async">
+        <figcaption>{{ house.host.caption }}</figcaption>
+      </figure>
+      <div class="dom-letter-paper">
+        <p class="dom-letter-kicker">Письмо хозяев · пример</p>
         <p class="dom-hello">{{ house.host.hello }}</p>
-      </div>
-      <div class="dom-letter">
-        {% if house.host.caption %}<p class="dom-caption">{{ house.host.caption }}</p>{% endif %}
         {% for paragraph in house.host.paragraphs %}
         <p>{{ paragraph }}</p>
         {% endfor %}
+        <p class="dom-sign">{{ house.host.names }}</p>
+        <p class="dom-sign-role">{{ house.host.role }}</p>
       </div>
     </section>
 
@@ -154,7 +155,7 @@
       <p class="dom-caption">{{ house.faq.caption }}</p>
       <div class="dom-faq">
         {% for group in house.faq.groups %}
-        <details class="dom-grp" id="{{ group.id }}">
+        <details class="dom-grp" id="{{ group.id }}"{% if loop.first %} open{% endif %}>
           <summary>
             <span>
               <b>{{ group.title }}</b>
@@ -163,7 +164,7 @@
           </summary>
           <div>
             {% for item in group["items"] %}
-            <details class="dom-q">
+            <details class="dom-q"{% if group.id == 'faq-checkin' and loop.index <= 3 %} open{% endif %}>
               <summary>{{ item.q }}</summary>
               <div class="dom-a">
                 <p>{{ item.a }}</p>
@@ -215,20 +216,14 @@
       <div class="dom-svc-grid">
         {% for svc in house.services %}
         <article class="dom-svc" id="svc-{{ svc.id }}">
-          <div class="dom-svc-media{% if not svc.photo %} dom-mark dom-mark-{{ svc.mark }}{% endif %}">
-            {% if svc.photo %}
-            <img src="{{ svc.photo.src }}" srcset="{{ svc.photo.srcset }}" sizes="(max-width: 800px) 46vw, 320px" alt="{{ svc.photo.alt }}" width="{{ svc.photo.width }}" height="{{ svc.photo.height }}" loading="lazy" decoding="async">
-            {% elif svc.mark == "wood" %}
-            <svg viewBox="0 0 120 80" width="88" height="58" aria-hidden="true"><rect x="18" y="18" width="84" height="14" rx="7" fill="#C4A15A"/><rect x="12" y="36" width="96" height="14" rx="7" fill="#A67C3D"/><rect x="22" y="54" width="76" height="12" rx="6" fill="#D6A324"/></svg>
-            {% else %}
-            <svg viewBox="0 0 120 80" width="88" height="58" aria-hidden="true"><path d="M48 22h24l6 10v28a6 6 0 0 1-6 6H48a6 6 0 0 1-6-6V32Z" fill="#E3F5E4" stroke="#1E6E30" stroke-width="3"/><path d="M52 18v4h16v-4a8 8 0 0 0-16 0Z" fill="none" stroke="#1E6E30" stroke-width="3"/></svg>
-            {% endif %}
-            <p class="dom-svc-price"><small>пример</small> {{ svc.price }}</p>
+          <div class="dom-svc-media">
+            <img src="{{ svc.photo.src }}" srcset="{{ svc.photo.srcset }}" sizes="(max-width: 800px) 46vw, 280px" alt="{{ svc.photo.alt }}" width="{{ svc.photo.width }}" height="{{ svc.photo.height }}" loading="lazy" decoding="async">
           </div>
           <div class="dom-svc-body">
             <h3>{{ svc.title }}</h3>
+            <p class="dom-svc-price">{{ svc.price }} <span>пример</span></p>
             <p>{{ svc.teaser }}</p>
-            <button type="button" class="btn btn-primary dom-more-btn" data-dom-open="{{ svc.id }}">Подробнее</button>
+            <button type="button" class="dom-more-btn" data-dom-open="{{ svc.id }}">Подробнее</button>
           </div>
         </article>
         {% endfor %}
@@ -236,27 +231,24 @@
     </section>
 
     <section class="dom-guide" id="guide">
-      <div class="dom-wide">
-        <p class="dom-kicker dom-kicker-light">{{ house.guide.kicker }}</p>
-        <h2>{{ house.guide.title }}</h2>
-        <p class="dom-guide-lead">{{ house.guide.text }} Расчёт от демо-точки: {{ house.origin.label }}. {{ house.origin.note }}</p>
-        <div class="dom-guide-cta">
-          <p>{{ house.guide.cta_note }}</p>
+      <div class="dom-wide dom-guide-inner">
+        <div class="dom-guide-head">
+          <div>
+            <p class="dom-kicker dom-kicker-light">{{ house.guide.kicker }}</p>
+            <h2>{{ house.guide.title }}</h2>
+          </div>
           <a class="btn dom-btn-gold" href="/podbor?src=dom">{{ house.guide.cta }}</a>
-          <a class="dom-guide-link" href="/mesta">{{ house.guide.places }}</a>
         </div>
         <div class="dom-rail" id="nearby" aria-label="Места рядом">
           {% if catalog.ok and catalog.places %}
             {% for p in catalog.places %}
             <a class="dom-trip" href="{{ p.url }}" data-dom-place data-dom-cat="{{ p.category_name }}">
-              {% if p.cover_src %}
-              <img src="{{ p.cover_src }}"{% if p.cover_srcset %} srcset="{{ p.cover_srcset }}" sizes="220px"{% endif %} alt="" width="440" height="560" loading="lazy" decoding="async">
-              {% endif %}
+              <img src="{{ p.cover_src or house.cover_fallback }}" data-fallback="{{ house.cover_fallback }}"{% if p.cover_src and p.cover_srcset %} srcset="{{ p.cover_srcset }}" sizes="180px"{% endif %} alt="" width="360" height="240" loading="lazy" decoding="async">
+              <span class="dom-trip-time">{{ p.drive_label }}</span>
+              {% if p.popularity == 'top' %}<span class="dom-trip-top">ТОП</span>{% endif %}
               <span class="dom-trip-body">
-                <span class="dom-trip-time">{{ p.drive_label }}</span>
-                {% if p.popularity == 'top' %}<span class="dom-trip-top">ТОП</span>{% endif %}
                 <span class="dom-trip-name">{{ p.name }}</span>
-                <span class="dom-trip-meta">{{ p.km_label }}{% if p.category_name %} · {{ p.category_name }}{% endif %}{% if p.kid_friendly %} · Для детей{% endif %}</span>
+                <span class="dom-trip-meta">{{ p.km_label }}{% if p.kid_friendly %} · Для детей{% endif %}</span>
               </span>
             </a>
             {% endfor %}
@@ -266,21 +258,14 @@
           <p class="dom-empty">Каталог мест сейчас недоступен, поэтому лента «рядом» пуста. Правила, услуги и связь на странице работают.</p>
           {% endif %}
         </div>
-        <div id="routes">
-          <h3>Маршруты рядом</h3>
+        <p class="dom-guide-note" id="routes">{{ house.guide.text }} Демо-точка: {{ house.origin.label }}.
           {% if catalog.ok and catalog.routes %}
-          <ul class="dom-route-line">
-            {% for r in catalog.routes %}
-            <li><a href="{{ r.url }}">{{ r.name }}</a> <span>{{ r.drive_label }}</span></li>
-            {% endfor %}
-          </ul>
-          <p class="dom-more"><a href="/marshruty">{{ house.guide.routes }}</a></p>
-          {% elif catalog.ok %}
-          <p class="dom-empty">В каталоге пока нет маршрутов с точками на карте.</p>
-          {% else %}
-          <p class="dom-empty">Маршруты рядом появятся, когда каталог снова будет доступен.</p>
+            {% for r in catalog.routes %}<a href="{{ r.url }}">{{ r.name }}</a>{% if not loop.last %} · {% endif %}{% endfor %} ·
+          {% elif not catalog.ok %}Маршруты рядом появятся, когда каталог снова будет доступен.
+          {% else %}В каталоге пока нет маршрутов с точками на карте.
           {% endif %}
-        </div>
+          <a href="/marshruty">{{ house.guide.routes }}</a>
+        </p>
       </div>
     </section>
   </main>

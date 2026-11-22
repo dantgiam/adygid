@@ -93,6 +93,21 @@ _HOSTS_PHOTO = {
 }
 
 
+def _extra(filename: str, alt: str, width: int, height: int) -> dict:
+    return {
+        "alt": alt,
+        "caption": alt,
+        "width": width,
+        "height": height,
+        "src": f"/assets/dom/demo/{filename}",
+        "srcset": f"/assets/dom/demo/{filename} {width}w",
+    }
+
+
+_WOOD = _extra("wood-720.webp", "Демо-фото: печка и колотые дрова у чана", 480, 364)
+_RENT = _extra("rent-720.webp", "Демо-фото: рюкзаки на тропе — пример проката снаряжения", 720, 352)
+
+
 def _service(
     sid: str,
     title: str,
@@ -103,9 +118,9 @@ def _service(
     includes: list[str],
     about: str,
     photo: str | None = None,
-    mark: str | None = None,
+    photo_dict: dict | None = None,
 ) -> dict:
-    shot = next((item for item in _GALLERY if photo and item["src"].endswith(f"/{photo}-960.webp")), None)
+    shot = photo_dict or next((item for item in _GALLERY if photo and item["src"].endswith(f"/{photo}-960.webp")), None)
     return {
         "id": sid,
         "title": title,
@@ -116,7 +131,6 @@ def _service(
         "includes": includes,
         "about": about,
         "photo": shot,
-        "mark": mark,
     }
 
 
@@ -140,8 +154,9 @@ DEMO = {
     ),
     "photo_note": PHOTO_NOTE,
     "origin": DEMO_ORIGIN,
-    "place_limit": 8,
-    "route_limit": 4,
+    "place_limit": 6,
+    "route_limit": 2,
+    "cover_fallback": "/assets/dom/demo/exterior-960.webp",
     "checkin": "с 14:00",
     "checkout": "до 12:00",
     "gallery": _GALLERY,
@@ -154,12 +169,11 @@ DEMO = {
     "host": {
         "names": "Алина и Дмитрий",
         "role": "хозяева дома",
-        "caption": "Пример. Имена вымышлены, люди на фото сгенерированы.",
+        "caption": "Демо-фото · Алина и Дмитрий, имена вымышлены",
         "hello": "Алина и Дмитрий: будем рады видеть вас.",
         "paragraphs": [
             "Дом собирали сами, два сезона. Хотелось одно большое окно и террасу, где можно сидеть с чаем и не бегать внутрь за кофтой.",
             "Вечером лес затихает раньше, чем ждёшь. Если погасить лампу, звёзды здесь плотные. Музыку на улице не включаем и гостей просим о том же.",
-            "Ниже собрали то, что обычно спрашивают в первый вечер: Wi-Fi, выезд, тепло и как с нами связаться. Если чего-то не хватит, напишите в бот.",
         ],
         "photo": _HOSTS_PHOTO,
     },
@@ -462,7 +476,7 @@ DEMO = {
             "на один вечер",
             ["мангальная чаша", "решётка", "колотые дрова"],
             "На первый вечер дров обычно хватает тех, что уже сложены. Следующая вязанка в примере стоит отдельно. Костёр на траве не разводим.",
-            mark="wood",
+            photo_dict=_WOOD,
         ),
         _service(
             "rent",
@@ -473,17 +487,14 @@ DEMO = {
             "на сутки",
             ["два пледа", "две палки"],
             "Пледы лежат в сундуке на террасе, палки у входа. В примере комплект отдаём на сутки и забираем при выезде.",
-            mark="pack",
+            photo_dict=_RENT,
         ),
     ],
     "guide": {
         "kicker": "Гид Адыгида",
         "title": "Куда съездить отсюда",
-        "text": (
-            "Время в пути приблизительное, по прямой с поправкой на горные дороги, не по навигатору. "
-            "Прямая × 1,3 в горах и × 1,2, если обе точки севернее 44,45°, 50 км/ч и 10 минут на парковку."
-        ),
-        "cta": "Подобрать маршрут за 1 минуту",
+        "text": "Время в пути приблизительное, по прямой.",
+        "cta": "Подобрать маршрут",
         "cta_note": "Подбор на сайте Адыгида: день под компанию, без звонка хозяину.",
         "places": "Все места",
         "routes": "Маршруты",
