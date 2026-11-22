@@ -291,7 +291,9 @@ def test_page_renders_when_catalog_database_is_down(monkeypatch):
     assert "Хаджохская теснина" in html and "Плато Лаго-Наки" in html and "Водопады Руфабго" in html
     assert "Фото из каталога Адыгида" in html
     assert 'class="site-header"' in html and 'class="site-footer"' in html
-    assert 'data-dom-letter' in html and 'id="dom-letter"' in html
+    assert 'data-dom-dialog="dom-letter"' in html and 'id="dom-letter"' in html
+    assert 'id="dom-rules"' in html and 'id="dom-voices"' in html
+    assert "Подберём маршрут по Адыгее бесплатно" in html
     for phrase in (
         "Как попасть в дом?",
         "Код замка присылаем в боте",

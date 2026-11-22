@@ -37,6 +37,7 @@ def _asset_rev() -> str:
         _DIR / "data" / "dom_houses.py",
         _DIR / "templates" / "dom.html",
         _DIR / "templates" / "dom_index.html",
+        _DIR / "static" / "dom" / "rules-key.webp",
     ]
     for folder in ("demo", "places"):
         photo_dir = _DIR / "static" / "dom" / folder

@@ -27,20 +27,20 @@
     });
   }
 
-  document.querySelectorAll("[data-dom-letter]").forEach(function (button) {
+  document.querySelectorAll("[data-dom-dialog]").forEach(function (button) {
     button.addEventListener("click", function () {
-      var letter = document.getElementById("dom-letter");
-      if (letter && letter.showModal) letter.showModal();
+      var dlg = document.getElementById(button.getAttribute("data-dom-dialog") || "");
+      if (dlg && dlg.showModal) dlg.showModal();
     });
   });
-  var letter = document.getElementById("dom-letter");
-  if (letter) {
-    var closeLetter = letter.querySelector("[data-dom-close]");
-    if (closeLetter) closeLetter.addEventListener("click", function () { letter.close(); });
-    letter.addEventListener("click", function (event) {
-      if (event.target === letter) letter.close();
+  document.querySelectorAll("dialog.dom-sheet").forEach(function (dlg) {
+    if (dlg.id === "dom-sheet") return;
+    var closeBtn = dlg.querySelector("[data-dom-close]");
+    if (closeBtn) closeBtn.addEventListener("click", function () { dlg.close(); });
+    dlg.addEventListener("click", function (event) {
+      if (event.target === dlg) dlg.close();
     });
-  }
+  });
 
   var tabs = [].slice.call(document.querySelectorAll("[data-dom-tab]"));
   var tabSections = tabs.map(function (tab) {
@@ -131,14 +131,18 @@
       photo.hidden = true;
     }
     sheet.querySelector("[data-dom-title]").textContent = item.title;
-    sheet.querySelector("[data-dom-price]").textContent = "Пример · " + item.price + " " + item.unit;
+    sheet.querySelector("[data-dom-price]").textContent = item.price + " " + item.unit;
     sheet.querySelector("[data-dom-about]").textContent = item.about;
     sheet.querySelector("[data-dom-duration]").textContent = item.duration;
     var list = sheet.querySelector("[data-dom-includes]");
     list.replaceChildren();
     (item.includes || []).forEach(function (line) {
       var li = document.createElement("li");
-      li.textContent = line;
+      var mark = document.createElement("span");
+      mark.className = "dom-tick";
+      mark.setAttribute("aria-hidden", "true");
+      li.appendChild(mark);
+      li.appendChild(document.createTextNode(line));
       list.appendChild(li);
     });
     step("detail");
