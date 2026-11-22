@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Страница домика — демо АдыГида{% endblock %}
+{% block meta_description %}Скрытая демо-страница гостевого домика для таблички QR. Не для индексации и не карточка настоящего дома.{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="/assets/dom.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="wrap">
+    <p class="eyebrow">Табличка QR в доме</p>
+    <h1 class="page-title">Страница, которую гость откроет по ссылке</h1>
+    <p class="about-text">Адрес вида <code>adygid.ru/dom/&lt;код&gt;</code>. Код на табличке можно не менять, а текст — править. Сейчас здесь один учебный дом: это не карточка настоящего объекта.</p>
+    <div class="facts">
+      <h4>Как устроена страница</h4>
+      <ul>
+        <li>Страницы нет в меню и в sitemap, в заголовке ответа стоит noindex.</li>
+        <li>Телефон, имя и адрес хозяина на страницу не пишутся. Гость и хозяин пишут друг другу через ботов Адыгида.</li>
+        <li>Места и маршруты рядом берутся из каталога сайта. Если базы нет, страница дома всё равно открывается.</li>
+      </ul>
+    </div>
+    <div class="grid">
+      {% for house in houses.values() %}
+      <a class="card" href="/dom/{{ house.code }}">
+        <div class="cover">
+          <img class="cover-img" src="{{ house.gallery[0].src }}" alt="" width="960" height="640" loading="lazy" decoding="async">
+        </div>
+        <div class="body">
+          <span class="kicker">Демо</span>
+          <h3>{{ house.name }}</h3>
+          <p class="excerpt">{{ house.offer }}</p>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
