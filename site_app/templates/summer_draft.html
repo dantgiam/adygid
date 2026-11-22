@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Черновик: {{ article.title }} — АдыГид</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="{{ article.excerpt }}">
+<link rel="stylesheet" href="/assets/site.css?v={{ rev }}">
+<link rel="stylesheet" href="/assets/summer-drafts.css?v={{ rev }}">
+</head>
+<body class="sd-page">
+  <header class="sd-top">
+    <a class="sd-brand" href="/chernovik/leto">Черновики лета</a>
+    <p class="sd-note">draft · noindex · сверка {{ checked }}</p>
+  </header>
+  <main class="sd-article">
+    <p class="sd-draft"><b>Это черновик.</b> Страницы нет в /stati, меню и sitemap. Не публиковать, пока не просмотришь формулировки и источники.</p>
+    <h1>{{ article.title }}</h1>
+    <p class="sd-excerpt">{{ article.excerpt }}</p>
+    <div class="sd-body">{{ body | safe }}</div>
+    <section class="sd-sources">
+      <h2>Источники</h2>
+      <ol>
+        {% for s in sources %}
+        <li><a href="{{ s.url }}" rel="noopener">{{ s.title }}</a>{% if s.note %} — {{ s.note }}{% endif %}</li>
+        {% endfor %}
+      </ol>
+    </section>
+  </main>
+  <footer class="sd-foot">
+    <a href="/chernovik/leto">Ко всем черновикам</a>
+    <a href="/">АдыГид</a>
+  </footer>
+</body>
+</html>
