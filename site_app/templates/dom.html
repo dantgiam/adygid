@@ -2,12 +2,12 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{{ house.name }} — страница домика · АдыГид</title>
 <meta name="description" content="{{ house.offer }}">
 <link rel="canonical" href="{{ canonical_url }}">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#1E6E30">
+<meta name="theme-color" content="#14301c">
 <link rel="icon" href="/assets/favicon.ico?v={{ rev }}" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png?v={{ rev }}">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon.png?v={{ rev }}">
@@ -22,41 +22,35 @@
 <link rel="stylesheet" href="/assets/dom.css?v={{ rev }}">
 </head>
 <body class="dom-page{% if house.is_demo %} is-demo{% endif %}">
-  <a class="dom-skip" href="#sections">К разделам страницы</a>
-
-  <header class="dom-top">
-    <a class="dom-brand" href="/" aria-label="АдыГид — на главную">
-      <img class="brand-mark" src="/assets/logo-cat.png?v={{ rev }}" alt="" width="32" height="32">
-      <span class="brand-word">АдыГид</span>
-    </a>
-    {% if house.badge %}<p class="dom-badge">{{ house.badge }}</p>{% endif %}
-    <a class="btn btn-primary dom-head-ask" href="#ask">Спросить хозяина</a>
-  </header>
+  <a class="dom-skip" href="#host">К хозяевам</a>
 
   <section class="dom-hero" aria-roledescription="галерея" aria-label="Фотографии дома">
-    <div class="dom-gal-track" id="dom-gal" data-dom-gal tabindex="0">
+    <div class="dom-hero-slides" id="dom-gal" tabindex="0">
       {% for ph in house.gallery %}
-      <figure class="dom-gal-slide">
-        <img src="{{ ph.src }}" srcset="{{ ph.srcset }}" sizes="100vw" alt="{{ ph.alt }}" width="{{ ph.width }}" height="{{ ph.height }}" {% if loop.first %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async">
-        <figcaption>
-          <span>{{ ph.caption }}</span>
-          <span class="dom-gal-idx">{{ loop.index }} / {{ house.gallery|length }}</span>
-        </figcaption>
-      </figure>
+      <img class="dom-hero-img{% if loop.first %} is-on{% endif %}" src="{{ ph.src }}" srcset="{{ ph.srcset }}" sizes="100vw" alt="{{ ph.alt }}" width="{{ ph.width }}" height="{{ ph.height }}" {% if loop.first %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %} decoding="async" data-caption="{{ ph.caption }}">
       {% endfor %}
+    </div>
+    <header class="dom-hero-bar">
+      <a class="dom-brand dom-brand-light" href="/" aria-label="АдыГид — на главную">
+        <img class="brand-mark" src="/assets/logo-cat.png?v={{ rev }}" alt="" width="32" height="32">
+        <span>АдыГид</span>
+      </a>
+      {% if house.badge %}<p class="dom-badge">{{ house.badge }}</p>{% endif %}
+    </header>
+    <div class="dom-hero-copy">
+      <p class="dom-kicker dom-kicker-light">{{ house.kicker }}</p>
+      <h1>{{ house.name }}</h1>
+      <p class="dom-hero-offer">{{ house.offer }}</p>
+      <div class="dom-hero-quick">
+        {% for chip in house.quick %}
+        <a href="{{ chip.href }}"{% if chip.solid %} class="is-solid"{% endif %}>{{ chip.label }}</a>
+        {% endfor %}
+      </div>
+      <p class="dom-hero-cap"><span data-dom-cap>{{ house.gallery[0].caption }}</span> <span data-dom-count>1 / {{ house.gallery|length }}</span></p>
     </div>
     {% if house.gallery|length > 1 %}
-    <button type="button" class="dom-gal-nav dom-gal-prev" data-dom-prev aria-label="Предыдущее фото">
-      <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22"><path d="M14.5 6 8.5 12l6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <button type="button" class="dom-gal-nav dom-gal-next" data-dom-next aria-label="Следующее фото">
-      <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22"><path d="m9.5 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div class="dom-gal-dots" role="group" aria-label="Кадры">
-      {% for ph in house.gallery %}
-      <button type="button" class="dom-gal-dot" data-dom-dot aria-label="Фото {{ loop.index }}: {{ ph.caption }}"{% if loop.first %} aria-current="true"{% endif %}></button>
-      {% endfor %}
-    </div>
+    <button type="button" class="dom-gal-nav dom-gal-prev" data-dom-prev aria-label="Предыдущее фото">‹</button>
+    <button type="button" class="dom-gal-nav dom-gal-next" data-dom-next aria-label="Следующее фото">›</button>
     {% endif %}
     <p class="dom-photo-chip">Демо-фото</p>
   </section>
@@ -66,35 +60,51 @@
   {% endif %}
 
   <main id="content">
-    <header class="dom-wrap dom-intro">
-      <h1 class="dom-title">{{ house.name }}</h1>
-      <p class="dom-offer">{{ house.offer }}</p>
-    </header>
-
-    <nav class="dom-jump" id="sections" aria-label="Разделы страницы">
-      <a href="#host">От хозяина</a>
-      <a href="#house">О доме</a>
-      <a href="#services">Услуги</a>
-      <a href="#rules">Правила</a>
-      <a href="#faq">Вопросы</a>
-      <a href="#nearby">Рядом</a>
-      <a href="#routes">Маршруты</a>
-      <a href="#ask">Хозяин</a>
-    </nav>
-
-    <section class="dom-wrap dom-block" id="host">
-      <h2>От хозяина</h2>
-      {% if house.host.caption %}<p class="dom-caption">{{ house.host.caption }}</p>{% endif %}
+    <section class="dom-wrap dom-welcome" id="host">
+      <img class="dom-host-photo" src="{{ house.host.photo.src }}" srcset="{{ house.host.photo.srcset }}" sizes="(max-width: 720px) 72px, 96px" alt="{{ house.host.photo.alt }}" width="{{ house.host.photo.width }}" height="{{ house.host.photo.height }}" loading="lazy" decoding="async">
+      <div>
+        <p class="dom-host-names">{{ house.host.names }} <span class="dom-ex">пример</span></p>
+        <p class="dom-host-role">{{ house.host.role }}</p>
+        <p class="dom-hello">{{ house.host.hello }}</p>
+      </div>
       <div class="dom-letter">
+        {% if house.host.caption %}<p class="dom-caption">{{ house.host.caption }}</p>{% endif %}
         {% for paragraph in house.host.paragraphs %}
         <p>{{ paragraph }}</p>
         {% endfor %}
       </div>
     </section>
 
+    <section class="dom-wrap" id="voices">
+      <div class="dom-rate">
+        <p class="dom-rate-score">{{ house.rating.score }}</p>
+        <div>
+          <p class="dom-stars" aria-label="Оценка {{ house.rating.score }} из 5">★★★★★</p>
+          <p class="dom-caption">{{ house.rating.caption }} · {{ house.rating.count }}</p>
+        </div>
+      </div>
+      <div class="dom-quotes">
+        {% for review in house.reviews[:2] %}
+        <blockquote>
+          <p>{{ review.text }}</p>
+          <footer>{{ review.name }} · {{ review.date }}</footer>
+        </blockquote>
+        {% endfor %}
+      </div>
+      <div class="dom-review-grid" id="reviews">
+        {% for review in house.reviews[2:] %}
+        <article class="dom-review">
+          <p class="dom-stars" aria-label="{{ review.stars }} из 5">{% for _ in range(review.stars) %}★{% endfor %}</p>
+          <p>{{ review.text }}</p>
+          <footer><b>{{ review.name }}</b> · {{ review.date }} · <span class="dom-ex">пример</span></footer>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+
     <section class="dom-wrap dom-block" id="house">
       <h2>О доме</h2>
-      {% if house.about.caption %}<p class="dom-ribbon">{{ house.about.caption }}</p>{% endif %}
+      {% if house.about.caption %}<p class="dom-ex">{{ house.about.caption }}</p>{% endif %}
       <dl class="dom-facts">
         {% for row in house.about["items"] %}
         <div>
@@ -105,68 +115,78 @@
       </dl>
     </section>
 
-    <section class="dom-wide" id="services">
-      <div class="dom-block">
-        <h2>Услуги хозяина</h2>
-        <p class="dom-caption">Цены на демо-странице не названы: везде «по запросу», и это пример. Настоящую сумму хозяин напишет в боте.</p>
-        <div class="dom-svc-grid">
-          {% for svc in house.services %}
-          <article class="dom-svc" id="svc-{{ svc.id }}">
-            {% if svc.photo %}
-            <div class="dom-svc-media">
-              <img src="{{ svc.photo.src }}" srcset="{{ svc.photo.srcset }}" sizes="(max-width: 740px) 92vw, 480px" alt="{{ svc.photo.alt }}" width="{{ svc.photo.width }}" height="{{ svc.photo.height }}" loading="lazy" decoding="async">
-            </div>
-            {% elif svc.mark %}
-            <div class="dom-svc-media dom-mark dom-mark-{{ svc.mark }}" aria-hidden="true">
-              {% if svc.mark == "wood" %}
-              <svg viewBox="0 0 120 80" width="120" height="80">
-                <rect x="18" y="18" width="84" height="16" rx="8" fill="#C4A15A"/>
-                <rect x="12" y="36" width="96" height="16" rx="8" fill="#A67C3D"/>
-                <rect x="22" y="54" width="76" height="14" rx="7" fill="#D6A324"/>
-              </svg>
-              {% else %}
-              <svg viewBox="0 0 120 80" width="120" height="80">
-                <path d="M48 22h24l6 10v28a6 6 0 0 1-6 6H48a6 6 0 0 1-6-6V32Z" fill="#E3F5E4" stroke="#1E6E30" stroke-width="3"/>
-                <path d="M52 22v-4a8 8 0 0 1 16 0v4" fill="none" stroke="#1E6E30" stroke-width="3"/>
-                <path d="M48 40h24" stroke="#278C3E" stroke-width="3"/>
-                <circle cx="78" cy="52" r="4" fill="#D6A324"/>
-              </svg>
-              {% endif %}
-            </div>
-            {% endif %}
-            <div class="dom-svc-body">
-              <h3>{{ svc.title }}</h3>
-              <p>{{ svc.text }}</p>
-              <p class="dom-price">{{ svc.price }}</p>
-              <details class="dom-ask-pop">
-                <summary>Спросить хозяина</summary>
-                <div class="dom-bots">
-                  <a class="btn btn-messenger btn-tg" href="{{ bots.telegram }}" target="_blank" rel="noopener">
-                    <img src="/assets/magnet-tg.png?v={{ rev }}" alt="" width="26" height="26">Telegram
-                  </a>
-                  <a class="btn btn-messenger btn-max" href="{{ bots.max }}" target="_blank" rel="noopener">
-                    <img src="/assets/magnet-max.png?v={{ rev }}" alt="" width="26" height="26">MAX
-                  </a>
-                </div>
-              </details>
-            </div>
-          </article>
-          {% endfor %}
-        </div>
+    <section class="dom-wrap" id="now">
+      <h2>Сейчас пригодится</h2>
+      <p class="dom-caption">{{ house.now.caption }}</p>
+      <div class="dom-now">
+        {% for tile in house.now.tiles %}
+        <article class="dom-tile">
+          <h3>{{ tile.title }}</h3>
+          <p class="dom-tile-big">{{ tile.big }}</p>
+          <p>{{ tile.text }}</p>
+          <a href="{{ tile.href }}">{{ tile.more }}</a>
+        </article>
+        {% endfor %}
+        <article class="dom-tile dom-tile-contact" id="ask">
+          <h3>Написать хозяевам</h3>
+          <p>{{ house.contacts.note }}</p>
+          <div class="dom-bots">
+            <a class="btn btn-messenger btn-tg" href="{{ bots.telegram }}" target="_blank" rel="noopener">
+              <img src="/assets/magnet-tg.png?v={{ rev }}" alt="" width="22" height="22">Telegram
+            </a>
+            <a class="btn btn-messenger btn-max" href="{{ bots.max }}" target="_blank" rel="noopener">
+              <img src="/assets/magnet-max.png?v={{ rev }}" alt="" width="22" height="22">MAX
+            </a>
+          </div>
+        </article>
+        <article class="dom-sos">
+          <a class="dom-sos-call" href="tel:112">112</a>
+          <p>{{ house.contacts.emergency }} {{ house.contacts.amenities }}</p>
+        </article>
       </div>
     </section>
 
-    <section class="dom-wide dom-guide" id="guide" aria-label="Куда съездить">
-      <div class="podbor-widget">
-        <div class="podbor-widget-card">
-          <div class="podbor-widget-text">
-            <p class="dom-kicker">АдыГид</p>
-            <p class="podbor-widget-title">{{ house.guide.title }}</p>
-            <p class="podbor-widget-sub">{{ house.guide.text }}</p>
+    <section class="dom-wrap" id="faq">
+      <div class="dom-sec-head">
+        <h2>Частые вопросы</h2>
+        <button type="button" class="dom-linkbtn" id="faq-all" aria-pressed="false">Развернуть все</button>
+      </div>
+      <p class="dom-caption">{{ house.faq.caption }}</p>
+      <div class="dom-faq">
+        {% for group in house.faq.groups %}
+        <details class="dom-grp" id="{{ group.id }}">
+          <summary>
+            <span>
+              <b>{{ group.title }}</b>
+              <small>{{ group.hint }}</small>
+            </span>
+          </summary>
+          <div>
+            {% for item in group["items"] %}
+            <details class="dom-q">
+              <summary>{{ item.q }}</summary>
+              <div class="dom-a">
+                <p>{{ item.a }}</p>
+                {% if item.network %}
+                <dl class="dom-wifi">
+                  <div><dt>Сеть</dt><dd>{{ item.network }}</dd></div>
+                  <div>
+                    <dt>Пароль</dt>
+                    <dd>
+                      <span class="dom-wifi-pass">{{ item.password }}</span>
+                      <button type="button" class="dom-copy" data-dom-copy="{{ item.password }}" aria-describedby="wifi-copy-status">Скопировать</button>
+                    </dd>
+                  </div>
+                </dl>
+                <p class="dom-copy-status" id="wifi-copy-status" role="status"></p>
+                <p class="dom-caption">Заглушка, не настоящий пароль.</p>
+                {% endif %}
+              </div>
+            </details>
+            {% endfor %}
           </div>
-          <a class="podbor-widget-go" href="/podbor?src=dom">{{ house.guide.podbor }} →</a>
-          <a class="dom-guide-more" href="/mesta">{{ house.guide.places }}</a>
-        </div>
+        </details>
+        {% endfor %}
       </div>
     </section>
 
@@ -181,165 +201,92 @@
       <h3 class="dom-subhead">{{ house.rules.checkout_caption }}</h3>
       <ul class="dom-check">
         {% for item in house.rules.checkout %}
-        <li>
-          <label>
-            <input type="checkbox">
-            <span>{{ item }}</span>
-          </label>
-        </li>
+        <li><label><input type="checkbox"><span>{{ item }}</span></label></li>
         {% endfor %}
       </ul>
       <p class="dom-caption">Галочки остаются только на этом телефоне и никуда не отправляются.</p>
     </section>
 
-    <section class="dom-wrap dom-block" id="faq">
-      <h2>Частые вопросы</h2>
-      {% if house.faq.caption %}<p class="dom-caption">{{ house.faq.caption }}</p>{% endif %}
-      <div class="dom-faq">
-        {% for item in house.faq["items"] %}
-        <details class="dom-faq-item"{% if item.password %} open{% endif %}>
-          <summary>{{ item.q }}</summary>
-          <div class="dom-faq-a">
-            <p>{{ item.a }}</p>
-            {% if item.network %}
-            <dl class="dom-wifi">
-              <div>
-                <dt>Сеть</dt>
-                <dd>{{ item.network }}</dd>
-              </div>
-              <div>
-                <dt>Пароль</dt>
-                <dd>
-                  <span class="dom-wifi-pass">{{ item.password }}</span>
-                  <button type="button" class="dom-copy" data-dom-copy="{{ item.password }}" aria-describedby="wifi-copy-status">Скопировать</button>
-                </dd>
-              </div>
-            </dl>
-            <p class="dom-copy-status" id="wifi-copy-status" role="status"></p>
+    <section class="dom-wide" id="services">
+      <div class="dom-sec-head">
+        <h2>Услуги хозяев</h2>
+      </div>
+      <p class="dom-caption">{{ house.services_caption }}</p>
+      <div class="dom-svc-grid">
+        {% for svc in house.services %}
+        <article class="dom-svc" id="svc-{{ svc.id }}">
+          <div class="dom-svc-media{% if not svc.photo %} dom-mark dom-mark-{{ svc.mark }}{% endif %}">
+            {% if svc.photo %}
+            <img src="{{ svc.photo.src }}" srcset="{{ svc.photo.srcset }}" sizes="(max-width: 800px) 46vw, 320px" alt="{{ svc.photo.alt }}" width="{{ svc.photo.width }}" height="{{ svc.photo.height }}" loading="lazy" decoding="async">
+            {% elif svc.mark == "wood" %}
+            <svg viewBox="0 0 120 80" width="88" height="58" aria-hidden="true"><rect x="18" y="18" width="84" height="14" rx="7" fill="#C4A15A"/><rect x="12" y="36" width="96" height="14" rx="7" fill="#A67C3D"/><rect x="22" y="54" width="76" height="12" rx="6" fill="#D6A324"/></svg>
+            {% else %}
+            <svg viewBox="0 0 120 80" width="88" height="58" aria-hidden="true"><path d="M48 22h24l6 10v28a6 6 0 0 1-6 6H48a6 6 0 0 1-6-6V32Z" fill="#E3F5E4" stroke="#1E6E30" stroke-width="3"/><path d="M52 18v4h16v-4a8 8 0 0 0-16 0Z" fill="none" stroke="#1E6E30" stroke-width="3"/></svg>
             {% endif %}
+            <p class="dom-svc-price"><small>пример</small> {{ svc.price }}</p>
           </div>
-        </details>
+          <div class="dom-svc-body">
+            <h3>{{ svc.title }}</h3>
+            <p>{{ svc.teaser }}</p>
+            <button type="button" class="btn btn-primary dom-more-btn" data-dom-open="{{ svc.id }}">Подробнее</button>
+          </div>
+        </article>
         {% endfor %}
       </div>
     </section>
 
-    <section class="dom-wide" id="nearby">
-      <div class="dom-block">
-        <h2>Что рядом посмотреть</h2>
-        <p class="dom-caption">Места из каталога Адыгида. Расчёт от демо-точки: {{ house.origin.label }}. {{ house.origin.note }}</p>
-        <p class="dom-note">Время в пути приблизительное, по прямой с поправкой на горные дороги, не по навигатору. Прямая ×&nbsp;1,3 в горах и ×&nbsp;1,2, если обе точки севернее 44,45°, 50&nbsp;км/ч и 10&nbsp;минут на парковку, округление до 5&nbsp;минут — так же считает подбор маршрута.</p>
-        {% if catalog.ok and catalog.categories|length > 1 %}
-        <div class="dom-filters" role="group" aria-label="Категории мест">
-          <button type="button" class="dom-filter is-on" data-dom-filter="all" aria-pressed="true">Все</button>
-          {% for name in catalog.categories %}
-          <button type="button" class="dom-filter" data-dom-filter="{{ name }}" aria-pressed="false">{{ name }}</button>
-          {% endfor %}
+    <section class="dom-guide" id="guide">
+      <div class="dom-wide">
+        <p class="dom-kicker dom-kicker-light">{{ house.guide.kicker }}</p>
+        <h2>{{ house.guide.title }}</h2>
+        <p class="dom-guide-lead">{{ house.guide.text }} Расчёт от демо-точки: {{ house.origin.label }}. {{ house.origin.note }}</p>
+        <div class="dom-guide-cta">
+          <p>{{ house.guide.cta_note }}</p>
+          <a class="btn dom-btn-gold" href="/podbor?src=dom">{{ house.guide.cta }}</a>
+          <a class="dom-guide-link" href="/mesta">{{ house.guide.places }}</a>
         </div>
-        <p class="dom-filter-live" data-dom-filter-live aria-live="polite"></p>
-        {% endif %}
-        {% if catalog.ok and catalog.places %}
-        <div class="grid dom-grid">
-          {% for p in catalog.places %}
-          <a class="card" href="{{ p.url }}" data-dom-place data-dom-cat="{{ p.category_name }}">
-            <div class="cover">
+        <div class="dom-rail" id="nearby" aria-label="Места рядом">
+          {% if catalog.ok and catalog.places %}
+            {% for p in catalog.places %}
+            <a class="dom-trip" href="{{ p.url }}" data-dom-place data-dom-cat="{{ p.category_name }}">
               {% if p.cover_src %}
-              <img class="cover-img" src="{{ p.cover_src }}"{% if p.cover_srcset %} srcset="{{ p.cover_srcset }}" sizes="(max-width: 640px) 46vw, 360px"{% endif %} alt="" width="900" height="600" loading="lazy" decoding="async"{% if p.cover_style %} style="{{ p.cover_style }}"{% endif %}>
+              <img src="{{ p.cover_src }}"{% if p.cover_srcset %} srcset="{{ p.cover_srcset }}" sizes="220px"{% endif %} alt="" width="440" height="560" loading="lazy" decoding="async">
               {% endif %}
-              {% if p.popularity == 'top' %}<span class="top-badge">ТОП</span>{% endif %}
-              <span class="dom-eta">{{ p.drive_label }}</span>
-            </div>
-            <div class="body">
-              {% if p.district_label %}<span class="kicker">{{ p.district_label }}</span>{% endif %}
-              <h3>{{ p.name }}</h3>
-              {% if p.excerpt %}<p class="excerpt">{{ p.excerpt }}</p>{% endif %}
-              <div class="tags">
-                {% if p.category and p.category.name %}<span class="tag tag-cat">{{ p.category.icon_svg | safe }}{{ p.category.name }}</span>{% endif %}
-                <span class="tag">{{ p.km_label }}</span>
-                {% if p.is_paid is true %}<span class="tag">Платно</span>
-                {% elif p.is_paid is none %}<span class="tag">{{ p.price_label }}</span>{% endif %}
-                {% if p.kid_friendly %}<span class="tag">Для детей</span>{% endif %}
-              </div>
-            </div>
-          </a>
-          {% endfor %}
+              <span class="dom-trip-body">
+                <span class="dom-trip-time">{{ p.drive_label }}</span>
+                {% if p.popularity == 'top' %}<span class="dom-trip-top">ТОП</span>{% endif %}
+                <span class="dom-trip-name">{{ p.name }}</span>
+                <span class="dom-trip-meta">{{ p.km_label }}{% if p.category_name %} · {{ p.category_name }}{% endif %}{% if p.kid_friendly %} · Для детей{% endif %}</span>
+              </span>
+            </a>
+            {% endfor %}
+          {% elif catalog.ok %}
+          <p class="dom-empty">В каталоге пока нет опубликованных мест с координатами.</p>
+          {% else %}
+          <p class="dom-empty">Каталог мест сейчас недоступен, поэтому лента «рядом» пуста. Правила, услуги и связь на странице работают.</p>
+          {% endif %}
         </div>
-        {% elif catalog.ok %}
-        <p class="dom-empty">В каталоге пока нет опубликованных мест с координатами.</p>
-        {% else %}
-        <p class="dom-empty">Каталог мест сейчас недоступен, поэтому блок «рядом» пуст. Правила, услуги и связь с хозяином на странице работают.</p>
-        {% endif %}
-      </div>
-    </section>
-
-    <section class="dom-wide" id="routes">
-      <div class="dom-block">
-        <h2>Маршруты</h2>
-        <p class="dom-caption">Маршруты Адыгида рядом с той же демо-точкой. Время в пути — до середины маршрута, той же оценкой.</p>
-        {% if catalog.ok and catalog.routes %}
-        <div class="grid dom-grid">
-          {% for r in catalog.routes %}
-          <a class="card" href="{{ r.url }}">
-            <div class="cover">
-              {% if r.cover_src %}
-              <img class="cover-img" src="{{ r.cover_src }}"{% if r.cover_srcset %} srcset="{{ r.cover_srcset }}" sizes="(max-width: 640px) 46vw, 360px"{% endif %} alt="" width="900" height="600" loading="lazy" decoding="async"{% if r.cover_style %} style="{{ r.cover_style }}"{% endif %}>
-              {% endif %}
-              {% if r.popularity == 'top' %}<span class="top-badge">ТОП</span>{% endif %}
-              <span class="dom-eta">{{ r.drive_label }}</span>
-            </div>
-            <div class="body">
-              {% if r.district_label %}<span class="kicker">{{ r.district_label }}</span>{% endif %}
-              <h3>{{ r.name }}</h3>
-              {% if r.excerpt %}<p class="excerpt">{{ r.excerpt }}</p>{% endif %}
-              <div class="tags">
-                {% if r.category and r.category.name %}<span class="tag tag-cat">{{ r.category.icon_svg | safe }}{{ r.category.name }}</span>{% endif %}
-                {% if r.difficulty_label %}<span class="tag">{{ r.difficulty_label }}</span>{% endif %}
-                {% if r.duration_label %}<span class="tag">{{ r.duration_label }}</span>{% endif %}
-                <span class="tag">{{ r.km_label }}</span>
-              </div>
-            </div>
-          </a>
-          {% endfor %}
+        <div id="routes">
+          <h3>Маршруты рядом</h3>
+          {% if catalog.ok and catalog.routes %}
+          <ul class="dom-route-line">
+            {% for r in catalog.routes %}
+            <li><a href="{{ r.url }}">{{ r.name }}</a> <span>{{ r.drive_label }}</span></li>
+            {% endfor %}
+          </ul>
+          <p class="dom-more"><a href="/marshruty">{{ house.guide.routes }}</a></p>
+          {% elif catalog.ok %}
+          <p class="dom-empty">В каталоге пока нет маршрутов с точками на карте.</p>
+          {% else %}
+          <p class="dom-empty">Маршруты рядом появятся, когда каталог снова будет доступен.</p>
+          {% endif %}
         </div>
-        {% elif catalog.ok %}
-        <p class="dom-empty">В каталоге пока нет маршрутов с точками на карте.</p>
-        {% else %}
-        <p class="dom-empty">Маршруты рядом появятся, когда каталог снова будет доступен.</p>
-        {% endif %}
-        <p class="dom-more"><a href="/marshruty">Все маршруты</a></p>
-      </div>
-    </section>
-
-    <section class="dom-wrap dom-block dom-contact" id="ask">
-      <h2>Связь и экстренное</h2>
-      <p>{{ house.contacts.note }}</p>
-      <p class="dom-ask-label">Спросить хозяина</p>
-      <div class="dom-bots">
-        <a class="btn btn-messenger btn-tg" href="{{ bots.telegram }}" target="_blank" rel="noopener">
-          <img src="/assets/magnet-tg.png?v={{ rev }}" alt="" width="26" height="26">Написать в Telegram
-        </a>
-        <a class="btn btn-messenger btn-max" href="{{ bots.max }}" target="_blank" rel="noopener">
-          <img src="/assets/magnet-max.png?v={{ rev }}" alt="" width="26" height="26">Написать в MAX
-        </a>
-      </div>
-      <p class="dom-emergency">{{ house.contacts.emergency }} <a href="tel:112">112</a></p>
-      <div class="dom-amenity">
-        <h3>Аптека и магазин</h3>
-        <p>{{ house.contacts.amenities }}</p>
       </div>
     </section>
   </main>
 
-  <div class="dom-sticky" aria-label="Спросить хозяина">
-    <a class="btn btn-messenger btn-tg" href="{{ bots.telegram }}" target="_blank" rel="noopener">
-      <img src="/assets/magnet-tg.png?v={{ rev }}" alt="" width="22" height="22">Telegram
-    </a>
-    <a class="btn btn-messenger btn-max" href="{{ bots.max }}" target="_blank" rel="noopener">
-      <img src="/assets/magnet-max.png?v={{ rev }}" alt="" width="22" height="22">MAX
-    </a>
-  </div>
-
   <footer class="dom-foot">
-    <div class="dom-wide dom-foot-inner">
+    <div class="dom-wide">
       <p class="dom-made">{{ house.footer.made }}</p>
       {% if house.photo_note %}<p class="dom-foot-note">{{ house.photo_note }}</p>{% endif %}
       <div class="dom-cta">
@@ -363,6 +310,59 @@
       </nav>
     </div>
   </footer>
+
+  <div class="dom-sticky" aria-label="Написать хозяину">
+    <span>Вопрос по дому?</span>
+    <a class="btn btn-messenger btn-tg" href="{{ bots.telegram }}" target="_blank" rel="noopener">
+      <img src="/assets/magnet-tg.png?v={{ rev }}" alt="" width="20" height="20">Telegram
+    </a>
+    <a class="btn btn-messenger btn-max" href="{{ bots.max }}" target="_blank" rel="noopener">
+      <img src="/assets/magnet-max.png?v={{ rev }}" alt="" width="20" height="20">MAX
+    </a>
+  </div>
+
+  <dialog class="dom-sheet" id="dom-sheet" aria-labelledby="dom-sheet-title">
+    <button type="button" class="dom-sheet-x" data-dom-close aria-label="Закрыть">×</button>
+    <div data-dom-step="detail">
+      <div class="dom-sheet-photo" data-dom-photo></div>
+      <p class="dom-ex">пример</p>
+      <h2 id="dom-sheet-title" data-dom-title></h2>
+      <p class="dom-sheet-price" data-dom-price></p>
+      <p data-dom-about></p>
+      <p class="dom-sheet-meta" data-dom-duration></p>
+      <ul class="dom-sheet-inc" data-dom-includes></ul>
+      <button type="button" class="btn btn-primary" data-dom-book>Заказать / спросить хозяина</button>
+    </div>
+    <div data-dom-step="book" hidden>
+      <h2>Демо заявки</h2>
+      <p class="dom-caption">Поля никуда не отправляются. Это экран, как заявка будет выглядеть.</p>
+      <label class="dom-field">Дата <input type="date" data-dom-date></label>
+      <label class="dom-field">Время
+        <select data-dom-time>
+          <option>16:00</option>
+          <option>17:00</option>
+          <option>18:00</option>
+          <option>19:00</option>
+        </select>
+      </label>
+      <label class="dom-field">Гостей <input type="number" min="1" max="6" value="2" data-dom-guests></label>
+      <button type="button" class="btn btn-primary" data-dom-preview>Показать, как уйдёт заявка</button>
+    </div>
+    <div data-dom-step="done" hidden>
+      <h2>{{ house.order_demo.title }}</h2>
+      <p data-dom-summary></p>
+      <p>{{ house.order_demo.text }}</p>
+      <div class="dom-bots">
+        <a class="btn btn-messenger btn-tg" href="{{ bots.telegram }}" target="_blank" rel="noopener">
+          <img src="/assets/magnet-tg.png?v={{ rev }}" alt="" width="22" height="22">Telegram
+        </a>
+        <a class="btn btn-messenger btn-max" href="{{ bots.max }}" target="_blank" rel="noopener">
+          <img src="/assets/magnet-max.png?v={{ rev }}" alt="" width="22" height="22">MAX
+        </a>
+      </div>
+    </div>
+  </dialog>
+  <script type="application/json" id="dom-services">{{ house.services | tojson }}</script>
   <script src="/assets/dom.js?v={{ rev }}" defer></script>
 </body>
 </html>

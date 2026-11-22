@@ -71,8 +71,10 @@ def test_demo_page_is_marked_and_not_a_real_listing(quiet_catalog):
     assert "Демо-фото, сгенерированы для примера. На странице партнёра будут его настоящие фото." in html
     assert html.count("Демо-фото, сгенерированы для примера.") >= 2
     assert "Пример заполнения" in html
-    assert "От хозяина" in html
-    assert "по запросу (пример)" in html
+    assert "Алина и Дмитрий" in html
+    assert "будем рады видеть вас" in html
+    assert "4 500 ₽" in html
+    assert "пример отзывов" in html.lower() or "Пример отзывов" in html
     assert "заглушка" in html
     assert "Aframe-demo" in html and "les-demo" in html
     assert "район хутора Грозный" in html
@@ -85,6 +87,8 @@ def test_demo_page_is_marked_and_not_a_real_listing(quiet_catalog):
     assert 'href="/mesta"' in html
     assert 'href="/marshruty"' in html
     assert "<form" not in html.lower()
+    assert 'id="dom-sheet"' in html
+    assert "никуда не отправлены" in html
 
 
 def test_contact_is_only_the_adygid_bots_and_112(quiet_catalog):
@@ -117,13 +121,15 @@ def test_house_config_has_no_personal_data_and_a_demo_pin():
     assert house["route_limit"] == 4
     assert len(house["gallery"]) == 6
     assert len(house["services"]) == 6
-    assert len(house["host"]["paragraphs"]) == 5
+    assert len(house["host"]["paragraphs"]) == 3
+    assert len(house["reviews"]) == 4
+    assert house["host"]["names"] == "Алина и Дмитрий"
 
 
 def test_demo_photos_are_local_webp_with_alt_and_lazy(quiet_catalog):
     page = _client().get("/dom/demo").text
     files = sorted(p.name for p in PHOTOS.glob("*.webp"))
-    assert len(files) == 12
+    assert len(files) == 14
     for name in files:
         path = PHOTOS / name
         assert path.stat().st_size < 260_000
@@ -140,9 +146,10 @@ def test_demo_photos_are_local_webp_with_alt_and_lazy(quiet_catalog):
     assert image.headers["content-type"].startswith("image/webp")
     assert image.content[:4] == b"RIFF"
     css = client.get(f"/assets/dom.css?v={REV}")
-    assert css.status_code == 200 and ".dom-title" in css.text
+    assert css.status_code == 200 and ".dom-hero" in css.text
     script = client.get(f"/assets/dom.js?v={REV}")
-    assert script.status_code == 200 and "data-dom-filter" in script.text
+    assert script.status_code == 200 and "data-dom-open" in script.text
+    assert "fetch(" not in script.text
 
 
 def test_drive_minutes_match_podbor_core():
@@ -248,7 +255,8 @@ def test_catalog_cards_render_with_drive_time_and_filter(monkeypatch):
     assert "≈ 25 мин на машине" in page.text
     assert "12 км по прямой" in page.text
     assert "Для детей" in page.text
-    assert 'data-dom-filter="Водопад"' in page.text
+    assert 'data-dom-cat="Водопад"' in page.text
+    assert "Подобрать маршрут за 1 минуту" in page.text
     assert 'href="/marshruty/test-route"' in page.text
     assert "Тестовый маршрут" in page.text
     assert "ТОП" in page.text
